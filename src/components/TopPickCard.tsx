@@ -1,4 +1,4 @@
-import { Stock, RegimeData } from "@/lib/mock-data";
+import { Stock, RegimeData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface TopPickCardProps {
@@ -11,14 +11,12 @@ export function TopPickCard({ stock, regime }: TopPickCardProps) {
   const score = isShort ? stock.bearScore : stock.bullScore;
   const isRegimeAligned = (isShort && regime.status === "BEARISH") || (!isShort && regime.status === "BULLISH");
   
-  // SVG donut ring
   const circumference = 2 * Math.PI * 36;
   const fillPercent = (score / 8) * circumference;
 
   return (
     <div className="rounded-lg border border-border bg-card p-5">
       <div className="flex items-start gap-5">
-        {/* Score Ring */}
         <div className="relative flex-shrink-0">
           <svg width="88" height="88" viewBox="0 0 88 88">
             <circle cx="44" cy="44" r="36" fill="none" stroke="hsl(var(--border))" strokeWidth="4" />
@@ -37,7 +35,6 @@ export function TopPickCard({ stock, regime }: TopPickCardProps) {
           </div>
         </div>
 
-        {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs text-muted-foreground font-medium">#1</span>
@@ -51,12 +48,9 @@ export function TopPickCard({ stock, regime }: TopPickCardProps) {
             <span>Vol {stock.volumeRatio}x avg</span>
           </div>
 
-          {/* Pills */}
           <div className="flex flex-wrap gap-1.5">
             {isRegimeAligned && (
-              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-primary/15 text-primary">
-                ✓ Regime Aligned
-              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-primary/15 text-primary">✓ Regime Aligned</span>
             )}
             <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground">
               52W +{stock.distance52w.toFixed(1)}%
@@ -72,7 +66,6 @@ export function TopPickCard({ stock, regime }: TopPickCardProps) {
             </span>
           </div>
 
-          {/* Signal summary */}
           <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
             {stock.signals.sma200 && <span>Price {"<"} SMA_200</span>}
             {stock.signals.sma50 && <span>Price {"<"} SMA_50</span>}

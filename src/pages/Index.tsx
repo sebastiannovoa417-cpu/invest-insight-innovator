@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { SyncBar } from "@/components/SyncBar";
 import { TopPickCard } from "@/components/TopPickCard";
 import { FilterControls, TradeFilter, ScoreFilter, SortOption } from "@/components/FilterControls";
@@ -6,15 +7,33 @@ import { StockTable } from "@/components/StockTable";
 import { StatsBar } from "@/components/StatsBar";
 import { DetailPanel } from "@/components/DetailPanel";
 import { StatusBar } from "@/components/StatusBar";
-import { mockStocks, mockRegime, lastRunInfo, Stock } from "@/lib/mock-data";
+import { AuthModal } from "@/components/AuthModal";
+import { PositionsPanel } from "@/components/PositionsPanel";
+import { useStocks, useRegime, useLastRun, useScoreHistory, useWatchlist, usePositions } from "@/hooks/use-data";
+import { useAuth } from "@/hooks/use-auth";
+import { mockRegime, lastRunInfo } from "@/lib/mock-data";
+import type { Stock } from "@/lib/types";
 
 const Index = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Data hooks
+  const { data: stocks = [], isLoading: stocksLoading } = useStocks();
+  const { data: regime = mockRegime } = useRegime();
+  const { data: runInfo = lastRunInfo } = useLastRun();
+  const { data: scoreHistory = {} } = useScoreHistory();
+  const { watchlist, toggle: toggleWatchlist } = useWatchlist();
+  const { positions, openPosition, closePosition } = usePositions();
+
+  // UI state
   const [tradeFilter, setTradeFilter] = useState<TradeFilter>("ALL");
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>("ANY");
   const [sortBy, setSortBy] = useState<SortOption>("score");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
-  const [watchlist, setWatchlist] = useState<Set<string>>(new Set());
+  const [showAuth, setShowAuth] = useState(false);
+  const [showPositions, setShowPositions] = useState(false);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -25,30 +44,35 @@ const Index = () => {
       }
       if (e.key === "Escape") {
         setSelectedStock(null);
+        setShowPositions(false);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const toggleWatchlist = useCallback((ticker: string) => {
-    setWatchlist(prev => {
-      const next = new Set(prev);
-      if (next.has(ticker)) next.delete(ticker);
-      else next.add(ticker);
-      return next;
-    });
-  }, []);
+  const handleToggleWatchlist = useCallback((ticker: string) => {
+    if (!user) {
+      setShowAuth(true);
+      return;
+    }
+    toggleWatchlist(ticker);
+  }, [user, toggleWatchlist]);
+
+  const handleRefresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["stocks"] });
+    queryClient.invalidateQueries({ queryKey: ["regime"] });
+    queryClient.invalidateQueries({ queryKey: ["lastRun"] });
+    queryClient.invalidateQueries({ queryKey: ["scoreHistory"] });
+  }, [queryClient]);
 
   const filteredStocks = useMemo(() => {
-    let result = [...mockStocks];
+    let result = [...stocks];
 
-    // Trade type filter
     if (tradeFilter !== "ALL") {
       result = result.filter(s => s.tradeType === tradeFilter);
     }
 
-    // Score filter
     if (scoreFilter !== "ANY") {
       const min = parseInt(scoreFilter);
       result = result.filter(s => {
@@ -57,13 +81,11 @@ const Index = () => {
       });
     }
 
-    // Search
     if (searchQuery) {
       const q = searchQuery.toUpperCase();
       result = result.filter(s => s.ticker.includes(q));
     }
 
-    // Sort: watchlisted first, then by chosen sort
     result.sort((a, b) => {
       const aWl = watchlist.has(a.ticker) ? 0 : 1;
       const bWl = watchlist.has(b.ticker) ? 0 : 1;
@@ -83,34 +105,36 @@ const Index = () => {
     });
 
     return result;
-  }, [tradeFilter, scoreFilter, sortBy, searchQuery, watchlist]);
+  }, [stocks, tradeFilter, scoreFilter, sortBy, searchQuery, watchlist]);
 
-  // Top pick: highest directional score aligned with regime
   const topPick = useMemo(() => {
-    const aligned = mockStocks.filter(s =>
-      (mockRegime.status === "BEARISH" && s.tradeType === "SHORT") ||
-      (mockRegime.status === "BULLISH" && s.tradeType === "LONG")
+    const aligned = stocks.filter(s =>
+      (regime.status === "BEARISH" && s.tradeType === "SHORT") ||
+      (regime.status === "BULLISH" && s.tradeType === "LONG")
     );
-    if (aligned.length === 0) return mockStocks[0];
+    if (aligned.length === 0) return stocks[0] ?? null;
     return aligned.sort((a, b) => {
       const aS = a.tradeType === "SHORT" ? a.bearScore : a.bullScore;
       const bS = b.tradeType === "SHORT" ? b.bearScore : b.bullScore;
       return bS - aS;
     })[0];
-  }, []);
+  }, [stocks, regime]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Scanline overlay */}
       <div className="scanline-overlay" />
 
-      <SyncBar regime={mockRegime} runId={lastRunInfo.runId} />
+      <SyncBar
+        regime={regime}
+        runId={runInfo.runId}
+        onRefresh={handleRefresh}
+        onAuthClick={() => setShowAuth(true)}
+        onPositionsClick={() => setShowPositions(true)}
+      />
 
       <main className="flex-1 px-4 md:px-6 py-4 max-w-[1400px] mx-auto w-full">
-        {/* Top Pick */}
-        {topPick && <TopPickCard stock={topPick} regime={mockRegime} />}
+        {topPick && <TopPickCard stock={topPick} regime={regime} />}
 
-        {/* Filters */}
         <FilterControls
           tradeFilter={tradeFilter}
           scoreFilter={scoreFilter}
@@ -123,32 +147,54 @@ const Index = () => {
           onSearchChange={setSearchQuery}
         />
 
-        {/* Stock Table */}
         <StockTable
           stocks={filteredStocks}
           watchlist={watchlist}
-          onToggleWatchlist={toggleWatchlist}
+          scoreHistory={scoreHistory}
+          onToggleWatchlist={handleToggleWatchlist}
           onSelectStock={setSelectedStock}
           selectedTicker={selectedStock?.ticker}
         />
 
-        {/* Stats Bar */}
-        <StatsBar stocks={filteredStocks} regime={mockRegime} />
+        <StatsBar stocks={filteredStocks} regime={regime} />
       </main>
 
-      {/* Detail Panel (slide-in) */}
+      {/* Detail Panel */}
       {selectedStock && (
         <>
           <div className="fixed inset-0 z-20 bg-background/60 backdrop-blur-sm" onClick={() => setSelectedStock(null)} />
-          <DetailPanel stock={selectedStock} onClose={() => setSelectedStock(null)} />
+          <DetailPanel
+            stock={selectedStock}
+            onClose={() => setSelectedStock(null)}
+            onOpenPosition={(pos) => {
+              if (!user) { setShowAuth(true); return; }
+              openPosition(pos);
+            }}
+          />
         </>
       )}
 
+      {/* Positions Panel */}
+      {showPositions && (
+        <>
+          <div className="fixed inset-0 z-20 bg-background/60 backdrop-blur-sm" onClick={() => setShowPositions(false)} />
+          <PositionsPanel
+            positions={positions}
+            stocks={stocks}
+            onClose={() => setShowPositions(false)}
+            onClosePosition={closePosition}
+          />
+        </>
+      )}
+
+      {/* Auth Modal */}
+      <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
+
       <StatusBar
-        lastRun={lastRunInfo.timestamp}
-        stockCount={lastRunInfo.stockCount}
-        regime={lastRunInfo.regime}
-        universe={lastRunInfo.universe}
+        lastRun={runInfo.timestamp}
+        stockCount={runInfo.stockCount}
+        regime={runInfo.regime}
+        universe={runInfo.universe}
         connected={true}
       />
     </div>

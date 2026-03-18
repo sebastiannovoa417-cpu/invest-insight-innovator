@@ -1,4 +1,4 @@
-import { Stock, RegimeData } from "@/lib/mock-data";
+import { Stock, RegimeData } from "@/lib/types";
 
 interface StatsBarProps {
   stocks: Stock[];
