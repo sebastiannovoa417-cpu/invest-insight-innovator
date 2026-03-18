@@ -1,14 +1,18 @@
-import { RefreshCw } from "lucide-react";
-import { RegimeData } from "@/lib/mock-data";
+import { RefreshCw, User, Briefcase, LogOut } from "lucide-react";
+import { RegimeData } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 
 interface SyncBarProps {
   regime: RegimeData;
   runId: string;
   onRefresh?: () => void;
+  onAuthClick?: () => void;
+  onPositionsClick?: () => void;
 }
 
-export function SyncBar({ regime, runId, onRefresh }: SyncBarProps) {
+export function SyncBar({ regime, runId, onRefresh, onAuthClick, onPositionsClick }: SyncBarProps) {
+  const { user, signOut } = useAuth();
   const regimeColor = regime.status === "BULLISH" ? "bg-long text-long-foreground regime-glow-bullish" 
     : regime.status === "BEARISH" ? "bg-short text-short-foreground regime-glow-bearish" 
     : "bg-muted text-muted-foreground";
@@ -16,20 +20,14 @@ export function SyncBar({ regime, runId, onRefresh }: SyncBarProps) {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm">
       <div className="flex items-center justify-between px-4 py-2.5 gap-4">
-        {/* Logo + Regime */}
         <div className="flex items-center gap-3">
-          <h1 className="text-sm font-semibold tracking-[0.3em] text-foreground">
-            SWINGPULSE
-          </h1>
+          <h1 className="text-sm font-semibold tracking-[0.3em] text-foreground">SWINGPULSE</h1>
           <span className={cn("px-2.5 py-0.5 rounded text-[11px] font-bold tracking-wider", regimeColor)}>
             {regime.status}
           </span>
-          <span className="text-xs text-muted-foreground font-mono">
-            {regime.regimeScore} / 6
-          </span>
+          <span className="text-xs text-muted-foreground font-mono">{regime.regimeScore} / 6</span>
         </div>
 
-        {/* Market Data */}
         <div className="hidden md:flex items-center gap-5 text-xs font-mono">
           <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground">SPY</span>
@@ -46,14 +44,20 @@ export function SyncBar({ regime, runId, onRefresh }: SyncBarProps) {
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground">VIX</span>
-            <span className={cn(regime.vix > 25 ? "text-short" : "text-foreground")}>
-              {regime.vix.toFixed(1)}
-            </span>
+            <span className={cn(regime.vix > 25 ? "text-short" : "text-foreground")}>{regime.vix.toFixed(1)}</span>
           </div>
         </div>
 
-        {/* Refresh + Run ID */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {user && (
+            <button
+              onClick={onPositionsClick}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-muted-foreground hover:text-primary transition-colors border border-border hover:border-primary/50"
+            >
+              <Briefcase className="w-3 h-3" />
+              <span className="hidden sm:inline">POSITIONS</span>
+            </button>
+          )}
           <button
             onClick={onRefresh}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-muted-foreground hover:text-primary transition-colors border border-border hover:border-primary/50"
@@ -61,9 +65,24 @@ export function SyncBar({ regime, runId, onRefresh }: SyncBarProps) {
             <RefreshCw className="w-3 h-3" />
             <span className="hidden sm:inline">REFRESH</span>
           </button>
-          <span className="text-[10px] text-muted-foreground font-mono">
-            RUN {runId}
-          </span>
+          {user ? (
+            <button
+              onClick={() => signOut()}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-muted-foreground hover:text-foreground transition-colors border border-border"
+              title={user.email}
+            >
+              <LogOut className="w-3 h-3" />
+            </button>
+          ) : (
+            <button
+              onClick={onAuthClick}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-primary hover:text-primary/80 transition-colors border border-primary/50"
+            >
+              <User className="w-3 h-3" />
+              <span className="hidden sm:inline">SIGN IN</span>
+            </button>
+          )}
+          <span className="text-[10px] text-muted-foreground font-mono">RUN {runId}</span>
         </div>
       </div>
     </header>
