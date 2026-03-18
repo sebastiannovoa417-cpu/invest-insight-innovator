@@ -1,0 +1,95 @@
+import { Search } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+export type TradeFilter = "ALL" | "LONG" | "SHORT";
+export type ScoreFilter = "ANY" | "3+" | "5+" | "7+";
+export type SortOption = "score" | "rsi" | "volume" | "ticker";
+
+interface FilterControlsProps {
+  tradeFilter: TradeFilter;
+  scoreFilter: ScoreFilter;
+  sortBy: SortOption;
+  searchQuery: string;
+  tickerCount: number;
+  onTradeFilterChange: (f: TradeFilter) => void;
+  onScoreFilterChange: (f: ScoreFilter) => void;
+  onSortChange: (s: SortOption) => void;
+  onSearchChange: (q: string) => void;
+}
+
+export function FilterControls({
+  tradeFilter, scoreFilter, sortBy, searchQuery, tickerCount,
+  onTradeFilterChange, onScoreFilterChange, onSortChange, onSearchChange,
+}: FilterControlsProps) {
+  const tradeOptions: TradeFilter[] = ["ALL", "LONG", "SHORT"];
+  const scoreOptions: ScoreFilter[] = ["ANY", "3+", "5+", "7+"];
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 py-3">
+      {/* Trade Type Segmented */}
+      <div className="flex rounded-md border border-border overflow-hidden">
+        {tradeOptions.map((opt) => (
+          <button
+            key={opt}
+            onClick={() => onTradeFilterChange(opt)}
+            className={cn(
+              "px-3 py-1.5 text-xs font-medium transition-colors",
+              tradeFilter === opt
+                ? "bg-primary text-primary-foreground"
+                : "bg-card text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+
+      {/* Score Segmented */}
+      <div className="flex rounded-md border border-border overflow-hidden">
+        {scoreOptions.map((opt) => (
+          <button
+            key={opt}
+            onClick={() => onScoreFilterChange(opt)}
+            className={cn(
+              "px-3 py-1.5 text-xs font-medium transition-colors",
+              scoreFilter === opt
+                ? "bg-primary text-primary-foreground"
+                : "bg-card text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="relative flex-1 min-w-[140px] max-w-[220px]">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Search…"
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="w-full h-8 pl-8 pr-3 rounded-md border border-border bg-card text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+        />
+      </div>
+
+      {/* Sort */}
+      <select
+        value={sortBy}
+        onChange={(e) => onSortChange(e.target.value as SortOption)}
+        className="h-8 px-2 rounded-md border border-border bg-card text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+      >
+        <option value="score">SCORE ↓</option>
+        <option value="rsi">RSI</option>
+        <option value="volume">VOLUME</option>
+        <option value="ticker">TICKER</option>
+      </select>
+
+      {/* Ticker count */}
+      <span className="text-xs text-muted-foreground font-mono ml-auto">
+        {tickerCount} TICKERS
+      </span>
+    </div>
+  );
+}
