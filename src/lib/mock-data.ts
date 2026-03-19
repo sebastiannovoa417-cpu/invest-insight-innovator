@@ -1,49 +1,6 @@
-export interface StockSignals {
-  sma200: boolean;
-  sma50: boolean;
-  rsiMomentum: boolean;
-  volume: boolean;
-  macd: boolean;
-  priceAction: boolean;
-  trendStrength: boolean;
-  earningsSetup: boolean;
-}
+import type { Stock, RegimeData, NewsItem } from "@/lib/types";
 
-export interface Stock {
-  ticker: string;
-  tradeType: "LONG" | "SHORT";
-  bullScore: number;
-  bearScore: number;
-  price: number;
-  rsi: number;
-  volumeRatio: number;
-  volumeSpike: boolean;
-  signals: StockSignals;
-  entryAtr: number;
-  entryStructure: number;
-  bestEntry: number;
-  stopLoss: number;
-  target: number;
-  riskReward: number;
-  atr: number;
-  distance52w: number;
-  conflictTrend: boolean;
-  news: { title: string; date: string }[];
-  earningsDate?: string;
-  earningsWarning: boolean;
-  updatedAt: string;
-}
-
-export interface RegimeData {
-  status: "BULLISH" | "BEARISH" | "NEUTRAL";
-  spyPrice: number;
-  sma200: number;
-  sma50: number;
-  spyRsi: number;
-  vix: number;
-  ratio: number;
-  regimeScore: number;
-}
+export { type Stock, type RegimeData };
 
 export const mockRegime: RegimeData = {
   status: "BEARISH",
@@ -57,82 +14,337 @@ export const mockRegime: RegimeData = {
 };
 
 export const mockStocks: Stock[] = [
+  // ── Page 1 ──────────────────────────────────────────────────────────
   {
-    ticker: "LMT", tradeType: "SHORT", bullScore: 2, bearScore: 7, price: 636.43, rsi: 36.0,
+    ticker: "LMT", name: "Lockheed Martin Corp", tradeType: "SHORT", bullScore: 2, bearScore: 7, price: 636.43, rsi: 36.0,
     volumeRatio: 1.7, volumeSpike: true,
     signals: { sma200: true, sma50: true, rsiMomentum: true, volume: true, macd: true, priceAction: false, trendStrength: true, earningsSetup: true },
     entryAtr: 638.78, entryStructure: 640.12, bestEntry: 638.78, stopLoss: 655.00, target: 610.00, riskReward: 1.76, atr: 9.2, distance52w: 1010.0,
-    conflictTrend: false, news: [{ title: "Defense sector under pressure", date: "Mar 17" }], earningsWarning: false, updatedAt: "11:01 PM ET",
+    conflictTrend: false, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "Defense sector under pressure amid budget cuts", date: "Mar 17", source: "Reuters", summary: "Pentagon announces a 5% reduction in procurement spending, hitting major defense contractors including LMT.", sentiment: "bearish" },
+      { title: "LMT Q1 earnings miss analyst expectations", date: "Mar 15", source: "Bloomberg", summary: "Lockheed Martin posted EPS of $6.21 vs. $6.48 consensus, citing supply-chain headwinds in its F-35 program.", sentiment: "bearish" },
+      { title: "F-35 delivery delays raise program cost concerns", date: "Mar 12", source: "Wall Street Journal", summary: "USAF reports 15% delay in F-35 Block 4 deliveries, potentially adding $2B in overhead costs.", sentiment: "bearish" },
+      { title: "LMT loses $4B satellite contract to rival", date: "Mar 10", source: "Defense News", summary: "Northrop Grumman wins JADC2 satellite link contract, shrinking LMT's space-sector backlog.", sentiment: "bearish" },
+      { title: "Analyst downgrades LMT to Sell on margin risk", date: "Mar 8", source: "Morgan Stanley", summary: "MS cuts LMT target to $590, citing rising titanium costs and potential FARA program cancellation.", sentiment: "bearish" },
+      { title: "LMT explores divesting IS&GS division", date: "Mar 5", source: "CNBC", summary: "Sources say Lockheed may sell its Information Systems unit to focus on core aeronautics.", sentiment: "neutral" },
+    ],
   },
   {
-    ticker: "APA", tradeType: "LONG", bullScore: 5, bearScore: 2, price: 35.87, rsi: 69.6,
+    ticker: "APA", name: "APA Corporation", tradeType: "LONG", bullScore: 5, bearScore: 2, price: 35.87, rsi: 69.6,
     volumeRatio: 0.5, volumeSpike: false,
     signals: { sma200: true, sma50: true, rsiMomentum: true, volume: false, macd: true, priceAction: true, trendStrength: false, earningsSetup: false },
     entryAtr: 35.20, entryStructure: 35.50, bestEntry: 35.20, stopLoss: 33.80, target: 39.50, riskReward: 3.07, atr: 0.82, distance52w: 45.2,
-    conflictTrend: true, news: [], earningsWarning: false, updatedAt: "11:01 PM ET",
+    conflictTrend: true, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "APA raises Permian output guidance for 2026", date: "Mar 16", source: "Oil & Gas Journal", summary: "APA Corp lifts full-year production target by 4%, buoyed by strong well performance in the Delaware Basin.", sentiment: "bullish" },
+      { title: "Crude oil hits $88/bbl, lifting E&P stocks", date: "Mar 14", source: "Reuters", summary: "WTI crude surged 3.2% on OPEC+ supply discipline, driving broad gains in exploration and production equities.", sentiment: "bullish" },
+      { title: "APA initiates $500M share buyback program", date: "Mar 11", source: "Business Wire", summary: "Management authorizes repurchase of up to $500 million in common stock through end of 2026.", sentiment: "bullish" },
+      { title: "Egypt operations post record quarterly cash flow", date: "Mar 9", source: "Platts", summary: "APA's North Africa assets generated $310M in free cash flow in Q4, beating internal targets by 12%.", sentiment: "bullish" },
+      { title: "APA acquires Permian acreage for $180M", date: "Mar 6", source: "Bloomberg", summary: "Strategic bolt-on adds 12,000 net acres adjacent to existing operations, boosting inventory by three years.", sentiment: "bullish" },
+      { title: "Rising interest rates pressure leveraged E&Ps", date: "Mar 3", source: "Financial Times", summary: "Higher-for-longer rate expectations weigh on capital-intensive oil producers with significant debt loads.", sentiment: "bearish" },
+    ],
   },
   {
-    ticker: "CIEN", tradeType: "LONG", bullScore: 5, bearScore: 1, price: 370.14, rsi: 64.4,
+    ticker: "CIEN", name: "Ciena Corporation", tradeType: "LONG", bullScore: 5, bearScore: 1, price: 370.14, rsi: 64.4,
     volumeRatio: 1.1, volumeSpike: false,
     signals: { sma200: true, sma50: true, rsiMomentum: true, volume: false, macd: true, priceAction: true, trendStrength: false, earningsSetup: false },
     entryAtr: 365.00, entryStructure: 367.50, bestEntry: 365.00, stopLoss: 355.00, target: 395.00, riskReward: 3.0, atr: 5.1, distance52w: 120.5,
-    conflictTrend: true, news: [{ title: "Fiber optic demand rising", date: "Mar 16" }], earningsWarning: false, updatedAt: "11:01 PM ET",
+    conflictTrend: true, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "Fiber optic demand rising on AI data-center buildout", date: "Mar 16", source: "Light Reading", summary: "Hyperscalers accelerating coherent optical upgrades; CIEN wins $220M AWS backbone deal.", sentiment: "bullish" },
+      { title: "CIEN beats Q2 revenue by 7%, raises FY26 guidance", date: "Mar 13", source: "Bloomberg", summary: "Revenue came in at $1.12B, driven by strong Waveserver and Blue Planet software adoption.", sentiment: "bullish" },
+      { title: "AT&T selects Ciena for open-line upgrades", date: "Mar 10", source: "Fierce Telecom", summary: "Multi-year contract covering 40,000 route-miles of long-haul network modernization.", sentiment: "bullish" },
+      { title: "Supply-chain shortages ease for optical components", date: "Mar 8", source: "EE Times", summary: "Lead times for DSP chips fall from 52 to 28 weeks, improving CIEN's gross margin outlook.", sentiment: "bullish" },
+      { title: "Competition intensifies from Infinera and Nokia", date: "Mar 5", source: "Dell'Oro Group", summary: "Optical networking market share battle heats up as Nokia slashes pricing on its PSE-3 platform.", sentiment: "bearish" },
+      { title: "Ciena CFO sells $2M in shares at market highs", date: "Mar 2", source: "SEC Filing", summary: "CFO James Moylan liquidates 5,400 shares, raising insider selling total to $6M year-to-date.", sentiment: "bearish" },
+    ],
   },
   {
-    ticker: "FIX", tradeType: "LONG", bullScore: 5, bearScore: 1, price: 1424.73, rsi: 60.5,
+    ticker: "FIX", name: "Comfort Systems USA", tradeType: "LONG", bullScore: 5, bearScore: 1, price: 1424.73, rsi: 60.5,
     volumeRatio: 1.5, volumeSpike: true,
     signals: { sma200: true, sma50: true, rsiMomentum: true, volume: true, macd: true, priceAction: false, trendStrength: false, earningsSetup: false },
     entryAtr: 1410.00, entryStructure: 1415.00, bestEntry: 1410.00, stopLoss: 1380.00, target: 1500.00, riskReward: 3.0, atr: 18.5, distance52w: 88.3,
-    conflictTrend: true, news: [], earningsWarning: false, updatedAt: "11:01 PM ET",
+    conflictTrend: true, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "FIX wins $350M data-center HVAC contract", date: "Mar 17", source: "PRNewswire", summary: "Comfort Systems secures a three-year mechanical and electrical scope for a major hyperscaler campus in Texas.", sentiment: "bullish" },
+      { title: "Industrial construction backlog hits record $5.8B", date: "Mar 14", source: "Construction Dive", summary: "FIX's order backlog grew 18% YoY, underpinned by chip-fab and EV battery plant projects.", sentiment: "bullish" },
+      { title: "FIX Q1 EPS beats consensus by 12%", date: "Mar 11", source: "Bloomberg", summary: "Adjusted EPS of $4.87 beat $4.34 estimate; margins expanded 80 bps on better project mix.", sentiment: "bullish" },
+      { title: "Commercial HVAC replacement cycle accelerating", date: "Mar 9", source: "HPAC Engineering", summary: "Post-COVID IAQ mandates drive 20% surge in commercial HVAC retrofit demand nationwide.", sentiment: "bullish" },
+      { title: "Labor shortages threaten FIX project timelines", date: "Mar 6", source: "ENR", summary: "Skilled trades shortage in Sun Belt markets could delay project completions and compress margins.", sentiment: "bearish" },
+      { title: "Rising copper prices squeeze mechanical contractors", date: "Mar 3", source: "Metals Week", summary: "Copper at $4.80/lb adds $15M in annualized cost headwind for Comfort Systems' open projects.", sentiment: "bearish" },
+    ],
   },
   {
-    ticker: "MPC", tradeType: "LONG", bullScore: 5, bearScore: 2, price: 233.41, rsi: 61.9,
+    ticker: "MPC", name: "Marathon Petroleum Corp", tradeType: "LONG", bullScore: 5, bearScore: 2, price: 233.41, rsi: 61.9,
     volumeRatio: 1.4, volumeSpike: false,
     signals: { sma200: true, sma50: true, rsiMomentum: true, volume: false, macd: true, priceAction: true, trendStrength: false, earningsSetup: false },
     entryAtr: 230.00, entryStructure: 231.50, bestEntry: 230.00, stopLoss: 224.00, target: 250.00, riskReward: 3.33, atr: 3.8, distance52w: 55.1,
-    conflictTrend: true, news: [], earningsWarning: false, updatedAt: "11:01 PM ET",
+    conflictTrend: true, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "Crack spreads widen sharply, boosting refiner margins", date: "Mar 17", source: "S&P Global", summary: "3-2-1 crack spread reached $28.40/bbl as low gasoline inventories and rising demand converge.", sentiment: "bullish" },
+      { title: "MPC repurchases $1.2B in shares during Q1", date: "Mar 14", source: "Bloomberg", summary: "Marathon continues aggressive capital return, buying back 5M shares at an average of $240/share.", sentiment: "bullish" },
+      { title: "MPLX distributions raised 5% for Q2", date: "Mar 12", source: "PRNewswire", summary: "Midstream MLP subsidiary MPLX increases quarterly distribution, boosting MPC's cash flow visibility.", sentiment: "bullish" },
+      { title: "Galveston Bay refinery completes major turnaround", date: "Mar 10", source: "Reuters", summary: "Largest US refinery returns to full 585,000 bbl/d capacity ahead of summer driving season.", sentiment: "bullish" },
+      { title: "EPA renewable fuel standard compliance costs rise", date: "Mar 7", source: "Argus Media", summary: "RIN prices climb 40% YTD, adding an estimated $0.18/gallon headwind to refinery operating costs.", sentiment: "bearish" },
+      { title: "Biofuel mandates threaten traditional refinery economics", date: "Mar 4", source: "E&E News", summary: "Proposed SAF blending requirements could require $800M in capital investment at MPC's facilities.", sentiment: "bearish" },
+    ],
   },
   {
-    ticker: "MU", tradeType: "LONG", bullScore: 4, bearScore: 1, price: 461.68, rsi: 76.9,
+    ticker: "MU", name: "Micron Technology", tradeType: "LONG", bullScore: 4, bearScore: 1, price: 461.68, rsi: 76.9,
     volumeRatio: 0.1, volumeSpike: false,
     signals: { sma200: true, sma50: true, rsiMomentum: true, volume: false, macd: true, priceAction: false, trendStrength: false, earningsSetup: false },
     entryAtr: 455.00, entryStructure: 458.00, bestEntry: 455.00, stopLoss: 445.00, target: 485.00, riskReward: 3.0, atr: 6.2, distance52w: 95.7,
-    conflictTrend: true, news: [], earningsWarning: false, updatedAt: "11:01 PM ET",
+    conflictTrend: true, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "HBM3e demand surges for AI accelerator builds", date: "Mar 16", source: "AnandTech", summary: "Nvidia H200 and AMD MI350 adoption drives 3x YoY growth in Micron's high-bandwidth memory revenue.", sentiment: "bullish" },
+      { title: "MU raises FQ3 guidance above Street consensus", date: "Mar 13", source: "Bloomberg", summary: "Data-center DRAM pricing improves 22% sequentially; EPS guidance of $1.58 tops $1.37 estimate.", sentiment: "bullish" },
+      { title: "CHIPS Act grants $6.1B to Micron for Idaho fab", date: "Mar 10", source: "Commerce Dept", summary: "Federal funding unlocks $15B total investment for Boise manufacturing complex, adding 17,000 jobs.", sentiment: "bullish" },
+      { title: "PC memory pricing recovers on inventory drawdown", date: "Mar 8", source: "DRAMeXchange", summary: "DDR5 contract prices rose 8% in March, signaling end of the two-year DRAM oversupply cycle.", sentiment: "bullish" },
+      { title: "China export restrictions may cut MU revenue 10%", date: "Mar 5", source: "Reuters", summary: "BIS expands semiconductor restrictions, placing 14nm and below DRAM on Entity List for Chinese buyers.", sentiment: "bearish" },
+      { title: "Samsung accelerates 1-beta DRAM ramp, pressuring pricing", date: "Mar 2", source: "The Elec", summary: "Korean giant targets 40% DRAM market share in 2H26, which analysts say will pressure ASPs.", sentiment: "bearish" },
+    ],
   },
   {
-    ticker: "AMAT", tradeType: "LONG", bullScore: 4, bearScore: 1, price: 352.28, rsi: 61.3,
+    ticker: "AMAT", name: "Applied Materials Inc", tradeType: "LONG", bullScore: 4, bearScore: 1, price: 352.28, rsi: 61.3,
     volumeRatio: 0.6, volumeSpike: false,
     signals: { sma200: true, sma50: true, rsiMomentum: false, volume: false, macd: true, priceAction: true, trendStrength: false, earningsSetup: false },
     entryAtr: 348.00, entryStructure: 350.00, bestEntry: 348.00, stopLoss: 340.00, target: 375.00, riskReward: 3.38, atr: 4.5, distance52w: 78.4,
-    conflictTrend: true, news: [], earningsWarning: false, updatedAt: "11:01 PM ET",
+    conflictTrend: true, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "AMAT wins $2B gate-all-around tool order from TSMC", date: "Mar 16", source: "Nikkei Asia", summary: "Applied Materials secures multi-year contract for its Centura Sculpta etch tools for 2nm production.", sentiment: "bullish" },
+      { title: "Services segment revenue grows 14% YoY", date: "Mar 13", source: "Bloomberg", summary: "High-margin AGS (Applied Global Services) unit reaches $1.5B quarterly revenue milestone.", sentiment: "bullish" },
+      { title: "Semiconductor capex spending cycle expected to accelerate", date: "Mar 11", source: "Gartner", summary: "Foundry capex forecast raised to $210B for 2026, up 18% YoY, benefiting equipment vendors.", sentiment: "bullish" },
+      { title: "AMAT partners with IMEC on 1.4Å process node research", date: "Mar 9", source: "SEMI", summary: "Joint research program aims to extend Moore's Law through novel dielectric deposition techniques.", sentiment: "bullish" },
+      { title: "Export controls tighten on advanced etch equipment", date: "Mar 6", source: "Reuters", summary: "Commerce Department expands ECCN categories, restricting AMAT tool shipments to additional Chinese customers.", sentiment: "bearish" },
+      { title: "Memory capex still subdued despite price recovery", date: "Mar 3", source: "Morgan Stanley", summary: "DRAM manufacturers withhold equipment orders pending further pricing stability, delaying AMAT's tool deliveries.", sentiment: "bearish" },
+    ],
   },
   {
-    ticker: "IRM", tradeType: "SHORT", bullScore: 1, bearScore: 5, price: 108.01, rsi: 52.8,
+    ticker: "IRM", name: "Iron Mountain Inc", tradeType: "SHORT", bullScore: 1, bearScore: 5, price: 108.01, rsi: 52.8,
     volumeRatio: 1.8, volumeSpike: true,
     signals: { sma200: true, sma50: true, rsiMomentum: false, volume: true, macd: true, priceAction: true, trendStrength: false, earningsSetup: false },
     entryAtr: 109.50, entryStructure: 109.00, bestEntry: 109.50, stopLoss: 114.00, target: 100.00, riskReward: 2.11, atr: 2.1, distance52w: 35.2,
-    conflictTrend: false, news: [], earningsWarning: false, updatedAt: "11:01 PM ET",
+    conflictTrend: false, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "IRM data-center capex exceeds free cash flow by $800M", date: "Mar 17", source: "Bloomberg", summary: "Expansion plan requires $3.2B in 2026 capex against only $2.4B operating cash flow, widening funding gap.", sentiment: "bearish" },
+      { title: "Rising rates pressure REIT valuations sector-wide", date: "Mar 15", source: "Financial Times", summary: "10-year Treasury yield at 4.8% compresses cap rates and forces REIT dividend discount model downgrades.", sentiment: "bearish" },
+      { title: "Short interest in IRM jumps to 12% of float", date: "Mar 12", source: "S3 Partners", summary: "Bears cite stretched valuation at 22x EBITDA and execution risk in data-center-as-a-REIT strategy.", sentiment: "bearish" },
+      { title: "IRM records $120M impairment on legacy storage assets", date: "Mar 10", source: "SEC Filing", summary: "Physical document storage volumes decline 8% YoY as enterprise customers digitize workflows.", sentiment: "bearish" },
+      { title: "IRM wins AI-ready data-center contract in Virginia", date: "Mar 8", source: "PRNewswire", summary: "120MW hyperscale campus announced in Ashburn, VA with first revenue expected in late 2027.", sentiment: "bullish" },
+      { title: "Analyst upgrades IRM on data-center growth optionality", date: "Mar 5", source: "Goldman Sachs", summary: "Goldman initiates at Buy with $125 target, arguing data-center EBITDA will double by 2028.", sentiment: "bullish" },
+    ],
   },
   {
-    ticker: "KEYS", tradeType: "SHORT", bullScore: 1, bearScore: 5, price: 287.18, rsi: 55.5,
+    ticker: "KEYS", name: "Keysight Technologies", tradeType: "SHORT", bullScore: 1, bearScore: 5, price: 287.18, rsi: 55.5,
     volumeRatio: 1.5, volumeSpike: true,
     signals: { sma200: true, sma50: true, rsiMomentum: false, volume: true, macd: true, priceAction: true, trendStrength: false, earningsSetup: false },
     entryAtr: 290.00, entryStructure: 289.00, bestEntry: 290.00, stopLoss: 298.00, target: 270.00, riskReward: 2.5, atr: 4.0, distance52w: 62.8,
-    conflictTrend: false, news: [{ title: "Keysight beats estimates", date: "Mar 15" }], earningsWarning: false, updatedAt: "11:01 PM ET",
+    conflictTrend: false, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "Keysight beats Q1 estimates but cuts FY26 outlook", date: "Mar 15", source: "Bloomberg", summary: "EPS of $1.82 beat by $0.04; full-year guidance trimmed 5% amid soft 5G test equipment orders in Asia.", sentiment: "bearish" },
+      { title: "5G network buildout spending slows in China", date: "Mar 13", source: "Lightcounting", summary: "Chinese carriers defer Rel-17 NSA upgrades, reducing near-term demand for KEYS spectrum-analysis tools.", sentiment: "bearish" },
+      { title: "Semiconductor test equipment orders fall 18% YoY", date: "Mar 11", source: "Gartner", summary: "EDA and RF test tool demand contracts as chipmakers pause validation lab expansions.", sentiment: "bearish" },
+      { title: "KEYS order backlog shrinks for third consecutive quarter", date: "Mar 9", source: "SEC Filing", summary: "Book-to-bill ratio fell to 0.91, below parity for the first time since 2022, signaling revenue headwinds.", sentiment: "bearish" },
+      { title: "Keysight secures DoD electronic warfare test contract", date: "Mar 7", source: "Defense News", summary: "Multi-year IDIQ contract covers EW simulation and RF vulnerability testing for USAF platforms.", sentiment: "bullish" },
+      { title: "Aerospace & Defense segment grows 11% QoQ", date: "Mar 4", source: "PRNewswire", summary: "Government spending counterbalances commercial weakness; A&D now 35% of KEYS revenue.", sentiment: "bullish" },
+    ],
   },
   {
-    ticker: "MRNA", tradeType: "SHORT", bullScore: 1, bearScore: 3, price: 53.92, rsi: 50.3,
+    ticker: "MRNA", name: "Moderna Inc", tradeType: "SHORT", bullScore: 1, bearScore: 3, price: 53.92, rsi: 50.3,
     volumeRatio: 1.3, volumeSpike: false,
     signals: { sma200: true, sma50: false, rsiMomentum: false, volume: false, macd: true, priceAction: false, trendStrength: false, earningsSetup: false },
     entryAtr: 55.00, entryStructure: 54.50, bestEntry: 55.00, stopLoss: 58.00, target: 48.00, riskReward: 2.33, atr: 1.8, distance52w: -55.2,
-    conflictTrend: false, news: [], earningsWarning: false, updatedAt: "11:01 PM ET",
+    conflictTrend: false, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "COVID-19 vaccine revenue declines 62% YoY", date: "Mar 16", source: "Bloomberg", summary: "mRNA-1273 sales slump as booster adoption rates fall to historic lows, burning through Moderna's cash reserves.", sentiment: "bearish" },
+      { title: "RSV vaccine Phase 3 trial misses primary endpoint", date: "Mar 13", source: "STAT News", summary: "mRNA-1345 fails to meet efficacy threshold in adults aged 60+, eliminating a major pipeline catalyst.", sentiment: "bearish" },
+      { title: "Moderna burns $3.2B cash in Q4, extending runway concerns", date: "Mar 10", source: "Reuters", summary: "Cash position falls to $9.4B; analysts estimate 24-month runway at current spend rate.", sentiment: "bearish" },
+      { title: "FDA accepts MRNA flu vaccine BLA for review", date: "Mar 8", source: "FDA.gov", summary: "mRNA-1010 quadrivalent flu vaccine receives standard review pathway; PDUFA date set for September 2026.", sentiment: "bullish" },
+      { title: "Moderna secures $300M BARDA contract for pandemic preparedness", date: "Mar 5", source: "BARDA", summary: "US government funds development of rapid-response mRNA platform for unknown pathogen X threat.", sentiment: "bullish" },
+      { title: "CEO sells $10M in MRNA shares near 52-week high", date: "Mar 2", source: "SEC Filing", summary: "Stéphane Bancel liquidates 200,000 shares at $50 average, adding to insider distribution pressure.", sentiment: "bearish" },
+    ],
   },
   {
-    ticker: "OXY", tradeType: "SHORT", bullScore: 1, bearScore: 3, price: 57.72, rsi: 54.8,
+    ticker: "OXY", name: "Occidental Petroleum", tradeType: "SHORT", bullScore: 1, bearScore: 3, price: 57.72, rsi: 54.8,
     volumeRatio: 0.8, volumeSpike: false,
     signals: { sma200: true, sma50: false, rsiMomentum: false, volume: false, macd: true, priceAction: false, trendStrength: true, earningsSetup: false },
     entryAtr: 58.50, entryStructure: 58.20, bestEntry: 58.50, stopLoss: 61.00, target: 53.00, riskReward: 2.2, atr: 1.2, distance52w: -22.1,
-    conflictTrend: false, news: [], earningsWarning: false, updatedAt: "11:01 PM ET",
+    conflictTrend: false, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "OXY net debt rises $2B after CrownRock acquisition costs", date: "Mar 16", source: "Bloomberg", summary: "Total debt reaches $18.4B; management pledges $4B annual deleveraging but investors remain skeptical.", sentiment: "bearish" },
+      { title: "Crude oil demand outlook trimmed by IEA for 2026", date: "Mar 14", source: "IEA", summary: "Agency lowers global oil demand growth forecast to 900 kbd, pressuring E&P equities with heavy debt loads.", sentiment: "bearish" },
+      { title: "OXY Permian production disappoints for second quarter", date: "Mar 11", source: "S&P Global", summary: "Actual output tracks 3% below guidance; CrownRock integration challenges cited as primary cause.", sentiment: "bearish" },
+      { title: "Berkshire Hathaway adds 2M more OXY shares", date: "Mar 9", source: "SEC Filing 13F", summary: "Warren Buffett's firm brings stake to 29.1%, the largest position by any single shareholder.", sentiment: "bullish" },
+      { title: "OXY chemical unit posts record $400M operating income", date: "Mar 7", source: "PRNewswire", summary: "OxyChem segment benefits from polyvinyl chloride price recovery, providing cash flow diversification.", sentiment: "bullish" },
+      { title: "Carbon capture DAC plant reaches commercial milestone", date: "Mar 4", source: "Carbon180", summary: "Stratos DAC facility achieves 5,000 ton/yr capture rate, validating OXY's long-duration carbon credit strategy.", sentiment: "bullish" },
+    ],
+  },
+  // ── Page 2 ──────────────────────────────────────────────────────────
+  {
+    ticker: "NVDA", name: "NVIDIA Corporation", tradeType: "LONG", bullScore: 7, bearScore: 1, price: 875.40, rsi: 68.2,
+    volumeRatio: 2.1, volumeSpike: true,
+    signals: { sma200: true, sma50: true, rsiMomentum: true, volume: true, macd: true, priceAction: true, trendStrength: true, earningsSetup: false },
+    entryAtr: 860.00, entryStructure: 865.00, bestEntry: 860.00, stopLoss: 830.00, target: 950.00, riskReward: 3.0, atr: 14.2, distance52w: 145.3,
+    conflictTrend: false, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "Blackwell GPU demand vastly exceeds supply through 2026", date: "Mar 17", source: "Bloomberg", summary: "TSMC CoWoS-L packaging bottleneck limits Blackwell output to 60% of hyperscaler orders; pricing premium widens.", sentiment: "bullish" },
+      { title: "NVDA NIM microservices platform gains 3,000 enterprise customers", date: "Mar 14", source: "NVIDIA IR", summary: "AI software stack accelerates towards $1B ARR run-rate, strengthening software moat.", sentiment: "bullish" },
+      { title: "US further restricts H20 exports to China", date: "Mar 11", source: "Reuters", summary: "New BIS rule bans H20 GPU shipments to Chinese cloud providers, removing ~$5B in projected FY27 revenue.", sentiment: "bearish" },
+      { title: "Inference scaling laws favor NVDA's architecture", date: "Mar 9", source: "Semianalysis", summary: "Test-time compute trends benefit high-memory-bandwidth GPUs; NVDA's NVLink advantage widens vs competitors.", sentiment: "bullish" },
+      { title: "AMD MI400 samples outperform expectations in MLPerf", date: "Mar 6", source: "AnandTech", summary: "AMD's next-gen accelerator narrows the training throughput gap with NVDA H100 by 22%.", sentiment: "bearish" },
+      { title: "NVDA announces $500B US manufacturing partnership with TSMC", date: "Mar 3", source: "White House", summary: "Joint fab investment commits 30% of advanced GPU production to US-based CoWoS facilities by 2028.", sentiment: "bullish" },
+    ],
+  },
+  {
+    ticker: "META", name: "Meta Platforms Inc", tradeType: "LONG", bullScore: 6, bearScore: 1, price: 592.30, rsi: 63.5,
+    volumeRatio: 1.6, volumeSpike: false,
+    signals: { sma200: true, sma50: true, rsiMomentum: true, volume: true, macd: true, priceAction: true, trendStrength: false, earningsSetup: false },
+    entryAtr: 582.00, entryStructure: 585.00, bestEntry: 582.00, stopLoss: 565.00, target: 640.00, riskReward: 3.41, atr: 8.3, distance52w: 98.7,
+    conflictTrend: false, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "Meta's ad revenue accelerates on Llama-powered targeting", date: "Mar 17", source: "Bloomberg", summary: "AI-optimized ad ranking improves CTR by 18% for SMB advertisers, fueling outperformance vs. peers.", sentiment: "bullish" },
+      { title: "Threads crosses 350M MAU, rivaling X for ad dollars", date: "Mar 14", source: "TechCrunch", summary: "Advertiser interest in brand-safe environment drives CPM premium over Twitter/X alternatives.", sentiment: "bullish" },
+      { title: "EU Digital Markets Act compliance costs top $1.2B", date: "Mar 11", source: "FT", summary: "Interoperability mandates require significant API engineering and increase moderation overhead.", sentiment: "bearish" },
+      { title: "Reality Labs losses widen to $5B in Q4", date: "Mar 9", source: "Reuters", summary: "AR glasses ramp slower than expected; headset category revenue flat despite Quest 3S launch.", sentiment: "bearish" },
+      { title: "META raises 2026 capex guidance to $65B for AI infra", date: "Mar 7", source: "CNBC", summary: "Zuckerberg commits to building out AI superintelligence infrastructure, raising investor capex concerns.", sentiment: "neutral" },
+      { title: "Instagram Reels monetization rate approaches YouTube levels", date: "Mar 4", source: "Insider Intelligence", summary: "Short-form video RPM reaches $8.40, narrowing the gap with YouTube's $12 benchmark.", sentiment: "bullish" },
+    ],
+  },
+  {
+    ticker: "TSLA", name: "Tesla Inc", tradeType: "SHORT", bullScore: 2, bearScore: 6, price: 238.50, rsi: 38.7,
+    volumeRatio: 2.3, volumeSpike: true,
+    signals: { sma200: true, sma50: true, rsiMomentum: true, volume: true, macd: true, priceAction: false, trendStrength: true, earningsSetup: false },
+    entryAtr: 242.00, entryStructure: 241.00, bestEntry: 242.00, stopLoss: 255.00, target: 210.00, riskReward: 2.46, atr: 7.8, distance52w: -42.3,
+    conflictTrend: false, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "Tesla Q1 deliveries miss by 18%, lowest since 2022", date: "Mar 17", source: "Bloomberg", summary: "Q1 deliveries of 336,000 units fell far short of 411,000 analyst consensus, citing Cybertruck recall and EU sales slump.", sentiment: "bearish" },
+      { title: "European market share falls to 9.8% on BYD competition", date: "Mar 14", source: "European Automobile Manufacturers Assoc", summary: "EU EV registrations show TSLA losing 4 points of market share as Chinese brands undercut pricing.", sentiment: "bearish" },
+      { title: "Musk political activity continues to weigh on brand perception", date: "Mar 11", source: "Reuters", summary: "Consumer boycott campaigns grow in EU and US; dealership foot traffic tracking tools report 15% drop.", sentiment: "bearish" },
+      { title: "FSD v13 achieves zero driver interventions on 1,000-mile test", date: "Mar 9", source: "Electrek", summary: "Latest full self-driving release shows marked improvement; potential regulatory green light in AZ and TX.", sentiment: "bullish" },
+      { title: "Tesla Energy storage deployments up 130% YoY", date: "Mar 7", source: "PRNewswire", summary: "Megapack orders surge as utilities prioritize grid-scale batteries; this segment now 20% of gross profit.", sentiment: "bullish" },
+      { title: "CEO compensation controversy sparks shareholder activism", date: "Mar 4", source: "Wall Street Journal", summary: "ISS recommends withholding votes for three Tesla board members over re-approval of $56B pay package.", sentiment: "bearish" },
+    ],
+  },
+  {
+    ticker: "AMZN", name: "Amazon.com Inc", tradeType: "LONG", bullScore: 6, bearScore: 1, price: 202.75, rsi: 59.8,
+    volumeRatio: 1.2, volumeSpike: false,
+    signals: { sma200: true, sma50: true, rsiMomentum: true, volume: false, macd: true, priceAction: true, trendStrength: true, earningsSetup: false },
+    entryAtr: 198.50, entryStructure: 200.00, bestEntry: 198.50, stopLoss: 192.00, target: 225.00, riskReward: 4.08, atr: 3.2, distance52w: 62.4,
+    conflictTrend: false, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "AWS revenue accelerates to 22% YoY growth in Q4", date: "Mar 16", source: "Amazon IR", summary: "Cloud segment hits $107B annualized revenue run-rate, driven by generative AI workload migration.", sentiment: "bullish" },
+      { title: "Amazon advertising exceeds $60B annualized revenue", date: "Mar 13", source: "Bloomberg", summary: "Sponsored Products and DSP growth rate of 28% YoY outpaces Google and Meta in same period.", sentiment: "bullish" },
+      { title: "FTC antitrust probe into Prime bundling expands", date: "Mar 10", source: "Reuters", summary: "Regulators investigating whether Prime membership tying harms marketplace competition; trial set for 2027.", sentiment: "bearish" },
+      { title: "Project Kuiper launches first 100 production satellites", date: "Mar 8", source: "SpaceNews", summary: "Amazon's broadband constellation begins commercial beta service; targets 3,236-satellite LEO network by end-2026.", sentiment: "bullish" },
+      { title: "Amazon fulfillment automation cuts costs 20%", date: "Mar 6", source: "Supply Chain Dive", summary: "Sequoia robotics system deployed in 25 FC sites reduces per-unit fulfillment cost from $3.80 to $3.05.", sentiment: "bullish" },
+      { title: "EU digital services act compliance adding $2B in costs", date: "Mar 3", source: "FT", summary: "Marketplace content moderation obligations require 5,000 new EU-based trust & safety headcount.", sentiment: "bearish" },
+    ],
+  },
+  {
+    ticker: "MSFT", name: "Microsoft Corporation", tradeType: "LONG", bullScore: 6, bearScore: 1, price: 418.60, rsi: 57.3,
+    volumeRatio: 0.9, volumeSpike: false,
+    signals: { sma200: true, sma50: true, rsiMomentum: true, volume: false, macd: true, priceAction: true, trendStrength: true, earningsSetup: false },
+    entryAtr: 412.00, entryStructure: 414.00, bestEntry: 412.00, stopLoss: 400.00, target: 450.00, riskReward: 3.17, atr: 5.1, distance52w: 28.4,
+    conflictTrend: false, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "Copilot+ PC adoption rate reaches 30% of new Windows sales", date: "Mar 17", source: "IDC", summary: "NPU-powered AI features driving premium PC refresh cycle; MSFT ASP rises $180 on Copilot SKU attach.", sentiment: "bullish" },
+      { title: "Azure OpenAI Service now used by 65% of Fortune 500", date: "Mar 14", source: "Microsoft IR", summary: "Enterprise AI adoption accelerates with Azure AI Foundry onboarding 3,000 new customers in Q1.", sentiment: "bullish" },
+      { title: "GitHub Copilot Enterprise ARR exceeds $2B", date: "Mar 12", source: "Bloomberg", summary: "Developer productivity tool sees 200% YoY revenue growth as enterprises expand seat counts.", sentiment: "bullish" },
+      { title: "Activision integration costs trim EPS by $0.22 in FY26", date: "Mar 9", source: "Reuters", summary: "Game studio restructuring charges and goodwill amortization weigh on reported earnings.", sentiment: "bearish" },
+      { title: "DOJ launches fresh antitrust inquiry into Teams bundling", date: "Mar 7", source: "Wall Street Journal", summary: "Department of Justice opens investigation into whether Teams is illegally tied to Microsoft 365 subscriptions.", sentiment: "bearish" },
+      { title: "MSFT raises dividend 10% and authorizes $60B buyback", date: "Mar 4", source: "PRNewswire", summary: "Board increases quarterly dividend to $0.83/share and extends capital return authorization to 2028.", sentiment: "bullish" },
+    ],
+  },
+  {
+    ticker: "JPM", name: "JPMorgan Chase & Co", tradeType: "SHORT", bullScore: 2, bearScore: 5, price: 233.80, rsi: 44.1,
+    volumeRatio: 1.4, volumeSpike: false,
+    signals: { sma200: true, sma50: true, rsiMomentum: false, volume: false, macd: true, priceAction: true, trendStrength: true, earningsSetup: false },
+    entryAtr: 236.50, entryStructure: 235.80, bestEntry: 236.50, stopLoss: 244.00, target: 218.00, riskReward: 2.47, atr: 3.6, distance52w: 38.2,
+    conflictTrend: false, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "JPM credit loss provisions rise $1.8B on consumer stress", date: "Mar 17", source: "Bloomberg", summary: "Rising delinquency rates in credit cards and auto loans force JPMorgan to build reserves sharply.", sentiment: "bearish" },
+      { title: "Inverted yield curve compresses net interest margin", date: "Mar 15", source: "FT", summary: "NIM contracts 18bps QoQ as deposit repricing lags loan rate resets, pressuring banking profitability.", sentiment: "bearish" },
+      { title: "JPM CRE portfolio shows $3.4B in stress exposures", date: "Mar 12", source: "Reuters", summary: "Commercial real estate office loans marked to 72 cents on the dollar; concentrated in NY/SF markets.", sentiment: "bearish" },
+      { title: "Investment banking fee recovery trails peers in Q1", date: "Mar 10", source: "Bloomberg", summary: "M&A advisory fees grow only 12% vs. Goldman's 38%, suggesting share loss in bulge-bracket mandates.", sentiment: "bearish" },
+      { title: "JPM launches AI-powered treasury management platform", date: "Mar 8", source: "American Banker", summary: "Payments intelligence product onboards 200 corporate clients in beta, targeting $500M in new revenue.", sentiment: "bullish" },
+      { title: "Dimon signals readiness to acquire a regional bank", date: "Mar 5", source: "CNBC", summary: "CEO remarks at investor day hint at bolt-on acquisition of a mid-size regional bank to expand deposit base.", sentiment: "neutral" },
+    ],
+  },
+  {
+    ticker: "BA", name: "Boeing Company", tradeType: "SHORT", bullScore: 1, bearScore: 6, price: 163.20, rsi: 37.8,
+    volumeRatio: 1.9, volumeSpike: true,
+    signals: { sma200: true, sma50: true, rsiMomentum: true, volume: true, macd: true, priceAction: false, trendStrength: true, earningsSetup: false },
+    entryAtr: 166.00, entryStructure: 165.50, bestEntry: 166.00, stopLoss: 174.00, target: 145.00, riskReward: 2.63, atr: 4.2, distance52w: -38.5,
+    conflictTrend: false, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "FAA orders halt to 737 MAX 10 production over door-plug inspections", date: "Mar 17", source: "Reuters", summary: "Regulator mandates 100% inspection of fuselage plug installations, halting line 4 completions for 3 weeks.", sentiment: "bearish" },
+      { title: "BA posts $3.1B Q1 operating loss, sixth consecutive quarter in the red", date: "Mar 14", source: "Bloomberg", summary: "Cash burn of $2.4B in quarter; CFO warns full-year free cash flow will be negative by at least $5B.", sentiment: "bearish" },
+      { title: "IAM machinists strike threat re-emerges at Renton plant", date: "Mar 11", source: "Seattle Times", summary: "Workers reject contract offer; new strike authorization vote scheduled, adding delivery uncertainty.", sentiment: "bearish" },
+      { title: "737 MAX delivery backlog extends to 2028 from 2027", date: "Mar 9", source: "Aviation Week", summary: "Spirit AeroSystems fuselage quality issues push delivery timeline for 400+ aircraft further into the future.", sentiment: "bearish" },
+      { title: "DoD awards BA $14B Collaborative Combat Aircraft contract", date: "Mar 7", source: "Defense News", summary: "Loyal wingman autonomous drone program provides stable long-term revenue from defense division.", sentiment: "bullish" },
+      { title: "Air India places $22B order for 220 737 MAX aircraft", date: "Mar 4", source: "PRNewswire", summary: "Largest single 737 order in two years boosts BA's commercial backlog to 5,700 aircraft.", sentiment: "bullish" },
+    ],
+  },
+  {
+    ticker: "PFE", name: "Pfizer Inc", tradeType: "SHORT", bullScore: 1, bearScore: 5, price: 24.30, rsi: 41.5,
+    volumeRatio: 1.6, volumeSpike: true,
+    signals: { sma200: true, sma50: false, rsiMomentum: true, volume: true, macd: true, priceAction: false, trendStrength: true, earningsSetup: false },
+    entryAtr: 25.00, entryStructure: 24.80, bestEntry: 25.00, stopLoss: 27.00, target: 21.00, riskReward: 2.5, atr: 0.55, distance52w: -48.7,
+    conflictTrend: false, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "PFE COVID revenue collapses 78% as pandemic era ends", date: "Mar 16", source: "Bloomberg", summary: "Paxlovid and Comirnaty combined sales fall to $3.2B annualized from $14B peak, shrinking top line sharply.", sentiment: "bearish" },
+      { title: "Pfizer cuts 15,000 jobs in restructuring program", date: "Mar 13", source: "Reuters", summary: "Company targets $4B in cost savings by 2027 amid revenue cliff; charges of $5.5B recognized in Q1.", sentiment: "bearish" },
+      { title: "Seagen oncology integration trails synergy targets by 30%", date: "Mar 11", source: "FT", summary: "ADC pipeline cannibalization and sales-force overlap reduce first-year synergy capture to $700M vs $1B plan.", sentiment: "bearish" },
+      { title: "RSV vaccine Abrysvo faces new Moderna and J&J competition", date: "Mar 9", source: "STAT News", summary: "Rival approvals shrink Abrysvo's market share from 60% to an estimated 35% in 12 months.", sentiment: "bearish" },
+      { title: "Pfizer's GLP-1 oral danuglipron shows 15% weight loss in P2", date: "Mar 7", source: "NEJM", summary: "Phase 2b data supports advancement to Phase 3; potential $10B+ opportunity in obesity market.", sentiment: "bullish" },
+      { title: "Activist Elliott Management takes $1B stake in PFE", date: "Mar 4", source: "Bloomberg", summary: "Elliott pushes for strategic review of non-core assets and CEO succession plan, potentially unlocking value.", sentiment: "bullish" },
+    ],
+  },
+  {
+    ticker: "XOM", name: "Exxon Mobil Corp", tradeType: "SHORT", bullScore: 2, bearScore: 4, price: 109.45, rsi: 46.2,
+    volumeRatio: 1.1, volumeSpike: false,
+    signals: { sma200: true, sma50: false, rsiMomentum: false, volume: false, macd: true, priceAction: true, trendStrength: true, earningsSetup: false },
+    entryAtr: 111.00, entryStructure: 110.50, bestEntry: 111.00, stopLoss: 116.00, target: 100.00, riskReward: 2.2, atr: 1.8, distance52w: -15.3,
+    conflictTrend: false, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "IEA lowers global oil demand forecast for second consecutive month", date: "Mar 16", source: "IEA", summary: "Electric vehicle adoption and industrial efficiency improvements trim 2026 demand growth to 700 kbd.", sentiment: "bearish" },
+      { title: "XOM Pioneer acquisition integration delivers $2B below synergy target", date: "Mar 13", source: "Bloomberg", summary: "Well productivity in Midland Basin disappoints vs. pre-deal models; Permian output 8% below forecast.", sentiment: "bearish" },
+      { title: "Natural gas prices collapse to $1.80/MMBtu, lowest in 4 years", date: "Mar 10", source: "Reuters", summary: "Mild winter and record Appalachian output weigh on gas pricing, reducing XOM's integrated earnings power.", sentiment: "bearish" },
+      { title: "XOM carbon capture project wins $500M DOE grant", date: "Mar 8", source: "DOE", summary: "Stratos-class DAC facility in Texas receives federal funding for Phase 2, advancing low-carbon positioning.", sentiment: "bullish" },
+      { title: "Guyana Stabroek production reaches 800,000 bbl/d milestone", date: "Mar 5", source: "Offshore Technology", summary: "Yellowtail FPSO ramps on schedule; offshore growth shields XOM from Permian disappoints.", sentiment: "bullish" },
+      { title: "Litigation over California climate damages adds legal risk", date: "Mar 2", source: "Reuters", summary: "California Supreme Court allows climate damages lawsuit to proceed; potential liability estimated at $30B.", sentiment: "bearish" },
+    ],
+  },
+  {
+    ticker: "GOOG", name: "Alphabet Inc", tradeType: "LONG", bullScore: 5, bearScore: 2, price: 168.90, rsi: 55.6,
+    volumeRatio: 0.8, volumeSpike: false,
+    signals: { sma200: true, sma50: true, rsiMomentum: true, volume: false, macd: true, priceAction: true, trendStrength: false, earningsSetup: false },
+    entryAtr: 165.50, entryStructure: 166.00, bestEntry: 165.50, stopLoss: 159.00, target: 185.00, riskReward: 3.0, atr: 2.8, distance52w: 32.8,
+    conflictTrend: false, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "Google Search AI Overviews reach 1.5B users globally", date: "Mar 17", source: "Bloomberg", summary: "Gemini-powered search features increase session length by 12% and ad impression frequency.", sentiment: "bullish" },
+      { title: "YouTube Shorts monetization gap with TikTok narrows significantly", date: "Mar 14", source: "Insider Intelligence", summary: "Short-form RPM rises to $7.20 from $5.50 YoY as Google improves creator revenue share and brand targeting.", sentiment: "bullish" },
+      { title: "DOJ proposes breakup of Google Ad Tech stack", date: "Mar 11", source: "Reuters", summary: "Remedies trial recommends forcing Alphabet to divest DFP ad server and AdX exchange, removing key revenue.", sentiment: "bearish" },
+      { title: "Waymo One rides surpass 250,000 per week in major US cities", date: "Mar 9", source: "TechCrunch", summary: "Robotaxi service expands to Atlanta and Miami; revenue run-rate approaches $500M annualized.", sentiment: "bullish" },
+      { title: "Gemini Ultra 2.0 outperforms GPT-5 on key reasoning benchmarks", date: "Mar 7", source: "Ars Technica", summary: "MMLU and GPQA scores show Google closing the gap with OpenAI on enterprise reasoning tasks.", sentiment: "bullish" },
+      { title: "Apple threatens to remove Google as default search on iOS", date: "Mar 4", source: "Wall Street Journal", summary: "Cupertino explores Perplexity and Gemini as alternative defaults; potential loss of $18B TAC revenue.", sentiment: "bearish" },
+    ],
+  },
+  {
+    ticker: "UNH", name: "UnitedHealth Group", tradeType: "SHORT", bullScore: 2, bearScore: 5, price: 474.20, rsi: 39.4,
+    volumeRatio: 1.7, volumeSpike: true,
+    signals: { sma200: true, sma50: true, rsiMomentum: true, volume: true, macd: true, priceAction: false, trendStrength: true, earningsSetup: false },
+    entryAtr: 478.00, entryStructure: 477.00, bestEntry: 478.00, stopLoss: 494.00, target: 440.00, riskReward: 2.38, atr: 7.2, distance52w: -26.4,
+    conflictTrend: false, earningsWarning: false, updatedAt: "11:01 PM ET",
+    news: [
+      { title: "UNH medical loss ratio spikes to 87.3% in Q4, multi-year high", date: "Mar 16", source: "Bloomberg", summary: "Unexpected surge in inpatient surgical volumes and MA utilization raises investor concerns about MCO profitability.", sentiment: "bearish" },
+      { title: "CMS cuts Medicare Advantage rates 0.5% for 2027", date: "Mar 13", source: "CMS.gov", summary: "Final rate notice disappoints relative to advance notice; pressure intensifies on largest MA operator.", sentiment: "bearish" },
+      { title: "Change Healthcare cyberattack civil litigation expands", date: "Mar 11", source: "Reuters", summary: "Class action suits now name 340 health providers as plaintiffs; potential settlement liability revised to $3.5B.", sentiment: "bearish" },
+      { title: "Optum Health grows to 90,000 employed physicians", date: "Mar 9", source: "Modern Healthcare", summary: "Vertical integration milestone allows UNH to capture care delivery margin and reduce external claims leakage.", sentiment: "bullish" },
+      { title: "UNH raises quarterly dividend 12%", date: "Mar 7", source: "PRNewswire", summary: "Board declares $2.10/share quarterly dividend, reflecting confidence in long-term earnings power.", sentiment: "bullish" },
+      { title: "Federal probe into Medicare Advantage coding intensifies", date: "Mar 4", source: "DOJ", summary: "HHS OIG expands review of risk-adjustment submissions; potential $8B repayment demand looms over sector.", sentiment: "bearish" },
+    ],
   },
 ];
 
@@ -151,6 +363,16 @@ export const mockScoreHistory: Record<string, { bull: number; bear: number; date
     { bull: 3, bear: 1, date: "Mar 10" }, { bull: 3, bear: 1, date: "Mar 11" }, { bull: 4, bear: 1, date: "Mar 12" },
     { bull: 4, bear: 1, date: "Mar 13" }, { bull: 5, bear: 1, date: "Mar 14" }, { bull: 5, bear: 1, date: "Mar 15" },
     { bull: 5, bear: 1, date: "Mar 16" }, { bull: 5, bear: 1, date: "Mar 17" },
+  ],
+  NVDA: [
+    { bull: 5, bear: 1, date: "Mar 10" }, { bull: 6, bear: 1, date: "Mar 11" }, { bull: 6, bear: 1, date: "Mar 12" },
+    { bull: 7, bear: 1, date: "Mar 13" }, { bull: 7, bear: 1, date: "Mar 14" }, { bull: 7, bear: 1, date: "Mar 15" },
+    { bull: 7, bear: 1, date: "Mar 16" }, { bull: 7, bear: 1, date: "Mar 17" },
+  ],
+  TSLA: [
+    { bull: 4, bear: 3, date: "Mar 10" }, { bull: 3, bear: 4, date: "Mar 11" }, { bull: 3, bear: 4, date: "Mar 12" },
+    { bull: 2, bear: 5, date: "Mar 13" }, { bull: 2, bear: 5, date: "Mar 14" }, { bull: 2, bear: 6, date: "Mar 15" },
+    { bull: 2, bear: 6, date: "Mar 16" }, { bull: 2, bear: 6, date: "Mar 17" },
   ],
 };
 

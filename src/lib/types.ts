@@ -12,8 +12,18 @@ export interface StockSignals {
   earningsSetup: boolean;
 }
 
+export interface NewsItem {
+  title: string;
+  date: string;
+  source?: string;
+  summary?: string;
+  sentiment?: "bullish" | "bearish" | "neutral";
+  url?: string;
+}
+
 export interface Stock {
   ticker: string;
+  name: string;
   tradeType: "LONG" | "SHORT";
   bullScore: number;
   bearScore: number;
@@ -31,7 +41,7 @@ export interface Stock {
   atr: number;
   distance52w: number;
   conflictTrend: boolean;
-  news: { title: string; date: string }[];
+  news: NewsItem[];
   earningsDate?: string;
   earningsWarning: boolean;
   updatedAt: string;
@@ -72,10 +82,11 @@ export interface Position {
 // Transform Supabase row to app Stock type
 export function mapDbStock(row: Tables<"stocks">): Stock {
   const signals = (row.signals || {}) as Record<string, boolean>;
-  const news = (row.news || []) as { title: string; date: string }[];
+  const news = (row.news || []) as NewsItem[];
   
   return {
     ticker: row.ticker,
+    name: (row as Record<string, unknown>).name as string ?? row.ticker,
     tradeType: row.trade_type as "LONG" | "SHORT",
     bullScore: row.bull_score,
     bearScore: row.bear_score,
