@@ -1,4 +1,4 @@
-import { X, Check, Minus } from "lucide-react";
+import { X, Check, Minus, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus as NeutralIcon } from "lucide-react";
 import { Stock } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -17,9 +17,12 @@ interface DetailPanelProps {
   }) => void;
 }
 
+const VISIBLE_NEWS = 3;
+
 export function DetailPanel({ stock, onClose, onOpenPosition }: DetailPanelProps) {
   const { user } = useAuth();
   const [shares, setShares] = useState("1");
+  const [showMoreNews, setShowMoreNews] = useState(false);
 
   if (!stock) return null;
 
@@ -48,17 +51,53 @@ export function DetailPanel({ stock, onClose, onOpenPosition }: DetailPanelProps
     });
   };
 
+  const visibleNews = stock.news.slice(0, VISIBLE_NEWS);
+  const hiddenNews = stock.news.slice(VISIBLE_NEWS);
+
+  const sentimentIcon = (sentiment?: string) => {
+    if (sentiment === "bullish") return <TrendingUp className="w-3 h-3 text-long flex-shrink-0" />;
+    if (sentiment === "bearish") return <TrendingDown className="w-3 h-3 text-short flex-shrink-0" />;
+    return <NeutralIcon className="w-3 h-3 text-muted-foreground flex-shrink-0" />;
+  };
+
+  const sentimentBadge = (sentiment?: string) => {
+    if (sentiment === "bullish") return "bg-long/10 text-long";
+    if (sentiment === "bearish") return "bg-short/10 text-short";
+    return "bg-border/40 text-muted-foreground";
+  };
+
+  const scoreMax = 8;
+  const scorePct = Math.round((score / scoreMax) * 100);
+
   return (
     <div className="fixed inset-y-0 right-0 z-30 w-full max-w-md bg-card border-l border-border shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-200">
-      <div className="sticky top-0 z-10 bg-card border-b border-border px-5 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-bold text-foreground">{stock.ticker}</h2>
-          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold tracking-wider", isShort ? "bg-short/15 text-short" : "bg-long/15 text-long")}>
-            {stock.tradeType}
-          </span>
-          <span className="text-sm font-mono text-muted-foreground">{score}/8</span>
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-card border-b border-border px-5 py-4 flex items-start justify-between">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-xl font-bold text-foreground">{stock.ticker}</h2>
+            <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold tracking-wider", isShort ? "bg-short/15 text-short" : "bg-long/15 text-long")}>
+              {stock.tradeType}
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground">{stock.name}</p>
+          {/* Score bar */}
+          <div className="flex items-center gap-2 mt-1">
+            <div className="flex-1 h-2 rounded-full bg-border overflow-hidden w-32">
+              <div
+                className={cn("h-full rounded-full transition-all", isShort ? "bg-short" : "bg-long")}
+                style={{ width: `${scorePct}%` }}
+              />
+            </div>
+            <span className={cn("text-sm font-bold font-mono", isShort ? "text-short" : "text-long")}>
+              {score}<span className="text-muted-foreground font-normal text-xs">/8</span>
+            </span>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+              {isShort ? "Bear" : "Bull"} Score
+            </span>
+          </div>
         </div>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors mt-1">
           <X className="w-5 h-5" />
         </button>
       </div>
@@ -107,14 +146,69 @@ export function DetailPanel({ stock, onClose, onOpenPosition }: DetailPanelProps
 
         {stock.news.length > 0 && (
           <section>
-            <h3 className="text-xs font-semibold text-muted-foreground tracking-wider mb-3">RECENT NEWS</h3>
-            <div className="space-y-2">
-              {stock.news.map((n, i) => (
-                <div key={i} className="text-xs">
-                  <span className="text-foreground">{n.title}</span>
-                  <span className="text-muted-foreground ml-2">— {n.date}</span>
+            <h3 className="text-xs font-semibold text-muted-foreground tracking-wider mb-3">
+              RECENT NEWS <span className="font-normal normal-case text-muted-foreground/60">({stock.news.length} articles)</span>
+            </h3>
+            <div className="space-y-3">
+              {visibleNews.map((n, i) => (
+                <div key={i} className={cn("rounded-md border border-border/60 p-3 space-y-1.5", sentimentBadge(n.sentiment).includes("long") ? "border-long/20" : n.sentiment === "bearish" ? "border-short/20" : "")}>
+                  <div className="flex items-start gap-1.5">
+                    {sentimentIcon(n.sentiment)}
+                    <span className="text-xs font-medium text-foreground leading-snug">{n.title}</span>
+                  </div>
+                  {n.summary && (
+                    <p className="text-[11px] text-muted-foreground leading-relaxed pl-4">{n.summary}</p>
+                  )}
+                  <div className="flex items-center gap-2 pl-4">
+                    {n.source && (
+                      <span className="text-[10px] font-medium text-primary/70">{n.source}</span>
+                    )}
+                    <span className="text-[10px] text-muted-foreground">— {n.date}</span>
+                    {n.sentiment && (
+                      <span className={cn("text-[9px] font-bold uppercase px-1.5 py-0.5 rounded", sentimentBadge(n.sentiment))}>
+                        {n.sentiment}
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
+
+              {hiddenNews.length > 0 && (
+                <>
+                  {showMoreNews && hiddenNews.map((n, i) => (
+                    <div key={`hidden-${i}`} className={cn("rounded-md border border-border/60 p-3 space-y-1.5", n.sentiment === "bullish" ? "border-long/20" : n.sentiment === "bearish" ? "border-short/20" : "")}>
+                      <div className="flex items-start gap-1.5">
+                        {sentimentIcon(n.sentiment)}
+                        <span className="text-xs font-medium text-foreground leading-snug">{n.title}</span>
+                      </div>
+                      {n.summary && (
+                        <p className="text-[11px] text-muted-foreground leading-relaxed pl-4">{n.summary}</p>
+                      )}
+                      <div className="flex items-center gap-2 pl-4">
+                        {n.source && (
+                          <span className="text-[10px] font-medium text-primary/70">{n.source}</span>
+                        )}
+                        <span className="text-[10px] text-muted-foreground">— {n.date}</span>
+                        {n.sentiment && (
+                          <span className={cn("text-[9px] font-bold uppercase px-1.5 py-0.5 rounded", sentimentBadge(n.sentiment))}>
+                            {n.sentiment}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => setShowMoreNews(p => !p)}
+                    className="flex items-center gap-1.5 text-[11px] font-medium text-primary/80 hover:text-primary transition-colors w-full justify-center py-1.5 rounded-md border border-dashed border-border hover:border-primary/40"
+                  >
+                    {showMoreNews ? (
+                      <><ChevronUp className="w-3.5 h-3.5" /> Show less</>
+                    ) : (
+                      <><ChevronDown className="w-3.5 h-3.5" /> Show {hiddenNews.length} more article{hiddenNews.length !== 1 ? "s" : ""}</>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           </section>
         )}
@@ -151,3 +245,4 @@ export function DetailPanel({ stock, onClose, onOpenPosition }: DetailPanelProps
     </div>
   );
 }
+

@@ -10,10 +10,14 @@ export function useStocks() {
   return useQuery({
     queryKey: ["stocks"],
     queryFn: async (): Promise<Stock[]> => {
-      const { data, error } = await supabase.from("stocks").select("*");
-      if (error) throw error;
-      if (!data || data.length === 0) return mockStocks;
-      return data.map(mapDbStock);
+      try {
+        const { data, error } = await supabase.from("stocks").select("*");
+        if (error) return mockStocks;
+        if (!data || data.length === 0) return mockStocks;
+        return data.map(mapDbStock);
+      } catch {
+        return mockStocks;
+      }
     },
   });
 }
@@ -23,10 +27,14 @@ export function useRegime() {
   return useQuery({
     queryKey: ["regime"],
     queryFn: async (): Promise<RegimeData> => {
-      const { data, error } = await supabase.from("regime").select("*").limit(1).maybeSingle();
-      if (error) throw error;
-      if (!data) return mockRegime;
-      return mapDbRegime(data);
+      try {
+        const { data, error } = await supabase.from("regime").select("*").limit(1).maybeSingle();
+        if (error) return mockRegime;
+        if (!data) return mockRegime;
+        return mapDbRegime(data);
+      } catch {
+        return mockRegime;
+      }
     },
   });
 }
@@ -36,23 +44,27 @@ export function useLastRun() {
   return useQuery({
     queryKey: ["lastRun"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("script_runs")
-        .select("*")
-        .order("ran_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) return lastRunInfo;
-      return {
-        timestamp: new Date(data.ran_at).toLocaleString("en-US", {
-          month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
-        }),
-        stockCount: data.stock_count,
-        regime: data.regime ?? "UNKNOWN",
-        runId: data.run_id,
-        universe: data.universe ?? "SP500 YTD Leaders",
-      };
+      try {
+        const { data, error } = await supabase
+          .from("script_runs")
+          .select("*")
+          .order("ran_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) return lastRunInfo;
+        if (!data) return lastRunInfo;
+        return {
+          timestamp: new Date(data.ran_at).toLocaleString("en-US", {
+            month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+          }),
+          stockCount: data.stock_count,
+          regime: data.regime ?? "UNKNOWN",
+          runId: data.run_id,
+          universe: data.universe ?? "SP500 YTD Leaders",
+        };
+      } catch {
+        return lastRunInfo;
+      }
     },
   });
 }
@@ -62,27 +74,31 @@ export function useScoreHistory() {
   return useQuery({
     queryKey: ["scoreHistory"],
     queryFn: async (): Promise<Record<string, ScoreHistoryPoint[]>> => {
-      const { data, error } = await supabase
-        .from("score_history")
-        .select("*")
-        .order("recorded_at", { ascending: true });
-      if (error) throw error;
-      if (!data || data.length === 0) return mockScoreHistory;
+      try {
+        const { data, error } = await supabase
+          .from("score_history")
+          .select("*")
+          .order("recorded_at", { ascending: true });
+        if (error) return mockScoreHistory;
+        if (!data || data.length === 0) return mockScoreHistory;
 
-      const grouped: Record<string, ScoreHistoryPoint[]> = {};
-      for (const row of data) {
-        if (!grouped[row.ticker]) grouped[row.ticker] = [];
-        grouped[row.ticker].push({
-          bull: row.bull_score,
-          bear: row.bear_score,
-          date: new Date(row.recorded_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-        });
+        const grouped: Record<string, ScoreHistoryPoint[]> = {};
+        for (const row of data) {
+          if (!grouped[row.ticker]) grouped[row.ticker] = [];
+          grouped[row.ticker].push({
+            bull: row.bull_score,
+            bear: row.bear_score,
+            date: new Date(row.recorded_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+          });
+        }
+        // Keep last 10 per ticker
+        for (const ticker of Object.keys(grouped)) {
+          grouped[ticker] = grouped[ticker].slice(-10);
+        }
+        return grouped;
+      } catch {
+        return mockScoreHistory;
       }
-      // Keep last 10 per ticker
-      for (const ticker of Object.keys(grouped)) {
-        grouped[ticker] = grouped[ticker].slice(-10);
-      }
-      return grouped;
     },
   });
 }
