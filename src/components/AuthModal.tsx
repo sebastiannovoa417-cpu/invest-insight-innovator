@@ -30,8 +30,8 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
         toast.success("Account created! Check your email to confirm.");
       }
       onClose();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setLoading(false);
     }
