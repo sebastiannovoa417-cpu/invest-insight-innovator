@@ -174,6 +174,7 @@ export type Database = {
           entry_atr: number | null
           entry_structure: number | null
           id: string
+          name: string | null
           news: Json
           price: number
           risk_reward: number | null
@@ -199,6 +200,7 @@ export type Database = {
           entry_atr?: number | null
           entry_structure?: number | null
           id?: string
+          name?: string | null
           news?: Json
           price: number
           risk_reward?: number | null
@@ -224,6 +226,7 @@ export type Database = {
           entry_atr?: number | null
           entry_structure?: number | null
           id?: string
+          name?: string | null
           news?: Json
           price?: number
           risk_reward?: number | null

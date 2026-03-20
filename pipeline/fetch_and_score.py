@@ -69,6 +69,34 @@ UNIVERSE: list[str] = [
 ]
 UNIVERSE_NAME = "SwingPulse 25 — v1.0"
 
+TICKER_NAMES: dict[str, str] = {
+    "PLUG": "Plug Power Inc",
+    "NIO": "NIO Inc",
+    "SOFI": "SoFi Technologies Inc",
+    "MARA": "Marathon Digital Holdings",
+    "VALE": "Vale S.A.",
+    "F": "Ford Motor Company",
+    "AAL": "American Airlines Group",
+    "SNAP": "Snap Inc",
+    "NOK": "Nokia Oyj",
+    "XPEV": "XPeng Inc",
+    "LMT": "Lockheed Martin Corp",
+    "CIEN": "Ciena Corporation",
+    "FIX": "Comfort Systems USA",
+    "MPC": "Marathon Petroleum Corp",
+    "MU": "Micron Technology",
+    "AMAT": "Applied Materials Inc",
+    "NVDA": "NVIDIA Corporation",
+    "META": "Meta Platforms Inc",
+    "TSLA": "Tesla Inc",
+    "AMZN": "Amazon.com Inc",
+    "MSFT": "Microsoft Corporation",
+    "AAPL": "Apple Inc",
+    "GE": "GE Aerospace",
+    "FDX": "FedEx Corporation",
+    "GOOGL": "Alphabet Inc",
+}
+
 
 # ── Indicator helpers ─────────────────────────────────────────────────────────
 
@@ -201,6 +229,7 @@ def score_ticker(ticker: str, df: pd.DataFrame) -> dict:
 
     return {
         "ticker": ticker,
+        "name": TICKER_NAMES.get(ticker, ticker),
         "trade_type": trade_type,
         "bull_score": bull_score,
         "bear_score": bear_score,

@@ -17,7 +17,8 @@ export function useStocks() {
         if (!data || data.length === 0) return mockStocks;
         return data.map(mapDbStock);
       } catch (err) {
-        console.warn("[useStocks] falling back to mock data:", err);
+        toast.error("Could not load stocks from Supabase — showing sample data.");
+        console.error("[useStocks]", err);
         return mockStocks;
       }
     },
@@ -36,7 +37,8 @@ export function useRegime() {
         if (!data) return mockRegime;
         return mapDbRegime(data);
       } catch (err) {
-        console.warn("[useRegime] falling back to mock data:", err);
+        toast.error("Could not load regime data from Supabase — showing sample data.");
+        console.error("[useRegime]", err);
         return mockRegime;
       }
     },
@@ -68,7 +70,8 @@ export function useLastRun() {
           universe: data.universe ?? "SwingPulse 25",
         };
       } catch (err) {
-        console.warn("[useLastRun] falling back to mock data:", err);
+        toast.error("Could not load run info from Supabase — showing sample data.");
+        console.error("[useLastRun]", err);
         return lastRunInfo;
       }
     },
@@ -106,7 +109,8 @@ export function useScoreHistory() {
         }
         return grouped;
       } catch (err) {
-        console.warn("[useScoreHistory] falling back to mock data:", err);
+        toast.error("Could not load score history from Supabase — showing sample data.");
+        console.error("[useScoreHistory]", err);
         return mockScoreHistory;
       }
     },

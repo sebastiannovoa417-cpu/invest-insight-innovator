@@ -68,6 +68,7 @@ serve(async (req) => {
             risk_reward: stock.risk_reward,
             atr: stock.atr,
             distance_52w: stock.distance_52w,
+            name: stock.name ?? stock.ticker,
             conflict_trend: stock.conflict_trend,
             news: stock.news || [],
             earnings_date: stock.earnings_date,
@@ -95,7 +96,7 @@ serve(async (req) => {
         run_id,
         stock_count: stocks?.length || 0,
         regime: regime?.status,
-        universe: universe || "SP500 YTD Leaders",
+        universe: universe || "SwingPulse 25 — v1.0",
       });
     }
 
