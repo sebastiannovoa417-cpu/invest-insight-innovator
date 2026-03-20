@@ -44,6 +44,7 @@ export interface Stock {
   news: NewsItem[];
   earningsDate?: string;
   earningsWarning: boolean;
+  shortInterest?: number;
   updatedAt: string;
 }
 
@@ -116,6 +117,7 @@ export function mapDbStock(row: Tables<"stocks">): Stock {
     news,
     earningsDate: row.earnings_date ?? undefined,
     earningsWarning: row.earnings_warning,
+    shortInterest: row.short_interest ?? undefined,
     updatedAt: new Date(row.updated_at).toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
