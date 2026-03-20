@@ -10,7 +10,7 @@ export function TopPickCard({ stock, regime }: TopPickCardProps) {
   const isShort = stock.tradeType === "SHORT";
   const score = isShort ? stock.bearScore : stock.bullScore;
   const isRegimeAligned = (isShort && regime.status === "BEARISH") || (!isShort && regime.status === "BULLISH");
-  
+
   const circumference = 2 * Math.PI * 36;
   const fillPercent = (score / 8) * circumference;
 
@@ -53,7 +53,7 @@ export function TopPickCard({ stock, regime }: TopPickCardProps) {
               <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-primary/15 text-primary">✓ Regime Aligned</span>
             )}
             <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground">
-              52W +{stock.distance52w.toFixed(1)}%
+              52W {stock.distance52w >= 0 ? "+" : ""}{stock.distance52w.toFixed(1)}%
             </span>
             <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground">
               Entry ${stock.bestEntry.toFixed(2)}
@@ -64,6 +64,9 @@ export function TopPickCard({ stock, regime }: TopPickCardProps) {
             )}>
               {stock.tradeType}
             </span>
+            {stock.earningsWarning && (
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400">⚠ Earnings</span>
+            )}
           </div>
 
           <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">

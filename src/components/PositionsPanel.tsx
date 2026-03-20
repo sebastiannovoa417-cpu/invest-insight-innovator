@@ -8,9 +8,10 @@ interface PositionsPanelProps {
   stocks: Stock[];
   onClose: () => void;
   onClosePosition: (args: { id: string; exitPrice: number }) => void;
+  inline?: boolean;
 }
 
-export function PositionsPanel({ positions, stocks, onClose, onClosePosition }: PositionsPanelProps) {
+export function PositionsPanel({ positions, stocks, onClose, onClosePosition, inline = false }: PositionsPanelProps) {
   const [closingId, setClosingId] = useState<string | null>(null);
   const [exitPrice, setExitPrice] = useState("");
 
@@ -42,13 +43,15 @@ export function PositionsPanel({ positions, stocks, onClose, onClosePosition }: 
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 z-30 w-full max-w-md bg-card border-l border-border shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-200">
-      <div className="sticky top-0 z-10 bg-card border-b border-border px-5 py-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-foreground">Positions</h2>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground" title="Close">
-          <X className="w-5 h-5" />
-        </button>
-      </div>
+    <div className={inline ? "w-full" : "fixed inset-y-0 right-0 z-30 w-full max-w-md bg-card border-l border-border shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-200"}>
+      {!inline && (
+        <div className="sticky top-0 z-10 bg-card border-b border-border px-5 py-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-foreground">Positions</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground" title="Close">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
 
       <div className="p-5 space-y-6">
         {/* Stats */}

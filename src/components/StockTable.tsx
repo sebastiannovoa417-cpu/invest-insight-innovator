@@ -96,13 +96,18 @@ export function StockTable({ stocks, watchlist, scoreHistory, onToggleWatchlist,
               <button
                 onClick={(e) => { e.stopPropagation(); onToggleWatchlist(stock.ticker); }}
                 className={cn("transition-colors", isWatchlisted ? "text-primary" : "text-border hover:text-muted-foreground")}
+                title={isWatchlisted ? "Remove from watchlist" : "Add to watchlist"}
               >
                 <Star className={cn("w-3.5 h-3.5", isWatchlisted && "fill-primary")} />
               </button>
-              <span className="font-semibold text-foreground">{stock.ticker}</span>
-              <div className="flex items-center gap-1">
+              <div className="flex flex-col leading-tight min-w-0">
+                <span className="font-semibold text-foreground">{stock.ticker}</span>
+                {stock.name && <span className="text-[9px] text-muted-foreground truncate max-w-[58px]">{stock.name}</span>}
+              </div>
+              <div className="flex items-center gap-1 flex-wrap">
                 <span className={cn("text-[10px] font-bold", isShort ? "text-short" : "text-long")}>{stock.tradeType}</span>
                 {stock.conflictTrend && <span className="text-[9px] text-muted-foreground">~CT</span>}
+                {stock.earningsWarning && <span className="text-[9px] font-bold text-amber-400" title="Earnings risk">⚠</span>}
               </div>
               <div className="flex items-center gap-2">
                 <DualScoreBar bullScore={stock.bullScore} bearScore={stock.bearScore} />

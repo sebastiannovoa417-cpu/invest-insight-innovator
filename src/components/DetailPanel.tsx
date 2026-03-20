@@ -76,11 +76,14 @@ export function DetailPanel({ stock, onClose, onOpenPosition }: DetailPanelProps
       {/* Header */}
       <div className="sticky top-0 z-10 bg-card border-b border-border px-5 py-4 flex items-start justify-between">
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <h2 className="text-xl font-bold text-foreground">{stock.ticker}</h2>
             <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold tracking-wider", isShort ? "bg-short/15 text-short" : "bg-long/15 text-long")}>
               {stock.tradeType}
             </span>
+            {stock.earningsWarning && (
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400">⚠ Earnings</span>
+            )}
           </div>
           <p className="text-sm text-muted-foreground">{stock.name}</p>
           {/* Score bar */}
@@ -137,6 +140,7 @@ export function DetailPanel({ stock, onClose, onOpenPosition }: DetailPanelProps
               { label: "R:R", value: `${stock.riskReward.toFixed(2)}` },
               { label: "ATR", value: `$${stock.atr.toFixed(2)}` },
               { label: "52W Distance", value: `${stock.distance52w > 0 ? "+" : ""}${stock.distance52w.toFixed(1)}%` },
+              { label: "Short Int.", value: stock.shortInterest != null ? `${stock.shortInterest.toFixed(1)}%` : "—" },
             ].map((item) => (
               <div key={item.label} className={cn("rounded-md border border-border p-2.5", item.highlight && "border-primary/30 bg-primary/5")}>
                 <div className="text-[10px] text-muted-foreground mb-0.5">{item.label}</div>

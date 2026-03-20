@@ -325,6 +325,9 @@ def main() -> None:
         group_by="column",  # default: outer=field, inner=ticker
     )
 
+    if raw is None or raw.empty:
+        raise RuntimeError("yf.download returned no data — aborting run")
+
     def get_df(ticker: str) -> pd.DataFrame:
         """Extract single-ticker OHLCV from the bulk MultiIndex download."""
         try:
