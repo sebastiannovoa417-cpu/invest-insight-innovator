@@ -46,7 +46,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
             <h2 className="text-lg font-bold text-foreground">
               {mode === "signin" ? "Sign In" : "Create Account"}
             </h2>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground" title="Close">
               <X className="w-5 h-5" />
             </button>
           </div>

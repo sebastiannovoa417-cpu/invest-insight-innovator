@@ -48,6 +48,7 @@ export function StockTable({ stocks, watchlist, scoreHistory, onToggleWatchlist,
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
+              title="Previous page"
               className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
@@ -58,6 +59,7 @@ export function StockTable({ stocks, watchlist, scoreHistory, onToggleWatchlist,
             <button
               onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={page === totalPages - 1}
+              title="Next page"
               className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
             >
               <ChevronRight className="w-3.5 h-3.5" />

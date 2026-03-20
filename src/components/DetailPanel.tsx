@@ -99,7 +99,7 @@ export function DetailPanel({ stock, onClose, onOpenPosition }: DetailPanelProps
             </span>
           </div>
         </div>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors mt-1">
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors mt-1" title="Close">
           <X className="w-5 h-5" />
         </button>
       </div>
@@ -225,6 +225,7 @@ export function DetailPanel({ stock, onClose, onOpenPosition }: DetailPanelProps
                 step="1"
                 value={shares}
                 onChange={(e) => setShares(e.target.value)}
+                aria-label="Number of shares"
                 className="w-20 h-10 px-2 rounded-md border border-border bg-background text-sm font-mono text-foreground text-center focus:outline-none focus:ring-1 focus:ring-primary/50"
               />
               <button

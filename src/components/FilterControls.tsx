@@ -78,6 +78,7 @@ export function FilterControls({
       <select
         value={sortBy}
         onChange={(e) => onSortChange(e.target.value as SortOption)}
+        aria-label="Sort by"
         className="h-8 px-2 rounded-md border border-border bg-card text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
       >
         <option value="score">SCORE ↓</option>

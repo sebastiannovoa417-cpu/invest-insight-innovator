@@ -328,7 +328,8 @@ def main() -> None:
     def get_df(ticker: str) -> pd.DataFrame:
         """Extract single-ticker OHLCV from the bulk MultiIndex download."""
         try:
-            df = raw.xs(ticker, level=1, axis=1).dropna(how="all").copy()
+            result = raw.xs(ticker, level=1, axis=1).dropna(how="all")
+            df = pd.DataFrame(result).copy()
             df.index = pd.to_datetime(df.index)
             return df.sort_index()
         except (KeyError, TypeError):
