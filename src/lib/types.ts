@@ -86,7 +86,9 @@ export function mapDbStock(row: Tables<"stocks">): Stock {
   
   return {
     ticker: row.ticker,
-    name: (row as Record<string, unknown>).name as string ?? row.ticker,
+    name: typeof (row as Record<string, unknown>).name === 'string' 
+      ? (row as Record<string, unknown>).name as string 
+      : row.ticker,
     tradeType: row.trade_type as "LONG" | "SHORT",
     bullScore: row.bull_score,
     bearScore: row.bear_score,

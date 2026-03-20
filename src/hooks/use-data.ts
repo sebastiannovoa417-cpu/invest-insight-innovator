@@ -111,9 +111,13 @@ export function useWatchlist() {
     queryKey: ["watchlist", user?.id],
     queryFn: async (): Promise<Set<string>> => {
       if (!user) return new Set();
-      const { data, error } = await supabase.from("watchlist").select("ticker");
-      if (error) throw error;
-      return new Set((data ?? []).map((r) => r.ticker));
+      try {
+        const { data, error } = await supabase.from("watchlist").select("ticker");
+        if (error) return new Set();
+        return new Set((data ?? []).map((r) => r.ticker));
+      } catch {
+        return new Set();
+      }
     },
     enabled: !!user,
   });
@@ -152,12 +156,16 @@ export function usePositions() {
     queryKey: ["positions", user?.id],
     queryFn: async (): Promise<Position[]> => {
       if (!user) return [];
-      const { data, error } = await supabase
-        .from("positions")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []).map(mapDbPosition);
+      try {
+        const { data, error } = await supabase
+          .from("positions")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) return [];
+        return (data ?? []).map(mapDbPosition);
+      } catch {
+        return [];
+      }
     },
     enabled: !!user,
   });
