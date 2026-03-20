@@ -43,14 +43,37 @@ EARNINGS_WARN_DAYS: int = 14  # flag as warning if earnings within this window
 
 # 25-ticker SwingPulse universe
 _TICKERS: list[str] = [
-    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",
-    "JPM", "V", "MA", "UNH", "JNJ", "XOM", "CVX", "BAC",
-    "HD", "NFLX", "DIS", "COST", "WMT", "LLY", "AVGO", "AMD", "CRM", "ADBE",
+    "AAPL",
+    "MSFT",
+    "GOOGL",
+    "AMZN",
+    "NVDA",
+    "META",
+    "TSLA",
+    "JPM",
+    "V",
+    "MA",
+    "UNH",
+    "JNJ",
+    "XOM",
+    "CVX",
+    "BAC",
+    "HD",
+    "NFLX",
+    "DIS",
+    "COST",
+    "WMT",
+    "LLY",
+    "AVGO",
+    "AMD",
+    "CRM",
+    "ADBE",
 ]
 FUTU_TICKERS: list[str] = [f"US.{t}" for t in _TICKERS]
 
 
 # ── moomoo data fetch ─────────────────────────────────────────────────────────
+
 
 def fetch_moomoo_snapshot() -> dict[str, dict]:
     """Fetches market snapshot from FutuOpenD and returns enrichment data.
@@ -79,8 +102,8 @@ def fetch_moomoo_snapshot() -> dict[str, dict]:
         warn_cutoff = now + timedelta(days=EARNINGS_WARN_DAYS)
 
         for _, row in data.iterrows():
-            code: str = row["code"]          # e.g. "US.AAPL"
-            ticker = code.split(".", 1)[1]   # e.g. "AAPL"
+            code: str = row["code"]  # e.g. "US.AAPL"
+            ticker = code.split(".", 1)[1]  # e.g. "AAPL"
 
             # ── Short interest ────────────────────────────────────────────────
             raw_ratio = row.get("short_sell_ratio", None)
@@ -89,14 +112,21 @@ def fetch_moomoo_snapshot() -> dict[str, dict]:
                 try:
                     short_interest = round(float(raw_ratio) * 100, 2)
                 except (TypeError, ValueError):
-                    logger.warning("%s: could not parse short_sell_ratio=%r", ticker, raw_ratio)
+                    logger.warning(
+                        "%s: could not parse short_sell_ratio=%r", ticker, raw_ratio
+                    )
 
             # ── Earnings date ─────────────────────────────────────────────────
             earn_raw = row.get("earn_time", None)
             earnings_date: str | None = None
             earnings_warning: bool = False
 
-            if earn_raw is not None and str(earn_raw) not in ("None", "nan", "NaT", "--"):
+            if earn_raw is not None and str(earn_raw) not in (
+                "None",
+                "nan",
+                "NaT",
+                "--",
+            ):
                 try:
                     earn_dt = datetime.fromisoformat(str(earn_raw).replace(" ", "T"))
                     if earn_dt.tzinfo is None:
@@ -130,6 +160,7 @@ def fetch_moomoo_snapshot() -> dict[str, dict]:
 
 # ── Supabase patch ────────────────────────────────────────────────────────────
 
+
 def patch_supabase(enrichment: dict[str, dict]) -> None:
     """Updates the Supabase stocks table with moomoo enrichment data via psycopg2.
 
@@ -140,9 +171,7 @@ def patch_supabase(enrichment: dict[str, dict]) -> None:
         enrichment: Mapping returned by fetch_moomoo_snapshot().
     """
     if not DATABASE_URL:
-        logger.error(
-            "DATABASE_URL is not set in .env — cannot write to Supabase."
-        )
+        logger.error("DATABASE_URL is not set in .env — cannot write to Supabase.")
         return
 
     rows = [
@@ -182,12 +211,15 @@ def patch_supabase(enrichment: dict[str, dict]) -> None:
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     logger.info("=== enrich_moomoo.py starting ===")
 
     enrichment = fetch_moomoo_snapshot()
     if not enrichment:
-        logger.warning("No enrichment data returned from moomoo — skipping Supabase patch.")
+        logger.warning(
+            "No enrichment data returned from moomoo — skipping Supabase patch."
+        )
         return
 
     patch_supabase(enrichment)

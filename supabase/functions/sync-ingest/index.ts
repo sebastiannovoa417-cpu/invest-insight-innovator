@@ -13,10 +13,11 @@ serve(async (req) => {
 
   try {
     // Validate API key from header
+    // Falls back to inline key if SYNC_API_KEY secret has not been set in the Dashboard yet
     const apiKey = req.headers.get("x-api-key");
-    const expectedKey = Deno.env.get("SYNC_API_KEY");
+    const expectedKey = Deno.env.get("SYNC_API_KEY") ?? "ftEImJq5ThxPYKFOckwGVs32AuviHzBD7MenZg9j";
 
-    if (!expectedKey || apiKey !== expectedKey) {
+    if (apiKey !== expectedKey) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
