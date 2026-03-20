@@ -4,6 +4,31 @@ import { mapDbStock, mapDbRegime, mapDbPosition, type Stock, type RegimeData, ty
 import { mockStocks, mockRegime, lastRunInfo, mockScoreHistory } from "@/lib/mock-data";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
+import { useState, useEffect } from "react";
+
+// ─── Connection Status ──────────────────────────────────
+export function useConnection() {
+  const [connected, setConnected] = useState(true);
+
+  useEffect(() => {
+    // Check connection on mount
+    const checkConnection = async () => {
+      try {
+        const { error } = await supabase.from("stocks").select("ticker").limit(1);
+        setConnected(!error);
+      } catch {
+        setConnected(false);
+      }
+    };
+    checkConnection();
+
+    // Re-check every 30 seconds
+    const interval = setInterval(checkConnection, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return { connected };
+}
 
 // ─── Stocks ─────────────────────────────────────────────
 export function useStocks() {
