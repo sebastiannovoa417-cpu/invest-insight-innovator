@@ -186,10 +186,16 @@ export function usePositions() {
           .from("positions")
           .select("*")
           .order("created_at", { ascending: false });
-        if (error) return [];
+        if (error) {
+          throw error;
+        }
         return (data ?? []).map(mapDbPosition);
-      } catch {
-        return [];
+      } catch (err) {
+        // Let React Query handle the error and preserve the last successful data
+        if (err instanceof Error) {
+          throw err;
+        }
+        throw new Error("Failed to fetch positions");
       }
     },
     enabled: !!user,
