@@ -12,9 +12,13 @@ serve(async (req) => {
   }
 
   try {
-    // Validate API key from header
+    // Validate API key from header.
+    // Prefers the dedicated SYNC_API_KEY secret if configured. Falls back to
+    // SUPABASE_SERVICE_ROLE_KEY which is always available as a built-in
+    // Supabase edge-function env var, requiring no extra Supabase-side setup.
     const apiKey = req.headers.get("x-api-key");
-    const expectedKey = Deno.env.get("SYNC_API_KEY");
+    const expectedKey =
+      Deno.env.get("SYNC_API_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!expectedKey || apiKey !== expectedKey) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
