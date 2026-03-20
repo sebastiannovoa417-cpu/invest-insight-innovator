@@ -83,12 +83,11 @@ export interface Position {
 export function mapDbStock(row: Tables<"stocks">): Stock {
   const signals = (row.signals || {}) as Record<string, boolean>;
   const news = (row.news || []) as NewsItem[];
+  const nameValue = (row as Record<string, unknown>).name;
   
   return {
     ticker: row.ticker,
-    name: typeof (row as Record<string, unknown>).name === 'string' 
-      ? (row as Record<string, unknown>).name as string 
-      : row.ticker,
+    name: typeof nameValue === 'string' ? nameValue : row.ticker,
     tradeType: row.trade_type as "LONG" | "SHORT",
     bullScore: row.bull_score,
     bearScore: row.bear_score,

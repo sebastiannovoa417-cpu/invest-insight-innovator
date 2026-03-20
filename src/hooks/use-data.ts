@@ -8,14 +8,14 @@ import { useState, useEffect } from "react";
 
 // ─── Connection Status ──────────────────────────────────
 export function useConnection() {
-  const [connected, setConnected] = useState(true);
+  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
     // Check connection on mount
     const checkConnection = async () => {
       try {
         const { error } = await supabase.from("stocks").select("ticker").limit(1);
-        setConnected(!error);
+        setConnected(error === null);
       } catch {
         setConnected(false);
       }
