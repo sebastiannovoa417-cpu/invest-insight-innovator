@@ -374,6 +374,36 @@ export const mockScoreHistory: Record<string, { bull: number; bear: number; date
     { bull: 2, bear: 5, date: "Mar 13" }, { bull: 2, bear: 5, date: "Mar 14" }, { bull: 2, bear: 6, date: "Mar 15" },
     { bull: 2, bear: 6, date: "Mar 16" }, { bull: 2, bear: 6, date: "Mar 17" },
   ],
+  FIX: [
+    { bull: 4, bear: 1, date: "Mar 10" }, { bull: 4, bear: 1, date: "Mar 11" }, { bull: 5, bear: 1, date: "Mar 12" },
+    { bull: 5, bear: 1, date: "Mar 13" }, { bull: 5, bear: 1, date: "Mar 14" }, { bull: 5, bear: 1, date: "Mar 15" },
+    { bull: 5, bear: 1, date: "Mar 16" }, { bull: 5, bear: 1, date: "Mar 17" },
+  ],
+  MPC: [
+    { bull: 4, bear: 2, date: "Mar 10" }, { bull: 4, bear: 2, date: "Mar 11" }, { bull: 5, bear: 2, date: "Mar 12" },
+    { bull: 5, bear: 2, date: "Mar 13" }, { bull: 5, bear: 2, date: "Mar 14" }, { bull: 5, bear: 2, date: "Mar 15" },
+    { bull: 5, bear: 2, date: "Mar 16" }, { bull: 5, bear: 2, date: "Mar 17" },
+  ],
+  MU: [
+    { bull: 3, bear: 1, date: "Mar 10" }, { bull: 3, bear: 1, date: "Mar 11" }, { bull: 4, bear: 1, date: "Mar 12" },
+    { bull: 4, bear: 1, date: "Mar 13" }, { bull: 4, bear: 1, date: "Mar 14" }, { bull: 4, bear: 1, date: "Mar 15" },
+    { bull: 4, bear: 1, date: "Mar 16" }, { bull: 4, bear: 1, date: "Mar 17" },
+  ],
+  BA: [
+    { bull: 2, bear: 4, date: "Mar 10" }, { bull: 1, bear: 5, date: "Mar 11" }, { bull: 1, bear: 5, date: "Mar 12" },
+    { bull: 1, bear: 6, date: "Mar 13" }, { bull: 1, bear: 6, date: "Mar 14" }, { bull: 1, bear: 6, date: "Mar 15" },
+    { bull: 1, bear: 6, date: "Mar 16" }, { bull: 1, bear: 6, date: "Mar 17" },
+  ],
+  PFE: [
+    { bull: 1, bear: 4, date: "Mar 10" }, { bull: 1, bear: 4, date: "Mar 11" }, { bull: 1, bear: 5, date: "Mar 12" },
+    { bull: 1, bear: 5, date: "Mar 13" }, { bull: 1, bear: 5, date: "Mar 14" }, { bull: 1, bear: 5, date: "Mar 15" },
+    { bull: 1, bear: 5, date: "Mar 16" }, { bull: 1, bear: 5, date: "Mar 17" },
+  ],
+  XOM: [
+    { bull: 2, bear: 3, date: "Mar 10" }, { bull: 2, bear: 3, date: "Mar 11" }, { bull: 2, bear: 4, date: "Mar 12" },
+    { bull: 2, bear: 4, date: "Mar 13" }, { bull: 2, bear: 4, date: "Mar 14" }, { bull: 2, bear: 4, date: "Mar 15" },
+    { bull: 2, bear: 4, date: "Mar 16" }, { bull: 2, bear: 4, date: "Mar 17" },
+  ],
 };
 
 export const lastRunInfo = {

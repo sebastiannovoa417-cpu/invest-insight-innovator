@@ -9,7 +9,7 @@ import { DetailPanel } from "@/components/DetailPanel";
 import { StatusBar } from "@/components/StatusBar";
 import { AuthModal } from "@/components/AuthModal";
 import { PositionsPanel } from "@/components/PositionsPanel";
-import { useStocks, useRegime, useLastRun, useScoreHistory, useWatchlist, usePositions } from "@/hooks/use-data";
+import { useStocks, useRegime, useLastRun, useScoreHistory, useWatchlist, usePositions, useConnection } from "@/hooks/use-data";
 import { useAuth } from "@/hooks/use-auth";
 import { mockRegime, lastRunInfo } from "@/lib/mock-data";
 import type { Stock } from "@/lib/types";
@@ -17,6 +17,7 @@ import type { Stock } from "@/lib/types";
 const Index = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { connected } = useConnection();
 
   // Data hooks
   const { data: stocks = [], isLoading: stocksLoading } = useStocks();
@@ -195,7 +196,7 @@ const Index = () => {
         stockCount={runInfo.stockCount}
         regime={runInfo.regime}
         universe={runInfo.universe}
-        connected={true}
+        connected={connected}
       />
     </div>
   );

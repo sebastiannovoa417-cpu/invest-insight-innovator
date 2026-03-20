@@ -4,6 +4,31 @@ import { mapDbStock, mapDbRegime, mapDbPosition, type Stock, type RegimeData, ty
 import { mockStocks, mockRegime, lastRunInfo, mockScoreHistory } from "@/lib/mock-data";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
+import { useState, useEffect } from "react";
+
+// ─── Connection Status ──────────────────────────────────
+export function useConnection() {
+  const [connected, setConnected] = useState(false);
+
+  useEffect(() => {
+    // Check connection on mount
+    const checkConnection = async () => {
+      try {
+        const { error } = await supabase.from("stocks").select("ticker").limit(1);
+        setConnected(error === null);
+      } catch {
+        setConnected(false);
+      }
+    };
+    checkConnection();
+
+    // Re-check every 30 seconds
+    const interval = setInterval(checkConnection, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return { connected };
+}
 
 // ─── Stocks ─────────────────────────────────────────────
 export function useStocks() {
@@ -111,9 +136,21 @@ export function useWatchlist() {
     queryKey: ["watchlist", user?.id],
     queryFn: async (): Promise<Set<string>> => {
       if (!user) return new Set();
-      const { data, error } = await supabase.from("watchlist").select("ticker");
-      if (error) throw error;
-      return new Set((data ?? []).map((r) => r.ticker));
+      try {
+        const { data, error } = await supabase.from("watchlist").select("ticker");
+        if (error) {
+          throw error;
+        }
+        return new Set((data ?? []).map((r) => r.ticker));
+      } catch (err) {
+        // Surface the error and let React Query keep previous cached data
+        if (err instanceof Error) {
+          toast.error("Failed to load watchlist: " + err.message);
+          throw err;
+        }
+        toast.error("Failed to load watchlist.");
+        throw new Error("Failed to load watchlist.");
+      }
     },
     enabled: !!user,
   });
@@ -152,12 +189,22 @@ export function usePositions() {
     queryKey: ["positions", user?.id],
     queryFn: async (): Promise<Position[]> => {
       if (!user) return [];
-      const { data, error } = await supabase
-        .from("positions")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []).map(mapDbPosition);
+      try {
+        const { data, error } = await supabase
+          .from("positions")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) {
+          throw error;
+        }
+        return (data ?? []).map(mapDbPosition);
+      } catch (err) {
+        // Let React Query handle the error and preserve the last successful data
+        if (err instanceof Error) {
+          throw err;
+        }
+        throw new Error("Failed to fetch positions");
+      }
     },
     enabled: !!user,
   });
