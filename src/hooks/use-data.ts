@@ -138,10 +138,18 @@ export function useWatchlist() {
       if (!user) return new Set();
       try {
         const { data, error } = await supabase.from("watchlist").select("ticker");
-        if (error) return new Set();
+        if (error) {
+          throw error;
+        }
         return new Set((data ?? []).map((r) => r.ticker));
-      } catch {
-        return new Set();
+      } catch (err) {
+        // Surface the error and let React Query keep previous cached data
+        if (err instanceof Error) {
+          toast.error("Failed to load watchlist: " + err.message);
+          throw err;
+        }
+        toast.error("Failed to load watchlist.");
+        throw new Error("Failed to load watchlist.");
       }
     },
     enabled: !!user,
