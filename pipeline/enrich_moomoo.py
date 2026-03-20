@@ -9,7 +9,7 @@ market snapshot for all 25 SwingPulse tickers, and PATCHes the Supabase
 
 Usage:
   1. Start FutuOpenD: run FutuOpenD.exe (or keep it running via Task Scheduler).
-  2. Ensure pipeline/.env has SUPABASE_URL and SUPABASE_SERVICE_KEY.
+  2. Ensure pipeline/.env has DATABASE_URL (see .env.example).
   3. Run: python enrich_moomoo.py
   4. (Optional) Schedule daily via run_enrich.bat in Windows Task Scheduler.
 """
@@ -19,8 +19,8 @@ import os
 from datetime import datetime, timedelta, timezone
 
 import moomoo as ft
+import psycopg2
 from dotenv import load_dotenv
-from supabase import create_client
 
 load_dotenv()
 
@@ -36,10 +36,8 @@ logger = logging.getLogger(__name__)
 FUTU_HOST: str = os.getenv("FUTU_HOST", "127.0.0.1")
 FUTU_PORT: int = int(os.getenv("FUTU_PORT", "11111"))
 
-SUPABASE_URL: str = os.getenv(
-    "SUPABASE_URL", "https://vffizmkzwfxpewtfoerm.supabase.co"
-)
-SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_KEY", "")
+# Direct PostgreSQL connection string from Supabase → Settings → Database
+DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
 EARNINGS_WARN_DAYS: int = 14  # flag as warning if earnings within this window
 
@@ -133,41 +131,53 @@ def fetch_moomoo_snapshot() -> dict[str, dict]:
 # ── Supabase patch ────────────────────────────────────────────────────────────
 
 def patch_supabase(enrichment: dict[str, dict]) -> None:
-    """PATCHes the Supabase stocks table with moomoo enrichment data.
+    """Updates the Supabase stocks table with moomoo enrichment data via psycopg2.
+
+    Uses a direct PostgreSQL connection (DATABASE_URL) and a single executemany
+    UPDATE, which is more efficient than 25 individual REST PATCH calls.
 
     Args:
         enrichment: Mapping returned by fetch_moomoo_snapshot().
     """
-    if not SUPABASE_SERVICE_KEY:
+    if not DATABASE_URL:
         logger.error(
-            "SUPABASE_SERVICE_KEY is not set in .env — cannot write to Supabase."
+            "DATABASE_URL is not set in .env — cannot write to Supabase."
         )
         return
 
-    client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-    success = 0
-    fail = 0
+    rows = [
+        (
+            payload["short_interest"],
+            payload["earnings_date"],
+            payload["earnings_warning"],
+            ticker,
+        )
+        for ticker, payload in enrichment.items()
+    ]
 
-    for ticker, payload in enrichment.items():
-        try:
-            update_data: dict = {
-                "earnings_warning": payload["earnings_warning"],
-            }
-            if payload["short_interest"] is not None:
-                update_data["short_interest"] = payload["short_interest"]
-            if payload["earnings_date"] is not None:
-                update_data["earnings_date"] = payload["earnings_date"]
-
-            client.table("stocks").update(update_data).eq("ticker", ticker).execute()
-            success += 1
-
-        except Exception as exc:
-            logger.error("Failed to patch ticker %s: %s", ticker, exc)
-            fail += 1
-
-    logger.info(
-        "Supabase patch complete — %d updated, %d failed", success, fail
-    )
+    conn = None
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        with conn.cursor() as cur:
+            cur.executemany(
+                """
+                UPDATE public.stocks
+                   SET short_interest  = %s,
+                       earnings_date   = %s,
+                       earnings_warning = %s
+                 WHERE ticker = %s
+                """,
+                rows,
+            )
+        conn.commit()
+        logger.info("Supabase patch complete — %d rows updated", len(rows))
+    except Exception as exc:
+        logger.error("Database update failed: %s", exc)
+        if conn:
+            conn.rollback()
+    finally:
+        if conn:
+            conn.close()
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
