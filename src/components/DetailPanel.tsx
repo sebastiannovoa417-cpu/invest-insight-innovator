@@ -2,7 +2,7 @@ import { X, Check, Minus, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minu
 import { Stock } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface DetailPanelProps {
   stock: Stock | null;
@@ -23,6 +23,8 @@ export function DetailPanel({ stock, onClose, onOpenPosition }: DetailPanelProps
   const { user } = useAuth();
   const [shares, setShares] = useState("1");
   const [showMoreNews, setShowMoreNews] = useState(false);
+
+  useEffect(() => { setShares("1"); }, [stock?.ticker]);
 
   if (!stock) return null;
 

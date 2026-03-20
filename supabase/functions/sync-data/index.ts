@@ -30,11 +30,11 @@ serve(async (req) => {
     const payload = await req.json();
     const { regime, stocks, run_id, universe } = payload;
 
-    // 1. Upsert regime
+    // 1. Upsert regime (singleton row — never delete/re-insert to avoid race conditions)
     if (regime) {
-      // Delete old regime rows, insert fresh
-      await supabase.from("regime").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      await supabase.from("regime").insert({
+      const REGIME_ID = "00000000-0000-0000-0000-000000000001";
+      await supabase.from("regime").upsert({
+        id: REGIME_ID,
         status: regime.status,
         spy_price: regime.spy_price,
         sma_200: regime.sma_200,
@@ -43,7 +43,7 @@ serve(async (req) => {
         vix: regime.vix,
         ratio: regime.ratio,
         regime_score: regime.regime_score,
-      });
+      }, { onConflict: "id" });
     }
 
     // 2. Upsert stocks

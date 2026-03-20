@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { mapDbStock, mapDbRegime, mapDbPosition, type Stock, type RegimeData, type ScoreHistoryPoint, type Position } from "@/lib/types";
 import { mockStocks, mockRegime, lastRunInfo, mockScoreHistory } from "@/lib/mock-data";
@@ -12,13 +13,15 @@ export function useStocks() {
     queryFn: async (): Promise<Stock[]> => {
       try {
         const { data, error } = await supabase.from("stocks").select("*");
-        if (error) return mockStocks;
+        if (error) throw error;
         if (!data || data.length === 0) return mockStocks;
         return data.map(mapDbStock);
-      } catch {
+      } catch (err) {
+        console.warn("[useStocks] falling back to mock data:", err);
         return mockStocks;
       }
     },
+    refetchInterval: 5 * 60 * 1000,
   });
 }
 
@@ -29,13 +32,15 @@ export function useRegime() {
     queryFn: async (): Promise<RegimeData> => {
       try {
         const { data, error } = await supabase.from("regime").select("*").limit(1).maybeSingle();
-        if (error) return mockRegime;
+        if (error) throw error;
         if (!data) return mockRegime;
         return mapDbRegime(data);
-      } catch {
+      } catch (err) {
+        console.warn("[useRegime] falling back to mock data:", err);
         return mockRegime;
       }
     },
+    refetchInterval: 5 * 60 * 1000,
   });
 }
 
@@ -51,7 +56,7 @@ export function useLastRun() {
           .order("ran_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        if (error) return lastRunInfo;
+        if (error) throw error;
         if (!data) return lastRunInfo;
         return {
           timestamp: new Date(data.ran_at).toLocaleString("en-US", {
@@ -60,12 +65,14 @@ export function useLastRun() {
           stockCount: data.stock_count,
           regime: data.regime ?? "UNKNOWN",
           runId: data.run_id,
-          universe: data.universe ?? "SP500 YTD Leaders",
+          universe: data.universe ?? "SwingPulse 25",
         };
-      } catch {
+      } catch (err) {
+        console.warn("[useLastRun] falling back to mock data:", err);
         return lastRunInfo;
       }
     },
+    refetchInterval: 5 * 60 * 1000,
   });
 }
 
@@ -75,11 +82,13 @@ export function useScoreHistory() {
     queryKey: ["scoreHistory"],
     queryFn: async (): Promise<Record<string, ScoreHistoryPoint[]>> => {
       try {
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
         const { data, error } = await supabase
           .from("score_history")
           .select("*")
+          .gte("recorded_at", thirtyDaysAgo)
           .order("recorded_at", { ascending: true });
-        if (error) return mockScoreHistory;
+        if (error) throw error;
         if (!data || data.length === 0) return mockScoreHistory;
 
         const grouped: Record<string, ScoreHistoryPoint[]> = {};
@@ -96,7 +105,8 @@ export function useScoreHistory() {
           grouped[ticker] = grouped[ticker].slice(-10);
         }
         return grouped;
-      } catch {
+      } catch (err) {
+        console.warn("[useScoreHistory] falling back to mock data:", err);
         return mockScoreHistory;
       }
     },
@@ -111,7 +121,7 @@ export function useWatchlist() {
     queryKey: ["watchlist", user?.id],
     queryFn: async (): Promise<Set<string>> => {
       if (!user) return new Set();
-      const { data, error } = await supabase.from("watchlist").select("ticker");
+      const { data, error } = await supabase.from("watchlist").select("ticker").eq("user_id", user.id);
       if (error) throw error;
       return new Set((data ?? []).map((r) => r.ticker));
     },
@@ -196,7 +206,8 @@ export function usePositions() {
       const { error } = await supabase
         .from("positions")
         .update({ status: "closed", exit_price: exitPrice, exit_date: new Date().toISOString() })
-        .eq("id", id);
+        .eq("id", id)
+        .eq("user_id", user.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -212,4 +223,29 @@ export function usePositions() {
     openPosition: openPosition.mutate,
     closePosition: closePosition.mutate,
   };
+}
+
+// ─── Realtime Run Watcher ───────────────────────────────
+/**
+ * Subscribes to Supabase Realtime on script_runs INSERT.
+ * When the Python pipeline finishes a run, the browser immediately
+ * invalidates all query caches and refetches fresh data.
+ */
+export function useRunWatcher() {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const channel = supabase
+      .channel("run-watch")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "script_runs" },
+        () => {
+          queryClient.invalidateQueries();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 }

@@ -9,7 +9,7 @@ import { DetailPanel } from "@/components/DetailPanel";
 import { StatusBar } from "@/components/StatusBar";
 import { AuthModal } from "@/components/AuthModal";
 import { PositionsPanel } from "@/components/PositionsPanel";
-import { useStocks, useRegime, useLastRun, useScoreHistory, useWatchlist, usePositions } from "@/hooks/use-data";
+import { useStocks, useRegime, useLastRun, useScoreHistory, useWatchlist, usePositions, useRunWatcher } from "@/hooks/use-data";
 import { useAuth } from "@/hooks/use-auth";
 import { mockRegime, lastRunInfo } from "@/lib/mock-data";
 import type { Stock } from "@/lib/types";
@@ -25,6 +25,7 @@ const Index = () => {
   const { data: scoreHistory = {} } = useScoreHistory();
   const { watchlist, toggle: toggleWatchlist } = useWatchlist();
   const { positions, openPosition, closePosition } = usePositions();
+  useRunWatcher();
 
   // UI state
   const [tradeFilter, setTradeFilter] = useState<TradeFilter>("ALL");
@@ -60,10 +61,7 @@ const Index = () => {
   }, [user, toggleWatchlist]);
 
   const handleRefresh = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["stocks"] });
-    queryClient.invalidateQueries({ queryKey: ["regime"] });
-    queryClient.invalidateQueries({ queryKey: ["lastRun"] });
-    queryClient.invalidateQueries({ queryKey: ["scoreHistory"] });
+    queryClient.invalidateQueries();
   }, [queryClient]);
 
   const filteredStocks = useMemo(() => {

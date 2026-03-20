@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local Netlify folder
+.netlify
+
+# Environment variable files — never commit secrets
+.env
+.env.local
+pipeline/.env
