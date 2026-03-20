@@ -1,4 +1,4 @@
-project_id = "cbvuewxjacuqyxkpwoum"
+project_id = "vffizmkzwfxpewtfoerm"
 
 [functions.sync-ingest]
 verify_jwt = false

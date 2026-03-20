@@ -83,7 +83,7 @@ export interface Position {
 export function mapDbStock(row: Tables<"stocks">): Stock {
   const signals = (row.signals || {}) as Record<string, boolean>;
   const news = (row.news || []) as NewsItem[];
-  
+
   return {
     ticker: row.ticker,
     name: row.name ?? row.ticker,
