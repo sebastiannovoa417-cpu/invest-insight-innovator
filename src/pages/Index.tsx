@@ -10,6 +10,7 @@ import { DetailPanel } from "@/components/DetailPanel";
 import { StatusBar } from "@/components/StatusBar";
 import { AuthModal } from "@/components/AuthModal";
 import { PositionsPanel } from "@/components/PositionsPanel";
+import { BacktestPanel } from "@/components/BacktestPanel";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useStocks, useRegime, useLastRun, useScoreHistory, useWatchlist, usePositions, useRunWatcher } from "@/hooks/use-data";
 import { useAuth } from "@/hooks/use-auth";
@@ -17,7 +18,7 @@ import { mockRegime, lastRunInfo } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { Stock } from "@/lib/types";
 
-type ActiveTab = "dashboard" | "watchlist" | "regime" | "positions";
+type ActiveTab = "dashboard" | "watchlist" | "regime" | "positions" | "backtest";
 
 const Index = () => {
   const queryClient = useQueryClient();
@@ -168,6 +169,12 @@ const Index = () => {
             >
               Positions <span className="ml-1 opacity-60">({positions.filter(p => p.status === "open").length})</span>
             </TabsTrigger>
+            <TabsTrigger
+              value="backtest"
+              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              Backtest
+            </TabsTrigger>
           </TabsList>
 
           {/* ── Dashboard ── */}
@@ -315,6 +322,11 @@ const Index = () => {
               onClose={() => setActiveTab("dashboard")}
               onClosePosition={closePosition}
             />
+          </TabsContent>
+
+          {/* ── Backtest ── */}
+          <TabsContent value="backtest">
+            <BacktestPanel stocks={stocks} />
           </TabsContent>
         </Tabs>
       </main>
