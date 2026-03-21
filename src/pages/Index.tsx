@@ -24,7 +24,7 @@ const Index = () => {
   const { user } = useAuth();
 
   // Data hooks
-  const { data: stocks = [], isLoading: stocksLoading } = useStocks();
+  const { data: stocks = [] } = useStocks();
   const { data: regime = mockRegime } = useRegime();
   const { data: runInfo = lastRunInfo } = useLastRun();
   const { data: scoreHistory = {} } = useScoreHistory();

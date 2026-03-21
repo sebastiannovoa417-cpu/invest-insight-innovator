@@ -70,11 +70,11 @@ export function TopPickCard({ stock, regime }: TopPickCardProps) {
           </div>
 
           <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-            {stock.signals.sma200 && <span>Price {"<"} SMA_200</span>}
-            {stock.signals.sma50 && <span>Price {"<"} SMA_50</span>}
-            {stock.signals.rsiMomentum && <span>RSI bearish: {stock.rsi}</span>}
-            {stock.signals.volume && <span>Distribution vol: {stock.volumeRatio}x</span>}
-            {stock.signals.macd && <span>MACD bearish</span>}
+            {stock.signals.sma200 && <span>Price {isShort ? "<" : ">"} SMA_200</span>}
+            {stock.signals.sma50 && <span>Price {isShort ? "<" : ">"} SMA_50</span>}
+            {stock.signals.rsiMomentum && <span>RSI {isShort ? "bearish" : "bullish"}: {stock.rsi}</span>}
+            {stock.signals.volume && <span>{isShort ? "Distribution" : "Accumulation"} vol: {stock.volumeRatio}x</span>}
+            {stock.signals.macd && <span>MACD {isShort ? "bearish" : "bullish"}</span>}
           </div>
         </div>
       </div>

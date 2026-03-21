@@ -169,6 +169,7 @@ export function usePositions() {
       const { data, error } = await supabase
         .from("positions")
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []).map(mapDbPosition);
