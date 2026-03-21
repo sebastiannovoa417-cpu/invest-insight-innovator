@@ -75,6 +75,7 @@ serve(async (req) => {
             news: stock.news || [],
             earnings_date: stock.earnings_date,
             earnings_warning: stock.earnings_warning || false,
+            short_interest: stock.short_interest ?? null,
             updated_at: new Date().toISOString(),
           },
           { onConflict: "ticker" }
