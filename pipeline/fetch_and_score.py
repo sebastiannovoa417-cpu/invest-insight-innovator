@@ -259,8 +259,6 @@ def score_ticker(ticker: str, df: pd.DataFrame) -> dict:
 def compute_regime(spy_df: pd.DataFrame, vix_price: float) -> dict:
     """Derive market regime status and score from SPY OHLCV + VIX."""
     close = spy_df["Close"]
-    high = spy_df["High"]
-    low = spy_df["Low"]
 
     spy_price = float(close.iloc[-1])
     sma200 = sma(close, 200)
@@ -315,7 +313,7 @@ def main() -> None:
     download_list = UNIVERSE + ["SPY", "^VIX"]
     logger.info(f"Downloading 1y daily OHLCV for {len(download_list)} symbols…")
 
-    raw: pd.DataFrame = yf.download(
+    raw: pd.DataFrame | None = yf.download(
         tickers=download_list,
         period="1y",  # enough history for SMA200
         interval="1d",
