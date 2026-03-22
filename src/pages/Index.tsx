@@ -11,6 +11,7 @@ import { StatusBar } from "@/components/StatusBar";
 import { AuthModal } from "@/components/AuthModal";
 import { PositionsPanel } from "@/components/PositionsPanel";
 import { BacktestPanel } from "@/components/BacktestPanel";
+import { AiChatPanel } from "@/components/AiChatPanel";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useStocks, useRegime, useLastRun, useScoreHistory, useWatchlist, usePositions, useRunWatcher } from "@/hooks/use-data";
 import { useAuth } from "@/hooks/use-auth";
@@ -18,7 +19,7 @@ import { mockRegime, lastRunInfo } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { Stock } from "@/lib/types";
 
-type ActiveTab = "dashboard" | "watchlist" | "regime" | "positions" | "backtest";
+type ActiveTab = "dashboard" | "watchlist" | "regime" | "positions" | "backtest" | "ai";
 
 const Index = () => {
   const queryClient = useQueryClient();
@@ -175,6 +176,12 @@ const Index = () => {
             >
               Backtest
             </TabsTrigger>
+            <TabsTrigger
+              value="ai"
+              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              ✦ AI
+            </TabsTrigger>
           </TabsList>
 
           {/* ── Dashboard ── */}
@@ -328,6 +335,11 @@ const Index = () => {
           <TabsContent value="backtest">
             <BacktestPanel stocks={stocks} />
           </TabsContent>
+
+          {/* ── AI ── */}
+          <TabsContent value="ai">
+            <AiChatPanel stocks={stocks} regime={regime} />
+          </TabsContent>
         </Tabs>
       </main>
 
@@ -337,6 +349,7 @@ const Index = () => {
           <div className="fixed inset-0 z-20 bg-background/60 backdrop-blur-sm" onClick={() => setSelectedStock(null)} />
           <DetailPanel
             stock={selectedStock}
+            regime={regime}
             onClose={() => setSelectedStock(null)}
             onOpenPosition={(pos) => {
               if (!user) { setShowAuth(true); return; }
