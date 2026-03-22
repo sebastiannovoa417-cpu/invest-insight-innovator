@@ -11,6 +11,7 @@ import { StatusBar } from "@/components/StatusBar";
 import { AuthModal } from "@/components/AuthModal";
 import { PositionsPanel } from "@/components/PositionsPanel";
 import { BacktestPanel } from "@/components/BacktestPanel";
+import { AiBrief } from "@/components/AiBrief";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useStocks, useRegime, useLastRun, useScoreHistory, useWatchlist, usePositions, useRunWatcher } from "@/hooks/use-data";
 import { useAuth } from "@/hooks/use-auth";
@@ -199,6 +200,7 @@ const Index = () => {
               onSelectStock={setSelectedStock}
               selectedTicker={selectedStock?.ticker}
             />
+            <AiBrief stocks={stocks} regime={regime} />
             <StatsBar stocks={filteredStocks} regime={regime} />
           </TabsContent>
 
