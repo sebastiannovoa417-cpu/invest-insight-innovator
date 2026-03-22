@@ -315,7 +315,7 @@ const Index = () => {
                           regime.status === "BEARISH" ? "bg-short" :
                             "bg-muted-foreground"
                       )}
-                      style={{ width: `${(regime.regimeScore / 6) * 100}%` }}
+                      style={{ "--bar-w": `${(regime.regimeScore / 6) * 100}%`, width: "var(--bar-w)" } as React.CSSProperties}
                     />
                   </div>
                 </div>
@@ -330,7 +330,7 @@ const Index = () => {
                   <div className="h-1.5 rounded-full bg-border overflow-hidden">
                     <div
                       className={cn("h-full rounded-full", regime.ratio >= 1 ? "bg-long" : "bg-short")}
-                      style={{ width: `${Math.min(regime.ratio * 50, 100)}%` }}
+                      style={{ "--bar-w": `${Math.min(regime.ratio * 50, 100)}%`, width: "var(--bar-w)" } as React.CSSProperties}
                     />
                   </div>
                 </div>

@@ -121,7 +121,7 @@ export function DetailPanel({ stock, onClose, regime, onOpenPosition }: DetailPa
             <div className="flex-1 h-2 rounded-full bg-border overflow-hidden w-32">
               <div
                 className={cn("h-full rounded-full transition-all", isShort ? "bg-short" : "bg-long")}
-                style={{ width: `${scorePct}%` }}
+                style={{ "--score-w": `${scorePct}%`, width: "var(--score-w)" } as React.CSSProperties}
               />
             </div>
             <span className={cn("text-sm font-bold font-mono", isShort ? "text-short" : "text-long")}>

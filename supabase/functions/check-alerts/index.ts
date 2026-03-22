@@ -124,7 +124,7 @@ serve(async (req) => {
             if (updateErr) throw updateErr;
         }
 
-        console.log(`check-alerts: checked=${activeAlerts.length} triggered=${triggeredIds.length}`);
+
 
         return new Response(
             JSON.stringify({ checked: activeAlerts.length, triggered: triggeredIds.length }),

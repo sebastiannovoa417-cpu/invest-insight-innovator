@@ -430,7 +430,7 @@ function DrawdownBar({ label, pct, max, color }: { label: string; pct: number; m
     <div className="grid grid-cols-[110px_1fr_52px] items-center gap-3">
       <span className="text-xs text-muted-foreground">{label}</span>
       <div className="h-2 rounded-full bg-border overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${(pct / Math.max(max, 1)) * 100}%`, background: color }} />
+        <div className="h-full rounded-full transition-all" style={{ "--bar-w": `${(pct / Math.max(max, 1)) * 100}%`, "--bar-c": color, width: "var(--bar-w)", background: "var(--bar-c)" } as React.CSSProperties} />
       </div>
       <span className="text-xs font-mono text-right" style={{ color }}>{pct.toFixed(1)}{label === "Recovery factor" ? "x" : "%"}</span>
     </div>
