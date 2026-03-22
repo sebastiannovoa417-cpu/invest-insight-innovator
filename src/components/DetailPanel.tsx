@@ -178,8 +178,9 @@ export function DetailPanel({ stock, onClose, regime, onOpenPosition }: DetailPa
           <div className="rounded-md border border-border/60 bg-muted/10 p-3 space-y-3">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] text-muted-foreground block mb-1">Account Size ($)</label>
+                <label htmlFor="detail-account-size" className="text-[10px] text-muted-foreground block mb-1">Account Size ($)</label>
                 <input
+                  id="detail-account-size"
                   type="number"
                   min="100"
                   step="1000"
@@ -189,8 +190,9 @@ export function DetailPanel({ stock, onClose, regime, onOpenPosition }: DetailPa
                 />
               </div>
               <div>
-                <label className="text-[10px] text-muted-foreground block mb-1">Risk per Trade (%)</label>
+                <label htmlFor="detail-risk-pct" className="text-[10px] text-muted-foreground block mb-1">Risk per Trade (%)</label>
                 <input
+                  id="detail-risk-pct"
                   type="number"
                   min="0.1"
                   max="10"

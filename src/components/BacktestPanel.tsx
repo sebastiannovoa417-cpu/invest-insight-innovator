@@ -408,6 +408,7 @@ function SliderRow({ label, value, min, max, step, format, onChange }: {
       </div>
       <input
         type="range" min={min} max={max} step={step} value={value}
+        aria-label={label}
         onChange={e => onChange(Number(e.target.value))}
         className="w-full h-1 rounded-full accent-primary cursor-pointer bg-border"
       />
@@ -542,6 +543,7 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
           <div>
             <label className="text-[10px] text-muted-foreground tracking-wider block mb-1.5">TICKER</label>
             <select
+              title="Backtest ticker"
               value={cfg.ticker}
               onChange={e => set("ticker", e.target.value)}
               className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary transition-colors"
@@ -552,6 +554,7 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
           <div>
             <label className="text-[10px] text-muted-foreground tracking-wider block mb-1.5">STRATEGY</label>
             <select
+              title="Backtest strategy"
               value={cfg.strategy}
               onChange={e => set("strategy", e.target.value)}
               className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary transition-colors"
