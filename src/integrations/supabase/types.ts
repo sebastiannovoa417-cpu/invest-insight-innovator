@@ -57,6 +57,7 @@ export type Database = {
           exit_price: number | null
           id: string
           notes: string | null
+          realized_pnl: number | null
           shares: number
           status: string
           stop_loss: number | null
@@ -74,6 +75,7 @@ export type Database = {
           exit_price?: number | null
           id?: string
           notes?: string | null
+          realized_pnl?: number | null
           shares?: number
           status?: string
           stop_loss?: number | null
@@ -91,6 +93,7 @@ export type Database = {
           exit_price?: number | null
           id?: string
           notes?: string | null
+          realized_pnl?: number | null
           shares?: number
           status?: string
           stop_loss?: number | null
