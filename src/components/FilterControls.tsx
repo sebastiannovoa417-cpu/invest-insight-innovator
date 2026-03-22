@@ -68,6 +68,7 @@ export function FilterControls({
       <div className="relative flex-1 min-w-[140px] max-w-[220px]">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <input
+          id="search-input"
           type="text"
           placeholder="Search… (press /)"
           value={searchQuery}

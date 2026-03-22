@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") ?? "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-api-key",
 };
@@ -15,17 +15,32 @@ serve(async (req) => {
   // Auth guard — require an authenticated user session (not just anon key)
   const authToken = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  if (supabaseUrl) {
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-    const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: { "Authorization": `Bearer ${authToken}`, "apikey": supabaseAnonKey },
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+
+  if (!supabaseUrl) {
+    return new Response(JSON.stringify({ error: "Server misconfigured" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-    if (!userRes.ok) {
-      return new Response(JSON.stringify({ error: "Authentication required" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+  }
+
+  const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { "Authorization": `Bearer ${authToken}`, "apikey": supabaseAnonKey },
+  });
+  if (!userRes.ok) {
+    return new Response(JSON.stringify({ error: "Authentication required" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Request size guard (512 KB)
+  const contentLength = parseInt(req.headers.get("content-length") ?? "0");
+  if (contentLength > 524288) {
+    return new Response(JSON.stringify({ error: "Payload too large" }), {
+      status: 413,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
@@ -79,7 +94,7 @@ Write:
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-3-5-haiku-20241022",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 768,
         messages: [{ role: "user", content: prompt }],
       }),
@@ -107,7 +122,7 @@ Write:
     );
   } catch (error) {
     console.error("ai-brief error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

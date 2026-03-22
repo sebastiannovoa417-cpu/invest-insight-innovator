@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") ?? "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
 };
 
@@ -57,6 +57,15 @@ serve(async (req) => {
         if (!apiKey || apiKey !== expectedKey) {
             return new Response(JSON.stringify({ error: "Unauthorized" }), {
                 status: 401,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+        }
+
+        // Request size guard (1 MB)
+        const contentLength = parseInt(req.headers.get("content-length") ?? "0");
+        if (contentLength > 1048576) {
+            return new Response(JSON.stringify({ error: "Payload too large" }), {
+                status: 413,
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
         }

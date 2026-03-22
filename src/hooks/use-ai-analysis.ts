@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Stock, RegimeData } from "@/lib/types";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? "https://vffizmkzwfxpewtfoerm.supabase.co";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? "";
 const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "";
 
 async function streamEdgeFunction(

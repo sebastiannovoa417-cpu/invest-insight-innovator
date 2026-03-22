@@ -24,7 +24,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.x"
 
       - name: Install dependencies
         run: bun install
@@ -59,7 +59,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: "2.x"
 
       - name: Deploy ai-brief Edge Function
         run: supabase functions deploy ai-brief --project-ref ${{ vars.SUPABASE_PROJECT_REF }}
