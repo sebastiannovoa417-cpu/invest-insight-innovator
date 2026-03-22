@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Sparkles, RefreshCw, AlertTriangle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { generateMarketBriefing } from "@/lib/ai-engine";
 import { cn } from "@/lib/utils";
 import type { Stock, RegimeData } from "@/lib/types";
 
@@ -22,28 +22,16 @@ export function AiBrief({ stocks, regime }: AiBriefProps) {
     setError("");
     setBriefing("");
 
+    // Small delay so the loading state is visible
+    await new Promise<void>((r) => setTimeout(r, 350));
+
     try {
-      const { data, error: fnError } = await supabase.functions.invoke("ai-brief", {
-        body: { regime, stocks },
-      });
-
-      if (fnError) {
-        let msg = fnError.message;
-        try {
-          const body = fnError.context
-            ? await (fnError.context as Response).clone().json()
-            : null;
-          if (body?.error) msg = body.error;
-        } catch { /* ignore parse errors */ }
-        throw new Error(msg);
-      }
-      if (data?.error) throw new Error(data.error);
-
-      setBriefing(data.briefing ?? "");
-      setTimestamp(data.timestamp ?? "");
-      setModel(data.model ?? "");
-    } catch (e: any) {
-      setError(e.message ?? "Unknown error");
+      const result = generateMarketBriefing(regime, stocks);
+      setBriefing(result);
+      setTimestamp(new Date().toLocaleTimeString());
+      setModel("Built-in");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoading(false);
     }
