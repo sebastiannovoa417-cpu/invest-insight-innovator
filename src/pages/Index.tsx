@@ -71,7 +71,7 @@ const Index = () => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "/" && !(e.target instanceof HTMLInputElement)) {
         e.preventDefault();
-        document.querySelector<HTMLInputElement>('input[placeholder="Search…"]')?.focus();
+        document.querySelector<HTMLInputElement>('input[placeholder^="Search"]')?.focus();
       }
       if (e.key === "Escape") {
         setSelectedStock(null);
@@ -406,7 +406,7 @@ const Index = () => {
         stockCount={runInfo.stockCount}
         regime={runInfo.regime}
         universe={runInfo.universe}
-        connected={true}
+        connected={stocks.length > 0}
       />
     </div>
   );

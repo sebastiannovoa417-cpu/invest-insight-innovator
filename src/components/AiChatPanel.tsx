@@ -49,7 +49,7 @@ export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
           <Sparkles className="w-4 h-4 text-primary" />
           <span className="text-sm font-semibold text-foreground">AI Market Analyst</span>
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-            claude-opus-4-6
+            claude-3-5-sonnet
           </span>
         </div>
         {messages.length > 0 && (

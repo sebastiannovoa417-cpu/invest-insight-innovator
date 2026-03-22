@@ -94,6 +94,22 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: CORS_HEADERS });
   }
 
+  // Auth guard — require an authenticated user session (not just anon key)
+  const authToken = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  if (supabaseUrl) {
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { "Authorization": `Bearer ${authToken}`, "apikey": supabaseAnonKey },
+    });
+    if (!userRes.ok) {
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        { status: 401, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+      );
+    }
+  }
+
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) {
     return new Response(
@@ -129,7 +145,7 @@ Deno.serve(async (req) => {
     async start(controller) {
       try {
         const stream = client.messages.stream({
-          model: "claude-opus-4-5",
+          model: "claude-3-5-sonnet-20241022",
           max_tokens: 512,
           system: "You are an expert swing trading analyst. Be concise, direct, and data-driven. No disclaimers.",
           messages: [{ role: "user", content: prompt }],

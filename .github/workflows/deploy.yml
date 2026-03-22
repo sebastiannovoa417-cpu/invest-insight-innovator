@@ -50,7 +50,8 @@ jobs:
 
     deploy-edge-functions:
         runs-on: ubuntu-latest
-        if: ${{ vars.SUPABASE_PROJECT_REF != '' }}
+        needs: [build]
+        if: ${{ vars.SUPABASE_PROJECT_REF }}
         steps:
             - name: Checkout
               uses: actions/checkout@v4

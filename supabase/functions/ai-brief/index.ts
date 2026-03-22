@@ -12,6 +12,22 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Auth guard — require an authenticated user session (not just anon key)
+  const authToken = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  if (supabaseUrl) {
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { "Authorization": `Bearer ${authToken}`, "apikey": supabaseAnonKey },
+    });
+    if (!userRes.ok) {
+      return new Response(JSON.stringify({ error: "Authentication required" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
   try {
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!anthropicKey) {
@@ -44,7 +60,7 @@ serve(async (req) => {
 
 MARKET REGIME: ${regime.status}
 SPY: $${regime.spyPrice?.toFixed(2)} vs SMA200: $${regime.sma200?.toFixed(2)} (${(regime.ratio * 100)?.toFixed(1)}% above/below)
-SPY RSI: ${regime.spyRsi?.toFixed(1)} | VIX: ${regime.vix?.toFixed(1)} | Regime Score: ${regime.regimeScore}/10
+SPY RSI: ${regime.spyRsi?.toFixed(1)} | VIX: ${regime.vix?.toFixed(1)} | Regime Score: ${regime.regimeScore}/6
 
 TOP SETUPS (${top5.length} of ${stocks.length} scanned):
 ${stockLines}
@@ -63,7 +79,7 @@ Write:
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-3-5-haiku-20241022",
         max_tokens: 768,
         messages: [{ role: "user", content: prompt }],
       }),

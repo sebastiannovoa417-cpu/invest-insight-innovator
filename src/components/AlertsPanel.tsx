@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bell, BellOff, Trash2, RotateCcw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +43,11 @@ export function AlertsPanel({ stocks }: AlertsPanelProps) {
     const [ticker, setTicker] = useState<string>(stocks[0]?.ticker ?? "");
     const [condition, setCondition] = useState<AlertCondition>("bull_score_gte");
     const [threshold, setThreshold] = useState(CONDITION_DEFAULTS["bull_score_gte"]);
+
+    // Sync ticker when stocks first load (stocks may be empty on first render)
+    useEffect(() => {
+        if (!ticker && stocks.length > 0) setTicker(stocks[0].ticker);
+    }, [stocks, ticker]);
 
     const handleConditionChange = (v: AlertCondition) => {
         setCondition(v);
@@ -136,7 +141,7 @@ export function AlertsPanel({ stocks }: AlertsPanelProps) {
                         size="sm"
                         className="h-8 gap-1.5"
                         onClick={handleCreate}
-                        disabled={isCreating || !threshold || isNaN(parseFloat(threshold))}
+                        disabled={isCreating || !ticker || !threshold || isNaN(parseFloat(threshold))}
                     >
                         <Plus className="w-3 h-3" />
                         Add Alert
