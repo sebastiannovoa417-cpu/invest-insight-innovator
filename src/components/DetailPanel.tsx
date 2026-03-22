@@ -1,12 +1,15 @@
-import { X, Check, Minus, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus as NeutralIcon, ExternalLink } from "lucide-react";
+import { X, Check, Minus, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus as NeutralIcon, ExternalLink, Sparkles, Loader2, RefreshCw } from "lucide-react";
 import { Stock } from "@/lib/types";
+import type { RegimeData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect } from "react";
+import { useAiTradeAnalysis } from "@/hooks/use-ai-analysis";
 
 interface DetailPanelProps {
   stock: Stock | null;
   onClose: () => void;
+  regime?: RegimeData;
   onOpenPosition?: (pos: {
     ticker: string;
     direction: "LONG" | "SHORT";
@@ -19,12 +22,13 @@ interface DetailPanelProps {
 
 const VISIBLE_NEWS = 3;
 
-export function DetailPanel({ stock, onClose, onOpenPosition }: DetailPanelProps) {
+export function DetailPanel({ stock, onClose, regime, onOpenPosition }: DetailPanelProps) {
   const { user } = useAuth();
   const [shares, setShares] = useState("1");
   const [showMoreNews, setShowMoreNews] = useState(false);
+  const { text: aiText, loading: aiLoading, error: aiError, analyze, reset: resetAi } = useAiTradeAnalysis();
 
-  useEffect(() => { setShares("1"); }, [stock?.ticker]);
+  useEffect(() => { setShares("1"); resetAi(); }, [stock?.ticker]);
 
   if (!stock) return null;
 
@@ -242,6 +246,56 @@ export function DetailPanel({ stock, onClose, onOpenPosition }: DetailPanelProps
             </div>
           </section>
         )}
+
+        {/* AI Analysis */}
+        <section>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs font-semibold text-muted-foreground tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-3 h-3" />
+              AI ANALYSIS
+            </h3>
+            {aiText && !aiLoading && (
+              <button
+                onClick={() => { resetAi(); analyze(stock, regime); }}
+                className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+              >
+                <RefreshCw className="w-2.5 h-2.5" /> Refresh
+              </button>
+            )}
+          </div>
+
+          {!aiText && !aiLoading && !aiError && (
+            <button
+              onClick={() => analyze(stock, regime)}
+              className="w-full h-9 rounded-md border border-dashed border-border text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <Sparkles className="w-3 h-3" />
+              Generate AI trade commentary
+            </button>
+          )}
+
+          {aiLoading && aiText === "" && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Analyzing setup…
+            </div>
+          )}
+
+          {(aiText || (aiLoading && aiText !== "")) && (
+            <div className="rounded-md border border-border/60 bg-muted/20 p-3 text-xs text-foreground leading-relaxed">
+              {aiText}
+              {aiLoading && (
+                <span className="inline-block w-1 h-3 bg-primary/70 animate-pulse ml-0.5 align-middle" />
+              )}
+            </div>
+          )}
+
+          {aiError && (
+            <div className="text-xs text-short bg-short/10 border border-short/20 rounded-md px-3 py-2">
+              {aiError}
+            </div>
+          )}
+        </section>
 
         {/* Open Position */}
         {user ? (
