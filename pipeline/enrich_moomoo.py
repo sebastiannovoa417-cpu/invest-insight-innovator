@@ -1,11 +1,19 @@
 """enrich_moomoo.py — Enriches Supabase `stocks` table with moomoo data.
 
+LOCAL-ONLY SCRIPT — requires FutuOpenD desktop process running on localhost.
+Not run on GitHub Actions. Schedule via run_enrich.bat (Windows Task Scheduler)
+or run manually after US market close.
+
 Connects to a running FutuOpenD instance (127.0.0.1:11111), fetches the
 market snapshot for all 25 SwingPulse tickers, and PATCHes the Supabase
 `stocks` table with:
   - short_interest  (short_sell_ratio × 100, as a percentage)
   - earnings_date   (next earnings date, ISO format)
   - earnings_warning (True if earnings are within EARNINGS_WARN_DAYS)
+
+Dependencies:
+  pip install futu-openapi psycopg2-binary python-dotenv
+  (futu-openapi is NOT in requirements.txt — local-only, not in GitHub Actions)
 
 Usage:
   1. Start FutuOpenD: run FutuOpenD.exe (or keep it running via Task Scheduler).
@@ -16,11 +24,15 @@ Usage:
 
 import logging
 import os
+import signal
+import contextlib
 from datetime import datetime, timedelta, timezone
 
 import moomoo as ft
 import psycopg2
 from dotenv import load_dotenv
+
+from universe import UNIVERSE
 
 load_dotenv()
 
@@ -40,36 +52,10 @@ FUTU_PORT: int = int(os.getenv("FUTU_PORT", "11111"))
 DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
 EARNINGS_WARN_DAYS: int = 14  # flag as warning if earnings within this window
+FUTU_CONNECT_TIMEOUT: int = 15  # seconds to wait for FutuOpenD connection
 
-# 25-ticker SwingPulse universe
-_TICKERS: list[str] = [
-    "AAPL",
-    "MSFT",
-    "GOOGL",
-    "AMZN",
-    "NVDA",
-    "META",
-    "TSLA",
-    "JPM",
-    "V",
-    "MA",
-    "UNH",
-    "JNJ",
-    "XOM",
-    "CVX",
-    "BAC",
-    "HD",
-    "NFLX",
-    "DIS",
-    "COST",
-    "WMT",
-    "LLY",
-    "AVGO",
-    "AMD",
-    "CRM",
-    "ADBE",
-]
-FUTU_TICKERS: list[str] = [f"US.{t}" for t in _TICKERS]
+# Universe imported from universe.py — single source of truth shared with fetch_and_score.py
+FUTU_TICKERS: list[str] = [f"US.{t}" for t in UNIVERSE]
 
 
 # ── moomoo data fetch ─────────────────────────────────────────────────────────
@@ -89,8 +75,26 @@ def fetch_moomoo_snapshot() -> dict[str, dict]:
     """
     results: dict[str, dict] = {}
 
-    logger.info("Connecting to FutuOpenD at %s:%d …", FUTU_HOST, FUTU_PORT)
-    quote_ctx = ft.OpenQuoteContext(host=FUTU_HOST, port=FUTU_PORT)
+    logger.info("Connecting to FutuOpenD at %s:%d (timeout=%ds) …", FUTU_HOST, FUTU_PORT, FUTU_CONNECT_TIMEOUT)
+
+    # Enforce a hard timeout on the connection attempt so the script never
+    # hangs indefinitely if FutuOpenD is not running (POSIX only).
+    def _timeout_handler(signum, frame):
+        raise TimeoutError(f"FutuOpenD connection timed out after {FUTU_CONNECT_TIMEOUT}s")
+
+    with contextlib.suppress(AttributeError):
+        # signal.SIGALRM is only available on POSIX; silently skip on Windows
+        signal.signal(signal.SIGALRM, _timeout_handler)
+        signal.alarm(FUTU_CONNECT_TIMEOUT)
+
+    try:
+        quote_ctx = ft.OpenQuoteContext(host=FUTU_HOST, port=FUTU_PORT)
+    except TimeoutError:
+        logger.error("Could not connect to FutuOpenD — is it running?")
+        return results
+    finally:
+        with contextlib.suppress(AttributeError):
+            signal.alarm(0)  # cancel alarm
 
     try:
         ret_code, data = quote_ctx.get_market_snapshot(FUTU_TICKERS)

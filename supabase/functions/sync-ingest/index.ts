@@ -13,12 +13,19 @@ serve(async (req) => {
   }
 
   try {
-    // Validate API key from header
-    // Falls back to inline key if SYNC_API_KEY secret has not been set in the Dashboard yet
+    // Validate API key from header — must be set as SYNC_API_KEY secret in Supabase Dashboard
     const apiKey = req.headers.get("x-api-key");
-    const expectedKey = Deno.env.get("SYNC_API_KEY") ?? "ftEImJq5ThxPYKFOckwGVs32AuviHzBD7MenZg9j";
+    const expectedKey = Deno.env.get("SYNC_API_KEY");
 
-    if (apiKey !== expectedKey) {
+    if (!expectedKey) {
+      console.error("SYNC_API_KEY environment variable is not set");
+      return new Response(JSON.stringify({ error: "Server misconfiguration: SYNC_API_KEY not set" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!apiKey || apiKey !== expectedKey) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

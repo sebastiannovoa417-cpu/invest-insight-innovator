@@ -78,6 +78,7 @@ export interface Position {
   exitPrice: number | null;
   exitDate: string | null;
   notes: string | null;
+  realizedPnl: number | null;
 }
 
 // Transform Supabase row to app Stock type
@@ -153,5 +154,6 @@ export function mapDbPosition(row: Tables<"positions">): Position {
     exitPrice: row.exit_price,
     exitDate: row.exit_date,
     notes: row.notes,
+    realizedPnl: (row as Record<string, unknown>)["realized_pnl"] as number | null ?? null,
   };
 }

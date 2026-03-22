@@ -206,11 +206,21 @@ export function usePositions() {
   });
 
   const closePosition = useMutation({
-    mutationFn: async ({ id, exitPrice }: { id: string; exitPrice: number }) => {
+    mutationFn: async ({ id, exitPrice, position }: { id: string; exitPrice: number; position: Position }) => {
       if (!user) throw new Error("Not logged in");
+      // Compute and store realized P&L at close time so it's immutably recorded
+      const diff = position.direction === "LONG"
+        ? exitPrice - position.entryPrice
+        : position.entryPrice - exitPrice;
+      const realizedPnl = diff * position.shares;
       const { error } = await supabase
         .from("positions")
-        .update({ status: "closed", exit_price: exitPrice, exit_date: new Date().toISOString() })
+        .update({
+          status: "closed",
+          exit_price: exitPrice,
+          exit_date: new Date().toISOString(),
+          realized_pnl: realizedPnl,
+        } as Record<string, unknown>)
         .eq("id", id)
         .eq("user_id", user.id);
       if (error) throw error;

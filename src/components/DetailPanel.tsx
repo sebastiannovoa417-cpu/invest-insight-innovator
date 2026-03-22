@@ -1,4 +1,4 @@
-import { X, Check, Minus, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus as NeutralIcon } from "lucide-react";
+import { X, Check, Minus, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus as NeutralIcon, ExternalLink } from "lucide-react";
 import { Stock } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -160,7 +160,19 @@ export function DetailPanel({ stock, onClose, onOpenPosition }: DetailPanelProps
                 <div key={i} className={cn("rounded-md border border-border/60 p-3 space-y-1.5", sentimentBadge(n.sentiment).includes("long") ? "border-long/20" : n.sentiment === "bearish" ? "border-short/20" : "")}>
                   <div className="flex items-start gap-1.5">
                     {sentimentIcon(n.sentiment)}
-                    <span className="text-xs font-medium text-foreground leading-snug">{n.title}</span>
+                    {n.url ? (
+                      <a
+                        href={n.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-medium text-foreground leading-snug hover:text-primary transition-colors flex items-start gap-1 group"
+                      >
+                        {n.title}
+                        <ExternalLink className="w-3 h-3 mt-0.5 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" />
+                      </a>
+                    ) : (
+                      <span className="text-xs font-medium text-foreground leading-snug">{n.title}</span>
+                    )}
                   </div>
                   {n.summary && (
                     <p className="text-[11px] text-muted-foreground leading-relaxed pl-4">{n.summary}</p>
@@ -185,7 +197,19 @@ export function DetailPanel({ stock, onClose, onOpenPosition }: DetailPanelProps
                     <div key={`hidden-${i}`} className={cn("rounded-md border border-border/60 p-3 space-y-1.5", n.sentiment === "bullish" ? "border-long/20" : n.sentiment === "bearish" ? "border-short/20" : "")}>
                       <div className="flex items-start gap-1.5">
                         {sentimentIcon(n.sentiment)}
-                        <span className="text-xs font-medium text-foreground leading-snug">{n.title}</span>
+                        {n.url ? (
+                          <a
+                            href={n.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium text-foreground leading-snug hover:text-primary transition-colors flex items-start gap-1 group"
+                          >
+                            {n.title}
+                            <ExternalLink className="w-3 h-3 mt-0.5 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" />
+                          </a>
+                        ) : (
+                          <span className="text-xs font-medium text-foreground leading-snug">{n.title}</span>
+                        )}
                       </div>
                       {n.summary && (
                         <p className="text-[11px] text-muted-foreground leading-relaxed pl-4">{n.summary}</p>

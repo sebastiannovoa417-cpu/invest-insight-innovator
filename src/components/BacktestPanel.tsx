@@ -5,6 +5,7 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 import type { Stock } from "@/lib/types";
+import { usePriceHistory, type PriceBar } from "@/hooks/use-price-history";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -45,7 +46,70 @@ interface BacktestResult {
   trades: TradeResult[];
 }
 
-// ─── Mock backtest engine ──────────────────────────────────────────────────────
+// ─── Indicator helpers ────────────────────────────────────────────────────────
+
+function rollingMean(arr: number[], period: number): number[] {
+  return arr.map((_, i) => {
+    if (i < period - 1) return NaN;
+    const slice = arr.slice(i - period + 1, i + 1);
+    return slice.reduce((s, v) => s + v, 0) / period;
+  });
+}
+
+function computeRSI(closes: number[], period = 14): number[] {
+  const result = new Array(closes.length).fill(NaN);
+  let avgGain = 0;
+  let avgLoss = 0;
+  for (let i = 1; i <= period && i < closes.length; i++) {
+    const d = closes[i] - closes[i - 1];
+    if (d > 0) avgGain += d / period;
+    else avgLoss += Math.abs(d) / period;
+  }
+  if (period < closes.length) {
+    const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+    result[period] = 100 - 100 / (1 + rs);
+    for (let i = period + 1; i < closes.length; i++) {
+      const d = closes[i] - closes[i - 1];
+      const g = d > 0 ? d : 0;
+      const l = d < 0 ? Math.abs(d) : 0;
+      avgGain = (avgGain * (period - 1) + g) / period;
+      avgLoss = (avgLoss * (period - 1) + l) / period;
+      const rs2 = avgLoss === 0 ? 100 : avgGain / avgLoss;
+      result[i] = 100 - 100 / (1 + rs2);
+    }
+  }
+  return result;
+}
+
+function computeEMA(closes: number[], period: number): number[] {
+  const k = 2 / (period + 1);
+  const result = new Array(closes.length).fill(NaN);
+  let ema = closes[0];
+  result[0] = ema;
+  for (let i = 1; i < closes.length; i++) {
+    ema = closes[i] * k + ema * (1 - k);
+    result[i] = ema;
+  }
+  return result;
+}
+
+function computeMACD(closes: number[]): { macd: number[]; signal: number[] } {
+  const ema12 = computeEMA(closes, 12);
+  const ema26 = computeEMA(closes, 26);
+  const macdLine = closes.map((_, i) =>
+    isNaN(ema12[i]) || isNaN(ema26[i]) ? NaN : ema12[i] - ema26[i]
+  );
+  const validMacd = macdLine.filter(v => !isNaN(v));
+  const signalRaw = computeEMA(validMacd, 9);
+  const signal = new Array(closes.length).fill(NaN);
+  let vi = 0;
+  for (let i = 0; i < closes.length; i++) {
+    if (!isNaN(macdLine[i])) { signal[i] = signalRaw[vi++]; }
+  }
+  return { macd: macdLine, signal };
+}
+
+// ─── Real signal-replay backtest engine ───────────────────────────────────────
 
 const STRATEGIES = [
   "MACD + EMA Cross",
@@ -55,94 +119,187 @@ const STRATEGIES = [
   "Dual Momentum",
 ];
 
-const TICKERS = [
-  "SPY", "QQQ", "AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "META",
-  "GOOGL", "AMD", "SOFI", "NIO", "PLUG", "PLTR", "MARA",
-  "COIN", "RBLX", "RIVN", "LCID", "UPST",
-];
+function runRealBacktest(cfg: BacktestConfig, bars: PriceBar[]): BacktestResult {
+  if (bars.length < 30) return emptyResult(cfg.capital);
 
-function seededRand(seed: number) {
-  let s = seed;
-  return () => {
-    s = (s * 9301 + 49297) % 233280;
-    return s / 233280;
-  };
-}
+  const closes = bars.map(b => b.close);
+  const highs = bars.map(b => b.high);
+  const lows = bars.map(b => b.low);
+  const volumes = bars.map(b => b.volume ?? 0);
 
-function runBacktest(cfg: BacktestConfig): BacktestResult {
-  const seed = cfg.ticker.charCodeAt(0) * 31 +
-    cfg.strategy.length * 17 +
-    cfg.lookback +
-    Math.round(cfg.stopLoss * 10) +
-    Math.round(cfg.takeProfit * 10);
-  const rand = seededRand(seed);
+  // Pre-compute indicators for all bars
+  const sma50 = rollingMean(closes, 50);
+  const sma200 = rollingMean(closes, 200);
+  const rsi14 = computeRSI(closes, 14);
+  const { macd, signal: macdSignal } = computeMACD(closes);
+  const volMa20 = rollingMean(volumes, 20);
 
-  const isRSI = cfg.strategy.includes("RSI");
-  const isTrend = cfg.strategy.includes("SMA200") || cfg.strategy.includes("Trend");
-  const baseWinRate = isRSI ? 0.52 + rand() * 0.12 : isTrend ? 0.44 + rand() * 0.14 : 0.48 + rand() * 0.10;
-
-  const numTrades = Math.max(4, Math.round(6 + rand() * (cfg.lookback / 10)));
-  const trades: TradeResult[] = [];
-
-  const now = new Date(2026, 2, 21);
+  const lookbackStart = Math.max(0, bars.length - cfg.lookback);
   let equity = cfg.capital;
   const equityCurve: { t: number; equity: number }[] = [{ t: 0, equity: cfg.capital }];
-
-  let wins = 0;
-  let grossWin = 0;
-  let grossLoss = 0;
+  const trades: TradeResult[] = [];
   let peakEquity = equity;
   let maxDD = 0;
   let totalDD = 0;
   let ddCount = 0;
+  let openPos: { dir: "LONG" | "SHORT"; entry: number; entryIdx: number } | null = null;
 
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const stopMult = cfg.stopLoss / 100;
+  const tpMult = cfg.takeProfit / 100;
+  const posSize = (cfg.positionSize / 100) * cfg.capital;
 
-  for (let i = 0; i < numTrades; i++) {
-    const isWin = rand() < baseWinRate;
-    const dir: "LONG" | "SHORT" = rand() < 0.55 ? "LONG" : "SHORT";
-    const holdDays = Math.round(3 + rand() * 20);
-    const entryPrice = 150 + rand() * 300;
-    const pnlPct = isWin
-      ? (cfg.takeProfit * 0.5 + rand() * cfg.takeProfit * 0.8)
-      : -(cfg.stopLoss * 0.6 + rand() * cfg.stopLoss * 0.7);
-    const posValue = equity * (cfg.positionSize / 100) / Math.min(numTrades, cfg.maxConcurrent);
-    const pnl = posValue * (pnlPct / 100);
-    const exitPrice = dir === "LONG" ? entryPrice * (1 + pnlPct / 100) : entryPrice * (1 - pnlPct / 100);
+  for (let i = Math.max(lookbackStart, 210); i < bars.length; i++) {
+    const price = closes[i];
 
-    const d = new Date(now);
-    d.setDate(d.getDate() - Math.round((numTrades - i) * (cfg.lookback / numTrades)));
-    const dateStr = `${months[d.getMonth()]} ${d.getDate()}`;
+    // ── Check exit conditions if in a position ──────────────────────────────
+    if (openPos) {
+      const { dir, entry, entryIdx } = openPos;
+      const stopHit = dir === "LONG"
+        ? lows[i] <= entry * (1 - stopMult)
+        : highs[i] >= entry * (1 + stopMult);
+      const tpHit = dir === "LONG"
+        ? highs[i] >= entry * (1 + tpMult)
+        : lows[i] <= entry * (1 - tpMult);
 
-    trades.push({ date: dateStr, dir, entry: entryPrice, exit: exitPrice, pnl, pnlPct, days: holdDays });
+      if (stopHit || tpHit) {
+        const exitPrice = stopHit
+          ? (dir === "LONG" ? entry * (1 - stopMult) : entry * (1 + stopMult))
+          : (dir === "LONG" ? entry * (1 + tpMult) : entry * (1 - tpMult));
+        const pnlPct = dir === "LONG"
+          ? ((exitPrice - entry) / entry) * 100
+          : ((entry - exitPrice) / entry) * 100;
+        const pnl = posSize * (pnlPct / 100);
+        equity += pnl;
+        equityCurve.push({ t: equityCurve.length, equity });
 
-    equity += pnl;
-    equityCurve.push({ t: i + 1, equity: Math.max(equity, cfg.capital * 0.1) });
+        if (equity > peakEquity) peakEquity = equity;
+        const dd = ((peakEquity - equity) / peakEquity) * 100;
+        if (dd > maxDD) maxDD = dd;
+        if (dd > 0) { totalDD += dd; ddCount++; }
 
-    if (equity > peakEquity) peakEquity = equity;
-    const dd = ((peakEquity - equity) / peakEquity) * 100;
-    if (dd > maxDD) maxDD = dd;
-    if (dd > 0) { totalDD += dd; ddCount++; }
+        const bar = bars[i];
+        trades.push({
+          date: bar.date.slice(5).replace("-", "/"),
+          dir,
+          entry: Math.round(entry * 100) / 100,
+          exit: Math.round(exitPrice * 100) / 100,
+          pnl,
+          pnlPct,
+          days: i - entryIdx,
+        });
+        openPos = null;
+      }
+    }
 
-    if (isWin) { wins++; grossWin += pnl; } else { grossLoss += Math.abs(pnl); }
+    // ── Check entry signals if flat ─────────────────────────────────────────
+    if (!openPos) {
+      let dir: "LONG" | "SHORT" | null = null;
+
+      if (cfg.strategy === "MACD + EMA Cross") {
+        const prev = i > 0 ? i - 1 : 0;
+        if (!isNaN(macd[i]) && !isNaN(macdSignal[i]) && !isNaN(macd[prev]) && !isNaN(macdSignal[prev])) {
+          if (macd[prev] < macdSignal[prev] && macd[i] > macdSignal[i]) dir = "LONG";
+          else if (macd[prev] > macdSignal[prev] && macd[i] < macdSignal[i]) dir = "SHORT";
+        }
+
+      } else if (cfg.strategy === "RSI Mean Reversion") {
+        if (!isNaN(rsi14[i])) {
+          if (rsi14[i] < 30) dir = "LONG";
+          else if (rsi14[i] > 70) dir = "SHORT";
+        }
+
+      } else if (cfg.strategy === "Breakout + Volume") {
+        if (i >= 21 && !isNaN(volMa20[i])) {
+          const hi20 = Math.max(...highs.slice(i - 20, i));
+          const lo20 = Math.min(...lows.slice(i - 20, i));
+          const volSpike = volumes[i] > volMa20[i] * 1.5;
+          if (price > hi20 && volSpike) dir = "LONG";
+          else if (price < lo20 && volSpike) dir = "SHORT";
+        }
+
+      } else if (cfg.strategy === "Trend Follow SMA200") {
+        if (!isNaN(sma200[i]) && !isNaN(sma200[i - 1])) {
+          if (closes[i - 1] < sma200[i - 1] && price > sma200[i]) dir = "LONG";
+          else if (closes[i - 1] > sma200[i - 1] && price < sma200[i]) dir = "SHORT";
+        }
+
+      } else if (cfg.strategy === "Dual Momentum") {
+        if (!isNaN(sma50[i]) && !isNaN(sma200[i])) {
+          const wasAbove = !isNaN(sma50[i - 1]) && sma50[i - 1] < sma200[i - 1];
+          const nowAbove = sma50[i] > sma200[i];
+          if (wasAbove && nowAbove && price > sma50[i]) dir = "LONG";
+          else if (!wasAbove && !nowAbove && price < sma50[i]) dir = "SHORT";
+        }
+      }
+
+      if (dir) {
+        openPos = { dir, entry: price, entryIdx: i };
+      }
+    }
   }
 
-  const winRate = wins / numTrades;
+  // Close any open position at last bar price
+  if (openPos) {
+    const { dir, entry, entryIdx } = openPos;
+    const exitPrice = closes[bars.length - 1];
+    const pnlPct = dir === "LONG"
+      ? ((exitPrice - entry) / entry) * 100
+      : ((entry - exitPrice) / entry) * 100;
+    const pnl = posSize * (pnlPct / 100);
+    equity += pnl;
+    equityCurve.push({ t: equityCurve.length, equity });
+    trades.push({
+      date: bars[bars.length - 1].date.slice(5).replace("-", "/"),
+      dir,
+      entry: Math.round(entry * 100) / 100,
+      exit: Math.round(exitPrice * 100) / 100,
+      pnl,
+      pnlPct,
+      days: bars.length - 1 - entryIdx,
+    });
+  }
+
+  return summarise(trades, equityCurve, equity, cfg.capital, maxDD, totalDD, ddCount);
+}
+
+function emptyResult(capital: number): BacktestResult {
+  return {
+    netReturn: 0, winRate: 0, profitFactor: 0, maxDrawdown: 0,
+    totalTrades: 0, avgHoldDays: 0, sharpeRatio: 0, finalEquity: capital,
+    avgDrawdown: 0, recoveryFactor: 0,
+    equityCurve: [{ t: 0, equity: capital }],
+    tradeDistribution: ["<-5%", "-5−2", "-2−0", "0−2", "2−5", "5−10", ">10%"].map(b => ({ bucket: b, wins: 0, losses: 0 })),
+    trades: [],
+  };
+}
+
+function summarise(
+  trades: TradeResult[],
+  equityCurve: { t: number; equity: number }[],
+  equity: number,
+  capital: number,
+  maxDD: number,
+  totalDD: number,
+  ddCount: number
+): BacktestResult {
+  if (trades.length === 0) return emptyResult(capital);
+
+  const wins = trades.filter(t => t.pnl >= 0).length;
+  const grossWin = trades.filter(t => t.pnl > 0).reduce((s, t) => s + t.pnl, 0);
+  const grossLoss = trades.filter(t => t.pnl < 0).reduce((s, t) => s + Math.abs(t.pnl), 0);
+  const winRate = (wins / trades.length) * 100;
   const profitFactor = grossLoss === 0 ? grossWin : grossWin / grossLoss;
-  const netReturn = ((equity - cfg.capital) / cfg.capital) * 100;
-
-  const avgHoldDays = Math.round(trades.reduce((s, t) => s + t.days, 0) / numTrades);
+  const netReturn = ((equity - capital) / capital) * 100;
+  const avgHoldDays = Math.round(trades.reduce((s, t) => s + t.days, 0) / trades.length);
   const avgDD = ddCount > 0 ? totalDD / ddCount : 0;
-  const recoveryFactor = maxDD === 0 ? 0 : netReturn / maxDD;
+  const recoveryFactor = maxDD === 0 ? 0 : Math.round((netReturn / maxDD) * 100) / 100;
 
-  // Sharpe: simplified daily return / std
   const returns = equityCurve.slice(1).map((p, i) => (p.equity - equityCurve[i].equity) / equityCurve[i].equity);
-  const avgRet = returns.reduce((a, b) => a + b, 0) / returns.length;
-  const stdRet = Math.sqrt(returns.reduce((s, r) => s + (r - avgRet) ** 2, 0) / returns.length);
-  const sharpe = stdRet === 0 ? 0 : (avgRet / stdRet) * Math.sqrt(252);
+  const avgRet = returns.reduce((a, b) => a + b, 0) / (returns.length || 1);
+  const stdRet = Math.sqrt(returns.reduce((s, r) => s + (r - avgRet) ** 2, 0) / (returns.length || 1));
+  const sharpe = stdRet === 0 ? 0 : Math.round(Math.abs((avgRet / stdRet) * Math.sqrt(252)) * 100) / 100;
 
-  // Distribution buckets
-  const buckets = ["<-5%", "-5-2", "-2-0", "0-2", "2-5", "5-10", ">10%"];
+  const buckets = ["<-5%", "-5−2", "-2−0", "0−2", "2−5", "5−10", ">10%"];
   const dist = buckets.map(b => ({ bucket: b, wins: 0, losses: 0 }));
   trades.forEach(t => {
     const p = t.pnlPct;
@@ -152,15 +309,15 @@ function runBacktest(cfg: BacktestConfig): BacktestResult {
 
   return {
     netReturn,
-    winRate: winRate * 100,
+    winRate,
     profitFactor: Math.round(profitFactor * 100) / 100,
     maxDrawdown: maxDD,
-    totalTrades: numTrades,
+    totalTrades: trades.length,
     avgHoldDays,
-    sharpeRatio: Math.round(Math.abs(sharpe) * 100) / 100,
+    sharpeRatio: sharpe,
     finalEquity: Math.round(equity),
     avgDrawdown: avgDD,
-    recoveryFactor: Math.round(recoveryFactor * 100) / 100,
+    recoveryFactor,
     equityCurve,
     tradeDistribution: dist,
     trades: trades.slice().reverse(),
@@ -202,14 +359,12 @@ function DrawdownBar({ label, pct, max, color }: { label: string; pct: number; m
     <div className="grid grid-cols-[110px_1fr_52px] items-center gap-3">
       <span className="text-xs text-muted-foreground">{label}</span>
       <div className="h-2 rounded-full bg-border overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${(pct / max) * 100}%`, background: color }} />
+        <div className="h-full rounded-full transition-all" style={{ width: `${(pct / Math.max(max, 1)) * 100}%`, background: color }} />
       </div>
       <span className="text-xs font-mono text-right" style={{ color }}>{pct.toFixed(1)}{label === "Recovery factor" ? "x" : "%"}</span>
     </div>
   );
 }
-
-// ─── Custom tooltip ───────────────────────────────────────────────────────────
 
 function EquityTooltip({ active, payload }: { active?: boolean; payload?: { value: number }[] }) {
   if (!active || !payload?.length) return null;
@@ -242,28 +397,35 @@ interface BacktestPanelProps {
 
 export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
   const availableTickers = useMemo(() => {
-    const fromStocks = stocks.map(s => s.ticker);
-    return Array.from(new Set([...fromStocks, ...TICKERS])).sort();
+    return Array.from(new Set(stocks.map(s => s.ticker))).sort();
   }, [stocks]);
 
+  const defaultTicker = availableTickers[0] ?? "NVDA";
+
   const [cfg, setCfg] = useState<BacktestConfig>({
-    ticker: "SPY",
+    ticker: defaultTicker,
     strategy: "MACD + EMA Cross",
-    lookback: 50,
+    lookback: 90,
     stopLoss: 5.5,
     takeProfit: 15,
     positionSize: 100,
     capital: 1000,
-    maxConcurrent: 5,
+    maxConcurrent: 1,
   });
-
-  const result = useMemo(() => runBacktest(cfg), [cfg]);
 
   const set = useCallback(<K extends keyof BacktestConfig>(key: K, val: BacktestConfig[K]) => {
     setCfg(prev => ({ ...prev, [key]: val }));
   }, []);
 
-  const ddMax = Math.max(result.maxDrawdown, result.avgDrawdown, result.recoveryFactor, 1);
+  const { data: priceHistory = [], isLoading, isError } = usePriceHistory(cfg.ticker, cfg.lookback + 260);
+
+  const result = useMemo(() => {
+    if (priceHistory.length < 30) return emptyResult(cfg.capital);
+    return runRealBacktest(cfg, priceHistory);
+  }, [cfg, priceHistory]);
+
+  const ddMax = Math.max(result.maxDrawdown, result.avgDrawdown, Math.abs(result.recoveryFactor), 1);
+  const hasData = priceHistory.length >= 30;
 
   return (
     <div className="space-y-4">
@@ -271,7 +433,22 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
       {/* ── Header ── */}
       <div className="flex items-center gap-2 mb-1">
         <span className="text-[10px] font-bold tracking-[0.2em] text-primary">SWINGPULSE</span>
-        <span className="text-[10px] text-muted-foreground tracking-widest">// BACKTEST PLANNER v1.0</span>
+        <span className="text-[10px] text-muted-foreground tracking-widest">// BACKTEST ENGINE v2.0</span>
+        {hasData && (
+          <span className="ml-auto text-[9px] text-long tracking-wider">
+            ● LIVE DATA ({priceHistory.length} bars)
+          </span>
+        )}
+        {!hasData && !isLoading && (
+          <span className="ml-auto text-[9px] text-muted-foreground tracking-wider">
+            ○ NO PRICE DATA — run pipeline with SUPABASE_PRICES_URL set
+          </span>
+        )}
+        {isLoading && (
+          <span className="ml-auto text-[9px] text-muted-foreground tracking-wider animate-pulse">
+            ● LOADING…
+          </span>
+        )}
       </div>
 
       {/* ── Config ── */}
@@ -281,7 +458,6 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
           STRATEGY CONFIG
         </div>
 
-        {/* Ticker + Strategy selects */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
           <div>
             <label className="text-[10px] text-muted-foreground tracking-wider block mb-1.5">TICKER</label>
@@ -305,9 +481,8 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
           </div>
         </div>
 
-        {/* Sliders — row 1 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-5">
-          <SliderRow label="LOOKBACK (DAYS)" value={cfg.lookback} min={10} max={200} step={5}
+          <SliderRow label="LOOKBACK (DAYS)" value={cfg.lookback} min={10} max={250} step={5}
             format={v => String(v)} onChange={v => set("lookback", v)} />
           <SliderRow label="STOP LOSS %" value={cfg.stopLoss} min={1} max={20} step={0.5}
             format={v => v.toFixed(1)} onChange={v => set("stopLoss", v)} />
@@ -322,6 +497,13 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
         </div>
       </div>
 
+      {/* ── No data notice ── */}
+      {isError && (
+        <div className="rounded-lg border border-short/30 bg-short/5 p-4 text-xs text-short">
+          Failed to load price history. Ensure price_history table exists and SUPABASE_PRICES_URL is configured.
+        </div>
+      )}
+
       {/* ── Performance Metrics ── */}
       <div className="rounded-lg border border-border bg-card p-5">
         <div className="text-[10px] font-bold tracking-[0.15em] text-primary mb-4 flex items-center gap-2">
@@ -330,21 +512,21 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <MetricCard label="NET RETURN"
-            value={`${result.netReturn >= 0 ? "+" : ""}${result.netReturn.toFixed(1)}%`}
+            value={result.totalTrades === 0 ? "—" : `${result.netReturn >= 0 ? "+" : ""}${result.netReturn.toFixed(1)}%`}
             color={result.netReturn >= 0 ? "text-long" : "text-short"} />
           <MetricCard label="WIN RATE"
-            value={`${result.winRate.toFixed(0)}%`}
+            value={result.totalTrades === 0 ? "—" : `${result.winRate.toFixed(0)}%`}
             color={result.winRate >= 55 ? "text-primary" : result.winRate >= 45 ? "text-foreground" : "text-short"} />
           <MetricCard label="PROFIT FACTOR"
-            value={result.profitFactor.toFixed(2)}
+            value={result.totalTrades === 0 ? "—" : result.profitFactor.toFixed(2)}
             color={result.profitFactor >= 2 ? "text-long" : result.profitFactor >= 1 ? "text-foreground" : "text-short"} />
           <MetricCard label="MAX DRAWDOWN"
-            value={`-${result.maxDrawdown.toFixed(1)}%`}
+            value={result.totalTrades === 0 ? "—" : `-${result.maxDrawdown.toFixed(1)}%`}
             color="text-short" />
-          <MetricCard label="TOTAL TRADES" value={String(result.totalTrades)} />
-          <MetricCard label="AVG HOLD (DAYS)" value={`${result.avgHoldDays}d`} />
+          <MetricCard label="TOTAL TRADES" value={result.totalTrades === 0 ? "—" : String(result.totalTrades)} />
+          <MetricCard label="AVG HOLD (DAYS)" value={result.totalTrades === 0 ? "—" : `${result.avgHoldDays}d`} />
           <MetricCard label="SHARPE RATIO"
-            value={result.sharpeRatio.toFixed(2)}
+            value={result.totalTrades === 0 ? "—" : result.sharpeRatio.toFixed(2)}
             color={result.sharpeRatio >= 1 ? "text-long" : result.sharpeRatio >= 0.5 ? "text-primary" : "text-muted-foreground"} />
           <MetricCard label="FINAL EQUITY"
             value={`$${result.finalEquity.toLocaleString()}`}
@@ -355,7 +537,7 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
       {/* ── Equity Curve ── */}
       <div className="rounded-lg border border-border bg-card p-5">
         <div className="text-[10px] font-bold tracking-[0.15em] text-muted-foreground mb-1">
-          EQUITY CURVE <span className="text-[9px] opacity-60">// cumulative P&L</span>
+          EQUITY CURVE <span className="text-[9px] opacity-60">// cumulative P&L over {result.totalTrades} real trades</span>
         </div>
         <div className="h-52 mt-3">
           <ResponsiveContainer width="100%" height="100%">
@@ -434,7 +616,7 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
         <div className="space-y-3">
           <DrawdownBar label="Max Drawdown" pct={result.maxDrawdown} max={ddMax} color="hsl(350 89% 60%)" />
           <DrawdownBar label="Avg Drawdown" pct={result.avgDrawdown} max={ddMax} color="hsl(30 95% 60%)" />
-          <DrawdownBar label="Recovery factor" pct={result.recoveryFactor} max={ddMax} color="hsl(45 95% 60%)" />
+          <DrawdownBar label="Recovery factor" pct={Math.abs(result.recoveryFactor)} max={ddMax} color="hsl(45 95% 60%)" />
         </div>
       </div>
 
@@ -442,51 +624,54 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         <div className="px-4 py-3 border-b border-border">
           <span className="text-[10px] font-bold tracking-[0.15em] text-primary">
-            TRADE LOG <span className="text-muted-foreground font-normal">(LAST {Math.min(result.trades.length, 12)})</span>
+            TRADE LOG <span className="text-muted-foreground font-normal">(LAST {Math.min(result.trades.length, 12)} OF {result.totalTrades})</span>
           </span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="bg-muted/30 text-[10px] text-muted-foreground tracking-wider">
-                <th className="px-4 py-2 text-left font-medium">DATE</th>
-                <th className="px-4 py-2 text-left font-medium">DIR</th>
-                <th className="px-4 py-2 text-left font-medium">ENTRY→EXIT</th>
-                <th className="px-4 py-2 text-right font-medium">P&L</th>
-                <th className="px-4 py-2 text-right font-medium">P&L %</th>
-                <th className="px-4 py-2 text-right font-medium">DAYS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.trades.slice(0, 12).map((t, i) => (
-                <tr
-                  key={i}
-                  className="border-t border-border/40 hover:bg-card/80 transition-colors"
-                >
-                  <td className="px-4 py-2 font-mono text-muted-foreground">{t.date}</td>
-                  <td className="px-4 py-2">
-                    <span className={cn(
-                      "px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider",
-                      t.dir === "LONG" ? "bg-long/15 text-long" : "bg-short/15 text-short"
-                    )}>
-                      {t.dir}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 font-mono text-muted-foreground">
-                    ${t.entry.toFixed(2)} → ${t.exit.toFixed(2)}
-                  </td>
-                  <td className={cn("px-4 py-2 font-mono text-right font-semibold", t.pnl >= 0 ? "text-long" : "text-short")}>
-                    {t.pnl >= 0 ? "+" : ""}${Math.round(t.pnl)}
-                  </td>
-                  <td className={cn("px-4 py-2 font-mono text-right", t.pnlPct >= 0 ? "text-long" : "text-short")}>
-                    {t.pnlPct >= 0 ? "+" : ""}{t.pnlPct.toFixed(1)}%
-                  </td>
-                  <td className="px-4 py-2 font-mono text-right text-muted-foreground">{t.days}d</td>
+        {result.totalTrades === 0 ? (
+          <div className="px-4 py-8 text-center text-xs text-muted-foreground">
+            {isLoading ? "Loading price history…" : "No trades generated for this config. Try adjusting the strategy or lookback window."}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-muted/30 text-[10px] text-muted-foreground tracking-wider">
+                  <th className="px-4 py-2 text-left font-medium">DATE</th>
+                  <th className="px-4 py-2 text-left font-medium">DIR</th>
+                  <th className="px-4 py-2 text-left font-medium">ENTRY→EXIT</th>
+                  <th className="px-4 py-2 text-right font-medium">P&L</th>
+                  <th className="px-4 py-2 text-right font-medium">P&L %</th>
+                  <th className="px-4 py-2 text-right font-medium">DAYS</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {result.trades.slice(0, 12).map((t, i) => (
+                  <tr key={i} className="border-t border-border/40 hover:bg-card/80 transition-colors">
+                    <td className="px-4 py-2 font-mono text-muted-foreground">{t.date}</td>
+                    <td className="px-4 py-2">
+                      <span className={cn(
+                        "px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider",
+                        t.dir === "LONG" ? "bg-long/15 text-long" : "bg-short/15 text-short"
+                      )}>
+                        {t.dir}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 font-mono text-muted-foreground">
+                      ${t.entry.toFixed(2)} → ${t.exit.toFixed(2)}
+                    </td>
+                    <td className={cn("px-4 py-2 font-mono text-right font-semibold", t.pnl >= 0 ? "text-long" : "text-short")}>
+                      {t.pnl >= 0 ? "+" : ""}${Math.round(t.pnl)}
+                    </td>
+                    <td className={cn("px-4 py-2 font-mono text-right", t.pnlPct >= 0 ? "text-long" : "text-short")}>
+                      {t.pnlPct >= 0 ? "+" : ""}{t.pnlPct.toFixed(1)}%
+                    </td>
+                    <td className="px-4 py-2 font-mono text-right text-muted-foreground">{t.days}d</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
     </div>
