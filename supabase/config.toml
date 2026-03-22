@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.ai-analysis]
 verify_jwt = false
+
+[functions.ai-brief]
+verify_jwt = false
+
+[functions.check-alerts]
+verify_jwt = false
