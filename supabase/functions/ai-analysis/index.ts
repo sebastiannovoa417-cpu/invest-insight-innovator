@@ -1,7 +1,7 @@
 import Anthropic from "npm:@anthropic-ai/sdk@^0.39.0";
 
 const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") ?? "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
@@ -97,17 +97,21 @@ Deno.serve(async (req) => {
   // Auth guard — require an authenticated user session (not just anon key)
   const authToken = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  if (supabaseUrl) {
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-    const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: { "Authorization": `Bearer ${authToken}`, "apikey": supabaseAnonKey },
-    });
-    if (!userRes.ok) {
-      return new Response(
-        JSON.stringify({ error: "Authentication required" }),
-        { status: 401, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
-      );
-    }
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  if (!supabaseUrl) {
+    return new Response(
+      JSON.stringify({ error: "Server misconfigured" }),
+      { status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+    );
+  }
+  const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { "Authorization": `Bearer ${authToken}`, "apikey": supabaseAnonKey },
+  });
+  if (!userRes.ok) {
+    return new Response(
+      JSON.stringify({ error: "Authentication required" }),
+      { status: 401, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+    );
   }
 
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");

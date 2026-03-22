@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") ?? "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
 };
 
@@ -32,6 +32,15 @@ serve(async (req) => {
       });
     }
 
+    // Request size guard (10 MB)
+    const contentLength = parseInt(req.headers.get("content-length") ?? "0");
+    if (contentLength > 10485760) {
+      return new Response(JSON.stringify({ error: "Payload too large" }), {
+        status: 413,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -55,48 +64,65 @@ serve(async (req) => {
       }, { onConflict: "id" });
     }
 
-    // 2. Upsert stocks
-    if (stocks && Array.isArray(stocks)) {
+    // 2. Validate and batch upsert stocks
+    if (stocks && Array.isArray(stocks) && stocks.length > 0) {
       for (const stock of stocks) {
-        await supabase.from("stocks").upsert(
-          {
-            ticker: stock.ticker,
-            trade_type: stock.trade_type,
-            bull_score: stock.bull_score,
-            bear_score: stock.bear_score,
-            price: stock.price,
-            rsi: stock.rsi,
-            volume_ratio: stock.volume_ratio,
-            volume_spike: stock.volume_spike,
-            signals: stock.signals,
-            entry_atr: stock.entry_atr,
-            entry_structure: stock.entry_structure,
-            best_entry: stock.best_entry,
-            stop_loss: stock.stop_loss,
-            target: stock.target,
-            risk_reward: stock.risk_reward,
-            atr: stock.atr,
-            distance_52w: stock.distance_52w,
-            name: stock.name ?? stock.ticker,
-            conflict_trend: stock.conflict_trend,
-            news: stock.news || [],
-            earnings_date: stock.earnings_date,
-            earnings_warning: stock.earnings_warning || false,
-            short_interest: stock.short_interest ?? null,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "ticker" }
-        );
-
-        // 3. Save score history
-        if (run_id) {
-          await supabase.from("score_history").insert({
-            ticker: stock.ticker,
-            run_id,
-            bull_score: stock.bull_score,
-            bear_score: stock.bear_score,
-          });
+        if (!Number.isFinite(stock.price) || stock.price <= 0) {
+          throw new Error(`Invalid price for ${stock.ticker}`);
         }
+        if (!Number.isFinite(stock.bull_score) || stock.bull_score < 0 || stock.bull_score > 8) {
+          throw new Error(`Invalid bull_score for ${stock.ticker}`);
+        }
+        if (!Number.isFinite(stock.bear_score) || stock.bear_score < 0 || stock.bear_score > 8) {
+          throw new Error(`Invalid bear_score for ${stock.ticker}`);
+        }
+      }
+
+      const now = new Date().toISOString();
+      const stockRows = stocks.map((stock) => ({
+        ticker: stock.ticker,
+        trade_type: stock.trade_type,
+        bull_score: stock.bull_score,
+        bear_score: stock.bear_score,
+        price: stock.price,
+        rsi: stock.rsi,
+        volume_ratio: stock.volume_ratio,
+        volume_spike: stock.volume_spike,
+        signals: stock.signals,
+        entry_atr: stock.entry_atr,
+        entry_structure: stock.entry_structure,
+        best_entry: stock.best_entry,
+        stop_loss: stock.stop_loss,
+        target: stock.target,
+        risk_reward: stock.risk_reward,
+        atr: stock.atr,
+        distance_52w: stock.distance_52w,
+        name: stock.name ?? stock.ticker,
+        conflict_trend: stock.conflict_trend,
+        news: stock.news || [],
+        earnings_date: stock.earnings_date
+          ? new Date(stock.earnings_date).toISOString().split("T")[0]
+          : null,
+        earnings_warning: stock.earnings_warning || false,
+        short_interest: stock.short_interest ?? null,
+        updated_at: now,
+      }));
+
+      const { error: stockErr } = await supabase
+        .from("stocks")
+        .upsert(stockRows, { onConflict: "ticker" });
+      if (stockErr) throw stockErr;
+
+      // 3. Save score history (batch insert)
+      if (run_id) {
+        const historyRows = stocks.map((s) => ({
+          ticker: s.ticker,
+          run_id,
+          bull_score: s.bull_score,
+          bear_score: s.bear_score,
+        }));
+        const { error: histErr } = await supabase.from("score_history").insert(historyRows);
+        if (histErr) throw histErr;
       }
     }
 
@@ -124,7 +150,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("Sync error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+      JSON.stringify({ error: "Internal server error" }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

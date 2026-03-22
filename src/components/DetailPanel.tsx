@@ -22,6 +22,14 @@ interface DetailPanelProps {
 
 const VISIBLE_NEWS = 3;
 
+function isSafeUrl(url: string): boolean {
+  try {
+    return ["http:", "https:"].includes(new URL(url).protocol);
+  } catch {
+    return false;
+  }
+}
+
 export function DetailPanel({ stock, onClose, regime, onOpenPosition }: DetailPanelProps) {
   const { user } = useAuth();
   const [shares, setShares] = useState("1");
@@ -52,10 +60,11 @@ export function DetailPanel({ stock, onClose, regime, onOpenPosition }: DetailPa
   // Risk calculator: suggested shares based on account risk % and stop distance
   const entryPrice = stock.bestEntry;
   const stopDistance = Math.abs(entryPrice - stock.stopLoss);
-  const accountVal = parseFloat(accountSize) || 10000;
-  const riskPctVal = parseFloat(riskPct) || 1;
+  const accountVal = Math.max(parseFloat(accountSize) || 10000, 1);
+  const riskPctVal = Math.min(Math.max(parseFloat(riskPct) || 1, 0.1), 100);
   const riskDollars = (accountVal * riskPctVal) / 100;
-  const suggestedShares = stopDistance > 0 ? Math.floor(riskDollars / stopDistance) : 0;
+  const suggestedShares = (stopDistance > 0 && accountVal > 0 && riskPctVal > 0)
+    ? Math.floor(riskDollars / stopDistance) : 0;
   const maxRisk = suggestedShares * stopDistance;
 
   const handleOpen = () => {
@@ -238,7 +247,7 @@ export function DetailPanel({ stock, onClose, regime, onOpenPosition }: DetailPa
                 <div key={i} className={cn("rounded-md border border-border/60 p-3 space-y-1.5", sentimentBadge(n.sentiment).includes("long") ? "border-long/20" : n.sentiment === "bearish" ? "border-short/20" : "")}>
                   <div className="flex items-start gap-1.5">
                     {sentimentIcon(n.sentiment)}
-                    {n.url ? (
+                    {n.url && isSafeUrl(n.url) ? (
                       <a
                         href={n.url}
                         target="_blank"
@@ -275,7 +284,7 @@ export function DetailPanel({ stock, onClose, regime, onOpenPosition }: DetailPa
                     <div key={`hidden-${i}`} className={cn("rounded-md border border-border/60 p-3 space-y-1.5", n.sentiment === "bullish" ? "border-long/20" : n.sentiment === "bearish" ? "border-short/20" : "")}>
                       <div className="flex items-start gap-1.5">
                         {sentimentIcon(n.sentiment)}
-                        {n.url ? (
+                        {n.url && isSafeUrl(n.url) ? (
                           <a
                             href={n.url}
                             target="_blank"

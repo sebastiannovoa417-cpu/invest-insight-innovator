@@ -84,7 +84,11 @@ export function StockTable({ stocks, watchlist, scoreHistory, onToggleWatchlist,
           return (
             <div
               key={stock.ticker}
+              role="button"
+              tabIndex={0}
+              aria-label={`View details for ${stock.ticker}`}
               onClick={() => onSelectStock(stock)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectStock(stock); } }}
               className={cn(
                 "grid grid-cols-[32px_28px_64px_80px_120px_72px_56px_52px_64px_80px] gap-0 px-3 py-2 text-xs items-center cursor-pointer transition-colors border-b border-border/50",
                 isSelected ? "bg-primary/5 border-l-2 border-l-primary" : "hover:bg-card/80",

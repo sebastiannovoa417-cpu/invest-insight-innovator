@@ -39,15 +39,24 @@ const Index = () => {
   useRunWatcher();
 
   // UI state — filters persisted in localStorage
+  const VALID_TRADE_FILTERS: TradeFilter[] = ["ALL", "LONG", "SHORT"];
+  const VALID_SCORE_FILTERS: ScoreFilter[] = ["ANY", "3+", "5+", "7+"];
+  const VALID_SORT_OPTIONS: SortOption[] = ["score", "rsi", "volume", "ticker"];
+
+  function getStored<T extends string>(key: string, valid: T[], fallback: T): T {
+    const v = localStorage.getItem(key) as T;
+    return valid.includes(v) ? v : fallback;
+  }
+
   const [activeTab, setActiveTab] = useState<ActiveTab>("dashboard");
   const [tradeFilter, setTradeFilter] = useState<TradeFilter>(() =>
-    (localStorage.getItem("sp_tradeFilter") as TradeFilter) ?? "ALL"
+    getStored("sp_tradeFilter", VALID_TRADE_FILTERS, "ALL")
   );
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>(() =>
-    (localStorage.getItem("sp_scoreFilter") as ScoreFilter) ?? "ANY"
+    getStored("sp_scoreFilter", VALID_SCORE_FILTERS, "ANY")
   );
   const [sortBy, setSortBy] = useState<SortOption>(() =>
-    (localStorage.getItem("sp_sortBy") as SortOption) ?? "score"
+    getStored("sp_sortBy", VALID_SORT_OPTIONS, "score")
   );
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearch = useDeferredValue(searchQuery);
@@ -71,7 +80,7 @@ const Index = () => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "/" && !(e.target instanceof HTMLInputElement)) {
         e.preventDefault();
-        document.querySelector<HTMLInputElement>('input[placeholder^="Search"]')?.focus();
+        (document.getElementById("search-input") as HTMLInputElement | null)?.focus();
       }
       if (e.key === "Escape") {
         setSelectedStock(null);
