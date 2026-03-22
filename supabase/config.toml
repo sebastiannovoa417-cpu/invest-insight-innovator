@@ -2,3 +2,9 @@ project_id = "vffizmkzwfxpewtfoerm"
 
 [functions.sync-ingest]
 verify_jwt = false
+
+[functions.sync-prices]
+verify_jwt = false
+
+[functions.ai-analysis]
+verify_jwt = false
