@@ -132,18 +132,71 @@ def get_earnings_info(ticker: str) -> tuple[str | None, bool]:
 
 # Keyword-based sentiment classifier — fast, zero-latency, no API cost.
 # Runs on the headline text before any LLM call is available.
-_BULLISH_WORDS = frozenset([
-    "beat", "beats", "record", "surge", "rally", "upgrade", "buy", "outperform",
-    "strong", "growth", "profit", "revenue", "raised", "guidance", "bullish",
-    "breakthrough", "milestone", "acquisition", "dividend", "buyback", "partnership",
-    "upside", "exceeds", "above", "positive", "expansion", "launch", "wins",
-])
-_BEARISH_WORDS = frozenset([
-    "miss", "misses", "decline", "fall", "drop", "downgrade", "sell", "underperform",
-    "weak", "loss", "layoff", "layoffs", "cut", "lower", "below", "warning",
-    "concern", "concerns", "recall", "lawsuit", "fraud", "investigation", "halt",
-    "bankruptcy", "default", "bearish", "downside", "negative", "disappoints",
-])
+_BULLISH_WORDS = frozenset(
+    [
+        "beat",
+        "beats",
+        "record",
+        "surge",
+        "rally",
+        "upgrade",
+        "buy",
+        "outperform",
+        "strong",
+        "growth",
+        "profit",
+        "revenue",
+        "raised",
+        "guidance",
+        "bullish",
+        "breakthrough",
+        "milestone",
+        "acquisition",
+        "dividend",
+        "buyback",
+        "partnership",
+        "upside",
+        "exceeds",
+        "above",
+        "positive",
+        "expansion",
+        "launch",
+        "wins",
+    ]
+)
+_BEARISH_WORDS = frozenset(
+    [
+        "miss",
+        "misses",
+        "decline",
+        "fall",
+        "drop",
+        "downgrade",
+        "sell",
+        "underperform",
+        "weak",
+        "loss",
+        "layoff",
+        "layoffs",
+        "cut",
+        "lower",
+        "below",
+        "warning",
+        "concern",
+        "concerns",
+        "recall",
+        "lawsuit",
+        "fraud",
+        "investigation",
+        "halt",
+        "bankruptcy",
+        "default",
+        "bearish",
+        "downside",
+        "negative",
+        "disappoints",
+    ]
+)
 
 
 def classify_sentiment(title: str) -> str:
