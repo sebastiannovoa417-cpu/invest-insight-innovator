@@ -26,7 +26,16 @@ export function AiBrief({ stocks, regime }: AiBriefProps) {
         body: { regime, stocks },
       });
 
-      if (fnError) throw new Error(fnError.message);
+      if (fnError) {
+        let msg = fnError.message;
+        try {
+          const body = fnError.context
+            ? await (fnError.context as Response).clone().json()
+            : null;
+          if (body?.error) msg = body.error;
+        } catch { /* ignore parse errors */ }
+        throw new Error(msg);
+      }
       if (data?.error) throw new Error(data.error);
 
       setBriefing(data.briefing ?? "");
