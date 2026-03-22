@@ -157,3 +157,35 @@ export function mapDbPosition(row: Tables<"positions">): Position {
     realizedPnl: (row as Record<string, unknown>)["realized_pnl"] as number | null ?? null,
   };
 }
+
+// ── Alerts ───────────────────────────────────────────────────────────────────
+
+export type AlertCondition =
+  | "bull_score_gte"
+  | "bear_score_gte"
+  | "rsi_above"
+  | "rsi_below"
+  | "price_above"
+  | "price_below";
+
+export interface Alert {
+  id: string;
+  ticker: string;
+  condition: AlertCondition;
+  threshold: number;
+  status: "active" | "triggered";
+  triggeredAt: string | null;
+  createdAt: string;
+}
+
+export function mapDbAlert(row: Tables<"alerts">): Alert {
+  return {
+    id: row.id,
+    ticker: row.ticker,
+    condition: row.condition as AlertCondition,
+    threshold: Number(row.threshold),
+    status: row.status as "active" | "triggered",
+    triggeredAt: row.triggered_at,
+    createdAt: row.created_at,
+  };
+}

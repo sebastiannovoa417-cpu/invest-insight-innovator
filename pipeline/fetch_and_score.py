@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 SYNC_URL = os.environ["SUPABASE_SYNC_URL"]
 PRICES_URL = os.environ.get("SUPABASE_PRICES_URL", "")  # optional — skip if not set
+ALERTS_URL = os.environ.get("SUPABASE_ALERTS_URL", "")  # optional — skip if not set
 SYNC_API_KEY = os.environ["SYNC_API_KEY"]
 UNIVERSE_NAME = "SwingPulse 25 — v1.0"
 
@@ -138,20 +139,20 @@ def get_news(ticker: str, max_items: int = 5) -> list[dict]:
         raw_news = yf.Ticker(ticker).news or []
         items = []
         for article in raw_news[:max_items]:
-            content = article.get("content", {}) if isinstance(article.get("content"), dict) else {}
-            title = (
-                content.get("title")
-                or article.get("title", "")
+            content = (
+                article.get("content", {})
+                if isinstance(article.get("content"), dict)
+                else {}
             )
+            title = content.get("title") or article.get("title", "")
             url = (
                 content.get("canonicalUrl", {}).get("url")
                 or content.get("clickThroughUrl", {}).get("url")
                 or article.get("link", "")
                 or article.get("url", "")
             )
-            source = (
-                content.get("provider", {}).get("displayName")
-                or article.get("publisher", "")
+            source = content.get("provider", {}).get("displayName") or article.get(
+                "publisher", ""
             )
             pub_time = article.get("providerPublishTime") or content.get("pubDate", "")
             if pub_time:
@@ -165,14 +166,16 @@ def get_news(ticker: str, max_items: int = 5) -> list[dict]:
 
             if not title:
                 continue
-            items.append({
-                "title": title,
-                "date": date_str,
-                "source": source or None,
-                "summary": None,
-                "url": url or None,
-                "sentiment": "neutral",
-            })
+            items.append(
+                {
+                    "title": title,
+                    "date": date_str,
+                    "source": source or None,
+                    "summary": None,
+                    "url": url or None,
+                    "sentiment": "neutral",
+                }
+            )
         return items
     except Exception as exc:
         logger.debug("News fetch failed for %s: %s", ticker, exc)
@@ -384,6 +387,24 @@ def post_prices_to_supabase(prices_payload: list[dict], headers: dict) -> dict:
     return resp.json()
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=5, max=30),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+def post_alerts_check(stocks_payload: list[dict], headers: dict) -> dict:
+    """POST scored stocks to check-alerts Edge Function (best-effort)."""
+    resp = requests.post(
+        ALERTS_URL,
+        json={"stocks": stocks_payload},
+        headers=headers,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
 def build_price_payload(raw: "pd.DataFrame", get_df_fn) -> list[dict]:
     """Builds the flat list of OHLCV dicts for the sync-prices endpoint.
 
@@ -397,15 +418,19 @@ def build_price_payload(raw: "pd.DataFrame", get_df_fn) -> list[dict]:
             continue
         yr_df = df.iloc[-252:] if len(df) >= 252 else df
         for date_idx, row in yr_df.iterrows():
-            rows.append({
-                "ticker": ticker,
-                "date": date_idx.strftime("%Y-%m-%d"),
-                "open": round(float(row["Open"]), 4),
-                "high": round(float(row["High"]), 4),
-                "low": round(float(row["Low"]), 4),
-                "close": round(float(row["Close"]), 4),
-                "volume": int(row["Volume"]) if not pd.isna(row["Volume"]) else None,
-            })
+            rows.append(
+                {
+                    "ticker": ticker,
+                    "date": date_idx.strftime("%Y-%m-%d"),
+                    "open": round(float(row["Open"]), 4),
+                    "high": round(float(row["High"]), 4),
+                    "low": round(float(row["Low"]), 4),
+                    "close": round(float(row["Close"]), 4),
+                    "volume": (
+                        int(row["Volume"]) if not pd.isna(row["Volume"]) else None
+                    ),
+                }
+            )
     return rows
 
 
@@ -542,6 +567,17 @@ def main() -> None:
             logger.error(f"Price history upload failed (non-fatal): {exc}")
     else:
         logger.info("SUPABASE_PRICES_URL not set — skipping price history upload")
+
+    # ── Check alerts (best-effort — skip if ALERTS_URL not configured) ───────
+    if ALERTS_URL:
+        logger.info(f"Checking alerts for {len(stocks_payload)} scored stocks…")
+        try:
+            alerts_result = post_alerts_check(stocks_payload, headers)
+            logger.info(f"Alert check complete → {alerts_result}")
+        except Exception as exc:
+            logger.error(f"Alert check failed (non-fatal): {exc}")
+    else:
+        logger.info("SUPABASE_ALERTS_URL not set — skipping alert check")
 
     logger.info("=" * 60)
 

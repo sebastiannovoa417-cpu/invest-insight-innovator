@@ -13,14 +13,16 @@ import { PositionsPanel } from "@/components/PositionsPanel";
 import { BacktestPanel } from "@/components/BacktestPanel";
 import { AiBrief } from "@/components/AiBrief";
 import { AiChatPanel } from "@/components/AiChatPanel";
+import { AlertsPanel } from "@/components/AlertsPanel";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useStocks, useRegime, useLastRun, useScoreHistory, useWatchlist, usePositions, useRunWatcher } from "@/hooks/use-data";
 import { useAuth } from "@/hooks/use-auth";
+import { useAlerts } from "@/hooks/use-alerts";
 import { mockRegime, lastRunInfo } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { Stock } from "@/lib/types";
 
-type ActiveTab = "dashboard" | "watchlist" | "regime" | "positions" | "backtest" | "ai";
+type ActiveTab = "dashboard" | "watchlist" | "regime" | "positions" | "backtest" | "ai" | "alerts";
 
 const Index = () => {
   const queryClient = useQueryClient();
@@ -33,6 +35,7 @@ const Index = () => {
   const { data: scoreHistory = {} } = useScoreHistory();
   const { watchlist, toggle: toggleWatchlist } = useWatchlist();
   const { positions, openPosition, closePosition } = usePositions();
+  const { alerts } = useAlerts();
   useRunWatcher();
 
   // UI state
@@ -182,8 +185,17 @@ const Index = () => {
               className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               ✦ AI
-            </TabsTrigger>
-          </TabsList>
+            </TabsTrigger>            <TabsTrigger
+              value="alerts"
+              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              🔔 Alerts
+              {alerts.filter((a) => a.status === "triggered").length > 0 && (
+                <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-black">
+                  {alerts.filter((a) => a.status === "triggered").length}
+                </span>
+              )}
+            </TabsTrigger>          </TabsList>
 
           {/* ── Dashboard ── */}
           <TabsContent value="dashboard">
@@ -341,6 +353,11 @@ const Index = () => {
           {/* ── AI ── */}
           <TabsContent value="ai">
             <AiChatPanel stocks={stocks} regime={regime} />
+          </TabsContent>
+
+          {/* ── Alerts ── */}
+          <TabsContent value="alerts">
+            <AlertsPanel stocks={stocks} />
           </TabsContent>
         </Tabs>
       </main>

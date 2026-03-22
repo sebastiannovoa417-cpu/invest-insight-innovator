@@ -80,3 +80,7 @@ jobs:
               env:
                   SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
+            - name: Deploy check-alerts Edge Function
+              run: supabase functions deploy check-alerts --project-ref ${{ vars.SUPABASE_PROJECT_REF }}
+              env:
+                  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
