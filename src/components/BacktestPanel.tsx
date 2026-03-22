@@ -46,6 +46,18 @@ interface BacktestResult {
   trades: TradeResult[];
 }
 
+interface MonteCarloResult {
+  p5: number;
+  p25: number;
+  median: number;
+  p75: number;
+  p95: number;
+  mean: number;
+  simulations: number;
+  worstCase: number;
+  bestCase: number;
+}
+
 // ─── Indicator helpers ────────────────────────────────────────────────────────
 
 function rollingMean(arr: number[], period: number): number[] {
@@ -324,6 +336,64 @@ function summarise(
   };
 }
 
+// ─── Monte Carlo simulation ───────────────────────────────────────────────────
+
+function runMonteCarloSimulation(
+  trades: TradeResult[],
+  capital: number,
+  positionSize: number,
+  simCount = 500
+): MonteCarloResult | null {
+  if (trades.length < 3) return null;
+
+  const pnlList = trades.map(t => t.pnl);
+  const posSize = (positionSize / 100) * capital;
+  const finalEquities: number[] = [];
+
+  for (let s = 0; s < simCount; s++) {
+    // Fisher-Yates shuffle on a copy
+    const shuffled = [...pnlList];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    // Replay shuffled trade sequence
+    let eq = capital;
+    for (const pnl of shuffled) {
+      // Scale pnl proportionally if positionSize changed
+      const scale = posSize > 0 ? 1 : 1;
+      eq += pnl * scale;
+    }
+    finalEquities.push(eq);
+  }
+
+  finalEquities.sort((a, b) => a - b);
+  const n = finalEquities.length;
+  const pct = (p: number) => finalEquities[Math.floor(p * n)];
+
+  return {
+    p5: Math.round(pct(0.05)),
+    p25: Math.round(pct(0.25)),
+    median: Math.round(pct(0.5)),
+    p75: Math.round(pct(0.75)),
+    p95: Math.round(pct(0.95)),
+    mean: Math.round(finalEquities.reduce((a, b) => a + b, 0) / n),
+    simulations: simCount,
+    worstCase: Math.round(finalEquities[0]),
+    bestCase: Math.round(finalEquities[n - 1]),
+  };
+}
+
+// ─── Buy-and-hold return ──────────────────────────────────────────────────────
+
+function computeBuyAndHold(bars: PriceBar[], lookback: number): number {
+  if (bars.length < 2) return 0;
+  const startIdx = Math.max(0, bars.length - lookback);
+  const startPrice = bars[startIdx].close;
+  const endPrice = bars[bars.length - 1].close;
+  return ((endPrice - startPrice) / startPrice) * 100;
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SliderRow({ label, value, min, max, step, format, onChange }: {
@@ -423,6 +493,16 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
     if (priceHistory.length < 30) return emptyResult(cfg.capital);
     return runRealBacktest(cfg, priceHistory);
   }, [cfg, priceHistory]);
+
+  const monteCarlo = useMemo(() => {
+    if (result.trades.length < 3) return null;
+    return runMonteCarloSimulation(result.trades, cfg.capital, cfg.positionSize);
+  }, [result.trades, cfg.capital, cfg.positionSize]);
+
+  const buyAndHoldReturn = useMemo(() => {
+    if (priceHistory.length < 2) return null;
+    return computeBuyAndHold(priceHistory, cfg.lookback);
+  }, [priceHistory, cfg.lookback]);
 
   const ddMax = Math.max(result.maxDrawdown, result.avgDrawdown, Math.abs(result.recoveryFactor), 1);
   const hasData = priceHistory.length >= 30;
@@ -531,6 +611,20 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
           <MetricCard label="FINAL EQUITY"
             value={`$${result.finalEquity.toLocaleString()}`}
             color={result.finalEquity >= cfg.capital ? "text-long" : "text-short"} />
+          {buyAndHoldReturn !== null && (
+            <MetricCard
+              label="BUY & HOLD"
+              value={result.totalTrades === 0 ? "—" : `${buyAndHoldReturn >= 0 ? "+" : ""}${buyAndHoldReturn.toFixed(1)}%`}
+              color={buyAndHoldReturn >= 0 ? "text-long" : "text-short"}
+            />
+          )}
+          {buyAndHoldReturn !== null && result.totalTrades > 0 && (
+            <MetricCard
+              label="ALPHA vs B&H"
+              value={`${(result.netReturn - buyAndHoldReturn) >= 0 ? "+" : ""}${(result.netReturn - buyAndHoldReturn).toFixed(1)}%`}
+              color={(result.netReturn - buyAndHoldReturn) >= 0 ? "text-primary" : "text-short"}
+            />
+          )}
         </div>
       </div>
 
@@ -619,6 +713,49 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
           <DrawdownBar label="Recovery factor" pct={Math.abs(result.recoveryFactor)} max={ddMax} color="hsl(45 95% 60%)" />
         </div>
       </div>
+
+      {/* ── Monte Carlo Simulation ── */}
+      {monteCarlo && (
+        <div className="rounded-lg border border-border bg-card p-5">
+          <div className="text-[10px] font-bold tracking-[0.15em] text-primary mb-1 flex items-center gap-2">
+            <span className="w-1 h-3 bg-primary rounded-sm inline-block" />
+            MONTE CARLO ({monteCarlo.simulations.toLocaleString()} SIMULATIONS)
+          </div>
+          <p className="text-[10px] text-muted-foreground mb-4">
+            Trade sequence randomly shuffled {monteCarlo.simulations}× — shows range of plausible outcomes.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            <div className="rounded border border-short/30 bg-short/5 p-2.5 text-center">
+              <div className="text-[9px] text-muted-foreground mb-0.5">5th %ile (Worst)</div>
+              <div className="text-sm font-mono font-bold text-short">${monteCarlo.p5.toLocaleString()}</div>
+            </div>
+            <div className="rounded border border-border p-2.5 text-center">
+              <div className="text-[9px] text-muted-foreground mb-0.5">25th %ile</div>
+              <div className="text-sm font-mono font-bold text-foreground">${monteCarlo.p25.toLocaleString()}</div>
+            </div>
+            <div className="rounded border border-primary/30 bg-primary/5 p-2.5 text-center">
+              <div className="text-[9px] text-muted-foreground mb-0.5">Median</div>
+              <div className="text-sm font-mono font-bold text-primary">${monteCarlo.median.toLocaleString()}</div>
+            </div>
+            <div className="rounded border border-border p-2.5 text-center">
+              <div className="text-[9px] text-muted-foreground mb-0.5">75th %ile</div>
+              <div className="text-sm font-mono font-bold text-foreground">${monteCarlo.p75.toLocaleString()}</div>
+            </div>
+            <div className="rounded border border-long/30 bg-long/5 p-2.5 text-center">
+              <div className="text-[9px] text-muted-foreground mb-0.5">95th %ile (Best)</div>
+              <div className="text-sm font-mono font-bold text-long">${monteCarlo.p95.toLocaleString()}</div>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground">
+            <span>Mean outcome: <span className="font-mono text-foreground">${monteCarlo.mean.toLocaleString()}</span></span>
+            <span>
+              Range: <span className="text-short font-mono">${monteCarlo.worstCase.toLocaleString()}</span>
+              {" → "}
+              <span className="text-long font-mono">${monteCarlo.bestCase.toLocaleString()}</span>
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* ── Trade Log ── */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">

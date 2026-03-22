@@ -103,9 +103,9 @@ export function useScoreHistory() {
             date: new Date(row.recorded_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
           });
         }
-        // Keep last 10 per ticker
+        // Keep last 90 data points per ticker for richer sparkline/trend data
         for (const ticker of Object.keys(grouped)) {
-          grouped[ticker] = grouped[ticker].slice(-10);
+          grouped[ticker] = grouped[ticker].slice(-90);
         }
         return grouped;
       } catch (err) {
@@ -255,7 +255,11 @@ export function useRunWatcher() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "script_runs" },
         () => {
-          queryClient.invalidateQueries();
+          // Targeted invalidation: only refresh market data, not user-specific caches
+          queryClient.invalidateQueries({ queryKey: ["stocks"] });
+          queryClient.invalidateQueries({ queryKey: ["regime"] });
+          queryClient.invalidateQueries({ queryKey: ["lastRun"] });
+          queryClient.invalidateQueries({ queryKey: ["scoreHistory"] });
         },
       )
       .subscribe();

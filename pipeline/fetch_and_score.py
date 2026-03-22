@@ -126,11 +126,41 @@ def get_earnings_info(ticker: str) -> tuple[str | None, bool]:
         return None, False
 
 
+# ── News sentiment ────────────────────────────────────────────────────────────
+
+# Keyword-based sentiment classifier — fast, zero-latency, no API cost.
+# Runs on the headline text before any LLM call is available.
+_BULLISH_WORDS = frozenset([
+    "beat", "beats", "record", "surge", "rally", "upgrade", "buy", "outperform",
+    "strong", "growth", "profit", "revenue", "raised", "guidance", "bullish",
+    "breakthrough", "milestone", "acquisition", "dividend", "buyback", "partnership",
+    "upside", "exceeds", "above", "positive", "expansion", "launch", "wins",
+])
+_BEARISH_WORDS = frozenset([
+    "miss", "misses", "decline", "fall", "drop", "downgrade", "sell", "underperform",
+    "weak", "loss", "layoff", "layoffs", "cut", "lower", "below", "warning",
+    "concern", "concerns", "recall", "lawsuit", "fraud", "investigation", "halt",
+    "bankruptcy", "default", "bearish", "downside", "negative", "disappoints",
+])
+
+
+def classify_sentiment(title: str) -> str:
+    """Classify headline sentiment as bullish, bearish, or neutral using keywords."""
+    words = set(title.lower().replace(",", " ").replace(".", " ").split())
+    bull_hits = len(words & _BULLISH_WORDS)
+    bear_hits = len(words & _BEARISH_WORDS)
+    if bull_hits > bear_hits:
+        return "bullish"
+    if bear_hits > bull_hits:
+        return "bearish"
+    return "neutral"
+
+
 # ── News helper ───────────────────────────────────────────────────────────────
 
 
 def get_news(ticker: str, max_items: int = 5) -> list[dict]:
-    """Fetches latest news headlines from yfinance.
+    """Fetches latest news headlines from yfinance with keyword sentiment scoring.
 
     Returns a list of NewsItem-compatible dicts with keys:
         title, date, source, summary, url, sentiment
@@ -173,13 +203,32 @@ def get_news(ticker: str, max_items: int = 5) -> list[dict]:
                     "source": source or None,
                     "summary": None,
                     "url": url or None,
-                    "sentiment": "neutral",
+                    "sentiment": classify_sentiment(title),
                 }
             )
         return items
     except Exception as exc:
         logger.debug("News fetch failed for %s: %s", ticker, exc)
         return []
+
+
+# ── Short interest helper ─────────────────────────────────────────────────────
+
+
+def get_short_interest(ticker: str) -> float | None:
+    """Fetch short interest as % of float from yfinance.
+
+    Returns a percentage float (e.g. 15.3 for 15.3%) or None if unavailable.
+    """
+    try:
+        info = yf.Ticker(ticker).info
+        val = info.get("shortPercentOfFloat")
+        if val is None:
+            return None
+        return round(float(val) * 100, 2)  # convert 0.153 → 15.3%
+    except Exception as exc:
+        logger.debug("Short interest fetch failed for %s: %s", ticker, exc)
+        return None
 
 
 # ── Scoring ───────────────────────────────────────────────────────────────────
@@ -281,6 +330,9 @@ def score_ticker(ticker: str, df: pd.DataFrame) -> dict:
     # ── Live news ────────────────────────────────────────────────────────────
     news = get_news(ticker)
 
+    # ── Short interest ────────────────────────────────────────────────────────
+    short_interest = get_short_interest(ticker)
+
     return {
         "ticker": ticker,
         "name": TICKER_NAMES.get(ticker, ticker),
@@ -301,6 +353,7 @@ def score_ticker(ticker: str, df: pd.DataFrame) -> dict:
         "atr": round(atr_val, 4),
         "distance_52w": distance_52w,
         "conflict_trend": bool(conflict_trend),
+        "short_interest": short_interest,
         "news": news,
         "earnings_date": earnings_date,
         "earnings_warning": bool(earnings_warning),
@@ -483,10 +536,22 @@ def main() -> None:
     # ── SPY / Regime ─────────────────────────────────────────────────────────
     spy_df = get_df("SPY")
     if spy_df.empty or len(spy_df) < 20:
-        logger.error("SPY data unavailable — aborting run")
-        raise RuntimeError("SPY data unavailable")
-
-    regime = compute_regime(spy_df, vix_price)
+        logger.warning(
+            "SPY data unavailable — using NEUTRAL regime fallback. "
+            "Ticker scoring will continue."
+        )
+        regime = {
+            "status": "NEUTRAL",
+            "spy_price": 0.0,
+            "sma_200": 0.0,
+            "sma_50": 0.0,
+            "spy_rsi": 50.0,
+            "vix": vix_price,
+            "ratio": 1.0,
+            "regime_score": 0,
+        }
+    else:
+        regime = compute_regime(spy_df, vix_price)
     logger.info(
         f"Regime : {regime['status']} | "
         f"SPY={regime['spy_price']} | SMA200={regime['sma_200']} | "
