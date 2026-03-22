@@ -84,7 +84,6 @@ export function StockTable({ stocks, watchlist, scoreHistory, onToggleWatchlist,
           return (
             <div
               key={stock.ticker}
-              role="button"
               tabIndex={0}
               aria-label={`View details for ${stock.ticker}`}
               onClick={() => onSelectStock(stock)}
