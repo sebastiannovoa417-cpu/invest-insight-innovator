@@ -1,4 +1,4 @@
-import { X, Check, Minus, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus as NeutralIcon, ExternalLink, Sparkles, Loader2, RefreshCw } from "lucide-react";
+import { X, Check, Minus, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus as NeutralIcon, ExternalLink, Sparkles, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
 import { Stock } from "@/lib/types";
 import type { RegimeData } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -25,10 +25,13 @@ const VISIBLE_NEWS = 3;
 export function DetailPanel({ stock, onClose, regime, onOpenPosition }: DetailPanelProps) {
   const { user } = useAuth();
   const [shares, setShares] = useState("1");
+  const [accountSize, setAccountSize] = useState("10000");
+  const [riskPct, setRiskPct] = useState("1");
   const [showMoreNews, setShowMoreNews] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const { text: aiText, loading: aiLoading, error: aiError, analyze, reset: resetAi } = useAiTradeAnalysis();
 
-  useEffect(() => { setShares("1"); resetAi(); }, [stock?.ticker]);
+  useEffect(() => { setShares("1"); resetAi(); setConfirmOpen(false); }, [stock?.ticker]);
 
   if (!stock) return null;
 
@@ -46,7 +49,21 @@ export function DetailPanel({ stock, onClose, regime, onOpenPosition }: DetailPa
     { label: "Earnings", key: "earningsSetup", description: stock.earningsDate ? `Earnings ${stock.earningsDate}` : "No earnings risk" },
   ];
 
+  // Risk calculator: suggested shares based on account risk % and stop distance
+  const entryPrice = stock.bestEntry;
+  const stopDistance = Math.abs(entryPrice - stock.stopLoss);
+  const accountVal = parseFloat(accountSize) || 10000;
+  const riskPctVal = parseFloat(riskPct) || 1;
+  const riskDollars = (accountVal * riskPctVal) / 100;
+  const suggestedShares = stopDistance > 0 ? Math.floor(riskDollars / stopDistance) : 0;
+  const maxRisk = suggestedShares * stopDistance;
+
   const handleOpen = () => {
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmOpen = () => {
+    setConfirmOpen(false);
     onOpenPosition?.({
       ticker: stock.ticker,
       direction: stock.tradeType,
@@ -117,13 +134,14 @@ export function DetailPanel({ stock, onClose, regime, onOpenPosition }: DetailPa
           <div className="space-y-2">
             {checklist.map((item) => {
               const pass = stock.signals[item.key];
+              const passColor = isShort ? "bg-short/20 text-short" : "bg-long/20 text-long";
               return (
                 <div key={item.key} className="flex items-center gap-2.5">
-                  <div className={cn("w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0", pass ? "bg-long/20 text-long" : "bg-border text-muted-foreground")}>
+                  <div className={cn("w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0", pass ? passColor : "bg-border text-muted-foreground")}>
                     {pass ? <Check className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-foreground">{item.label}</span>
+                    <span className={cn("text-xs font-medium", pass ? "text-foreground" : "text-muted-foreground")}>{item.label}</span>
                     <span className="text-[11px] text-muted-foreground ml-2">{item.description}</span>
                   </div>
                 </div>
@@ -151,6 +169,60 @@ export function DetailPanel({ stock, onClose, regime, onOpenPosition }: DetailPa
                 <div className="text-sm font-mono font-medium text-foreground">{item.value}</div>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Risk Calculator */}
+        <section>
+          <h3 className="text-xs font-semibold text-muted-foreground tracking-wider mb-3">RISK CALCULATOR</h3>
+          <div className="rounded-md border border-border/60 bg-muted/10 p-3 space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-muted-foreground block mb-1">Account Size ($)</label>
+                <input
+                  type="number"
+                  min="100"
+                  step="1000"
+                  value={accountSize}
+                  onChange={(e) => setAccountSize(e.target.value)}
+                  className="w-full h-8 px-2 rounded-md border border-border bg-background text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground block mb-1">Risk per Trade (%)</label>
+                <input
+                  type="number"
+                  min="0.1"
+                  max="10"
+                  step="0.1"
+                  value={riskPct}
+                  onChange={(e) => setRiskPct(e.target.value)}
+                  className="w-full h-8 px-2 rounded-md border border-border bg-background text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded border border-border p-2">
+                <div className="text-[10px] text-muted-foreground mb-0.5">Risk $</div>
+                <div className="text-xs font-mono font-semibold text-foreground">${riskDollars.toFixed(0)}</div>
+              </div>
+              <div className="rounded border border-border p-2">
+                <div className="text-[10px] text-muted-foreground mb-0.5">Suggested Shares</div>
+                <div className={cn("text-xs font-mono font-semibold", isShort ? "text-short" : "text-long")}>{suggestedShares > 0 ? suggestedShares : "—"}</div>
+              </div>
+              <div className="rounded border border-border p-2">
+                <div className="text-[10px] text-muted-foreground mb-0.5">Max Loss</div>
+                <div className="text-xs font-mono font-semibold text-foreground">${maxRisk.toFixed(0)}</div>
+              </div>
+            </div>
+            {suggestedShares > 0 && (
+              <button
+                onClick={() => setShares(String(suggestedShares))}
+                className="w-full text-[10px] text-primary/70 hover:text-primary transition-colors"
+              >
+                Use {suggestedShares} shares ↑
+              </button>
+            )}
           </div>
         </section>
 
@@ -312,8 +384,9 @@ export function DetailPanel({ stock, onClose, regime, onOpenPosition }: DetailPa
               />
               <button
                 onClick={handleOpen}
+                disabled={!(parseFloat(shares) > 0)}
                 className={cn(
-                  "flex-1 py-2.5 rounded-md text-sm font-semibold transition-colors",
+                  "flex-1 py-2.5 rounded-md text-sm font-semibold transition-colors disabled:opacity-40",
                   isShort ? "bg-short text-short-foreground hover:bg-short/90" : "bg-long text-long-foreground hover:bg-long/90"
                 )}
               >
@@ -327,6 +400,65 @@ export function DetailPanel({ stock, onClose, regime, onOpenPosition }: DetailPa
           </p>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      {confirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className={cn("w-5 h-5", isShort ? "text-short" : "text-long")} />
+              <h3 className="font-semibold text-foreground">Confirm Position</h3>
+            </div>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Ticker</span>
+                <span className="font-mono font-bold">{stock.ticker}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Direction</span>
+                <span className={cn("font-bold", isShort ? "text-short" : "text-long")}>{stock.tradeType}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Entry</span>
+                <span className="font-mono">${stock.bestEntry.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Shares</span>
+                <span className="font-mono">{parseFloat(shares) || 1}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Stop Loss</span>
+                <span className="font-mono text-short">${stock.stopLoss.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Target</span>
+                <span className="font-mono text-long">${stock.target.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between border-t border-border pt-1.5 mt-1.5">
+                <span className="text-muted-foreground">Total Value</span>
+                <span className="font-mono font-semibold">${(stock.bestEntry * (parseFloat(shares) || 1)).toFixed(2)}</span>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmOpen(false)}
+                className="flex-1 py-2 rounded-md border border-border text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmOpen}
+                className={cn(
+                  "flex-1 py-2 rounded-md text-sm font-semibold transition-colors",
+                  isShort ? "bg-short text-short-foreground hover:bg-short/90" : "bg-long text-long-foreground hover:bg-long/90"
+                )}
+              >
+                Confirm {stock.tradeType}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useDeferredValue } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Star } from "lucide-react";
 import { SyncBar } from "@/components/SyncBar";
@@ -38,14 +38,33 @@ const Index = () => {
   const { alerts } = useAlerts();
   useRunWatcher();
 
-  // UI state
+  // UI state — filters persisted in localStorage
   const [activeTab, setActiveTab] = useState<ActiveTab>("dashboard");
-  const [tradeFilter, setTradeFilter] = useState<TradeFilter>("ALL");
-  const [scoreFilter, setScoreFilter] = useState<ScoreFilter>("ANY");
-  const [sortBy, setSortBy] = useState<SortOption>("score");
+  const [tradeFilter, setTradeFilter] = useState<TradeFilter>(() =>
+    (localStorage.getItem("sp_tradeFilter") as TradeFilter) ?? "ALL"
+  );
+  const [scoreFilter, setScoreFilter] = useState<ScoreFilter>(() =>
+    (localStorage.getItem("sp_scoreFilter") as ScoreFilter) ?? "ANY"
+  );
+  const [sortBy, setSortBy] = useState<SortOption>(() =>
+    (localStorage.getItem("sp_sortBy") as SortOption) ?? "score"
+  );
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearch = useDeferredValue(searchQuery);
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [showAuth, setShowAuth] = useState(false);
+
+  // Persist filters to localStorage
+  useEffect(() => { localStorage.setItem("sp_tradeFilter", tradeFilter); }, [tradeFilter]);
+  useEffect(() => { localStorage.setItem("sp_scoreFilter", scoreFilter); }, [scoreFilter]);
+  useEffect(() => { localStorage.setItem("sp_sortBy", sortBy); }, [sortBy]);
+
+  const handleResetFilters = useCallback(() => {
+    setTradeFilter("ALL");
+    setScoreFilter("ANY");
+    setSortBy("score");
+    setSearchQuery("");
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -95,9 +114,9 @@ const Index = () => {
       });
     }
 
-    if (searchQuery) {
-      const q = searchQuery.toUpperCase();
-      result = result.filter(s => s.ticker.includes(q));
+    if (deferredSearch) {
+      const q = deferredSearch.toUpperCase();
+      result = result.filter(s => s.ticker.includes(q) || s.name?.toUpperCase().includes(q));
     }
 
     result.sort((a, b) => {
@@ -119,7 +138,7 @@ const Index = () => {
     });
 
     return result;
-  }, [stocks, watchlistStocks, activeTab, tradeFilter, scoreFilter, sortBy, searchQuery, watchlist]);
+  }, [stocks, watchlistStocks, activeTab, tradeFilter, scoreFilter, sortBy, deferredSearch, watchlist]);
 
   const topPick = useMemo(() => {
     const aligned = stocks.filter(s =>
@@ -210,6 +229,7 @@ const Index = () => {
               onScoreFilterChange={setScoreFilter}
               onSortChange={setSortBy}
               onSearchChange={setSearchQuery}
+              onResetFilters={handleResetFilters}
             />
             <StockTable
               stocks={filteredStocks}

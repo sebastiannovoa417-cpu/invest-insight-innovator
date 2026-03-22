@@ -1,4 +1,4 @@
-import { Search } from "lucide-react";
+import { Search, X, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type TradeFilter = "ALL" | "LONG" | "SHORT";
@@ -15,14 +15,16 @@ interface FilterControlsProps {
   onScoreFilterChange: (f: ScoreFilter) => void;
   onSortChange: (s: SortOption) => void;
   onSearchChange: (q: string) => void;
+  onResetFilters?: () => void;
 }
 
 export function FilterControls({
   tradeFilter, scoreFilter, sortBy, searchQuery, tickerCount,
-  onTradeFilterChange, onScoreFilterChange, onSortChange, onSearchChange,
+  onTradeFilterChange, onScoreFilterChange, onSortChange, onSearchChange, onResetFilters,
 }: FilterControlsProps) {
   const tradeOptions: TradeFilter[] = ["ALL", "LONG", "SHORT"];
   const scoreOptions: ScoreFilter[] = ["ANY", "3+", "5+", "7+"];
+  const isFiltered = tradeFilter !== "ALL" || scoreFilter !== "ANY" || sortBy !== "score" || searchQuery !== "";
 
   return (
     <div className="flex flex-wrap items-center gap-3 py-3">
@@ -67,11 +69,20 @@ export function FilterControls({
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <input
           type="text"
-          placeholder="Search…"
+          placeholder="Search… (press /)"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full h-8 pl-8 pr-3 rounded-md border border-border bg-card text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+          className="w-full h-8 pl-8 pr-7 rounded-md border border-border bg-card text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
         />
+        {searchQuery && (
+          <button
+            onClick={() => onSearchChange("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Clear search"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
       </div>
 
       {/* Sort */}
@@ -86,6 +97,18 @@ export function FilterControls({
         <option value="volume">VOLUME</option>
         <option value="ticker">TICKER</option>
       </select>
+
+      {/* Reset filters */}
+      {isFiltered && onResetFilters && (
+        <button
+          onClick={onResetFilters}
+          className="flex items-center gap-1 h-8 px-2 rounded-md border border-border bg-card text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+          title="Reset all filters"
+        >
+          <RotateCcw className="w-3 h-3" />
+          Reset
+        </button>
+      )}
 
       {/* Ticker count */}
       <span className="text-xs text-muted-foreground font-mono ml-auto">
