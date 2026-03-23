@@ -62,7 +62,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: "2.x"
+          version: "2.19.0"
 
       - name: Deploy ai-brief Edge Function
         run: supabase functions deploy ai-brief --project-ref ${{ vars.SUPABASE_PROJECT_REF }}
