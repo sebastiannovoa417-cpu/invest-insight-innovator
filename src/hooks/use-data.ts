@@ -68,6 +68,7 @@ export function useLastRun() {
           regime: data.regime ?? "UNKNOWN",
           runId: data.run_id,
           universe: data.universe ?? "SwingPulse 25",
+          ranAt: data.ran_at,
         };
       } catch (err) {
         toast.error("Could not load run info from Supabase — showing sample data.");

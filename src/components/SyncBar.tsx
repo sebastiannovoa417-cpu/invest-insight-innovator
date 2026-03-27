@@ -6,19 +6,30 @@ import { useAuth } from "@/hooks/use-auth";
 interface SyncBarProps {
   regime: RegimeData;
   runId: string;
+  ranAt?: string | null;
   onRefresh?: () => void;
   onAuthClick?: () => void;
   onPositionsClick?: () => void;
 }
 
-export function SyncBar({ regime, runId, onRefresh, onAuthClick, onPositionsClick }: SyncBarProps) {
+export function SyncBar({ regime, runId, ranAt, onRefresh, onAuthClick, onPositionsClick }: SyncBarProps) {
   const { user, signOut } = useAuth();
-  const regimeColor = regime.status === "BULLISH" ? "bg-long text-long-foreground regime-glow-bullish" 
-    : regime.status === "BEARISH" ? "bg-short text-short-foreground regime-glow-bearish" 
+  const regimeColor = regime.status === "BULLISH" ? "bg-long text-long-foreground regime-glow-bullish"
+    : regime.status === "BEARISH" ? "bg-short text-short-foreground regime-glow-bearish"
     : "bg-muted text-muted-foreground";
+
+  const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+  const isStale = !ranAt || (Date.now() - new Date(ranAt).getTime()) > SIX_HOURS_MS;
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm">
+      {isStale && (
+        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-1.5 text-center text-xs text-amber-400 font-medium">
+          ⚠ Market data is stale — last updated{" "}
+          {ranAt ? new Date(ranAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "never"}.
+          {" "}Re-enable the pipeline in GitHub Actions or trigger a manual run.
+        </div>
+      )}
       <div className="flex items-center justify-between px-4 py-2.5 gap-4">
         <div className="flex items-center gap-3">
           <h1 className="text-sm font-semibold tracking-[0.3em] text-foreground">SWINGPULSE</h1>

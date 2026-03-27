@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useDeferredValue } from "react";
+import { useState, useMemo, useEffect, useCallback, useDeferredValue, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Star } from "lucide-react";
 import { SyncBar } from "@/components/SyncBar";
@@ -27,6 +27,19 @@ type ActiveTab = "dashboard" | "watchlist" | "regime" | "positions" | "backtest"
 const Index = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const prevUserRef = useRef(user);
+
+  // Re-fetch all queries when auth state changes (sign-in or sign-out).
+  // Without this, hooks like useStocks have no user dependency and keep
+  // serving stale/mock data after login if the stocks table requires auth.
+  useEffect(() => {
+    const wasLoggedIn = !!prevUserRef.current;
+    const isLoggedIn = !!user;
+    if (wasLoggedIn !== isLoggedIn) {
+      queryClient.invalidateQueries();
+    }
+    prevUserRef.current = user;
+  }, [user, queryClient]);
 
   // Data hooks
   const { data: stocks = [] } = useStocks();
@@ -169,6 +182,7 @@ const Index = () => {
       <SyncBar
         regime={regime}
         runId={runInfo.runId}
+        ranAt={runInfo.ranAt}
         onRefresh={handleRefresh}
         onAuthClick={() => setShowAuth(true)}
         onPositionsClick={() => setActiveTab("positions")}
