@@ -56,30 +56,49 @@ const Index = () => {
   const VALID_SCORE_FILTERS: ScoreFilter[] = ["ANY", "3+", "5+", "7+"];
   const VALID_SORT_OPTIONS: SortOption[] = ["score", "rsi", "volume", "ticker"];
 
+  // Versioned localStorage keys — bump suffix when filter schema changes to avoid stale values.
+  const LS_TRADE  = "sp_v2_tradeFilter";
+  const LS_SCORE  = "sp_v2_scoreFilter";
+  const LS_SORT   = "sp_v2_sortBy";
+
   function getStored<T extends string>(key: string, valid: T[], fallback: T): T {
     const v = localStorage.getItem(key) as T;
     return valid.includes(v) ? v : fallback;
   }
 
+  // One-time migration: copy old unversioned values to new keys, then remove old ones.
+  useEffect(() => {
+    const OLD_KEYS = ["sp_tradeFilter", "sp_scoreFilter", "sp_sortBy"];
+    const NEW_KEYS = [LS_TRADE, LS_SCORE, LS_SORT];
+    OLD_KEYS.forEach((old, i) => {
+      const val = localStorage.getItem(old);
+      if (val !== null && localStorage.getItem(NEW_KEYS[i]) === null) {
+        localStorage.setItem(NEW_KEYS[i], val);
+      }
+      localStorage.removeItem(old);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [activeTab, setActiveTab] = useState<ActiveTab>("dashboard");
   const [tradeFilter, setTradeFilter] = useState<TradeFilter>(() =>
-    getStored("sp_tradeFilter", VALID_TRADE_FILTERS, "ALL")
+    getStored(LS_TRADE, VALID_TRADE_FILTERS, "ALL")
   );
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>(() =>
-    getStored("sp_scoreFilter", VALID_SCORE_FILTERS, "ANY")
+    getStored(LS_SCORE, VALID_SCORE_FILTERS, "ANY")
   );
   const [sortBy, setSortBy] = useState<SortOption>(() =>
-    getStored("sp_sortBy", VALID_SORT_OPTIONS, "score")
+    getStored(LS_SORT, VALID_SORT_OPTIONS, "score")
   );
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearch = useDeferredValue(searchQuery);
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [showAuth, setShowAuth] = useState(false);
 
-  // Persist filters to localStorage
-  useEffect(() => { localStorage.setItem("sp_tradeFilter", tradeFilter); }, [tradeFilter]);
-  useEffect(() => { localStorage.setItem("sp_scoreFilter", scoreFilter); }, [scoreFilter]);
-  useEffect(() => { localStorage.setItem("sp_sortBy", sortBy); }, [sortBy]);
+  // Persist filters to localStorage (versioned keys)
+  useEffect(() => { localStorage.setItem(LS_TRADE, tradeFilter); }, [tradeFilter]);
+  useEffect(() => { localStorage.setItem(LS_SCORE, scoreFilter); }, [scoreFilter]);
+  useEffect(() => { localStorage.setItem(LS_SORT, sortBy); }, [sortBy]);
 
   const handleResetFilters = useCallback(() => {
     setTradeFilter("ALL");

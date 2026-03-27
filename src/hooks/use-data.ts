@@ -1,10 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { mapDbStock, mapDbRegime, mapDbPosition, type Stock, type RegimeData, type ScoreHistoryPoint, type Position } from "@/lib/types";
 import { mockStocks, mockRegime, lastRunInfo, mockScoreHistory } from "@/lib/mock-data";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
+
+const openPositionSchema = z.object({
+  ticker: z.string().min(1),
+  direction: z.enum(["LONG", "SHORT"]),
+  entryPrice: z.number().positive("Entry price must be positive"),
+  shares: z
+    .number()
+    .positive("Shares must be positive")
+    .int("Shares must be a whole number")
+    .max(100_000, "Share count seems unreasonably large"),
+  stopLoss: z.number().positive().optional(),
+  target: z.number().positive().optional(),
+});
 
 // ─── Stocks ─────────────────────────────────────────────
 export function useStocks() {
@@ -188,6 +202,12 @@ export function usePositions() {
       target?: number;
     }) => {
       if (!user) throw new Error("Not logged in");
+      const parsed = openPositionSchema.safeParse(pos);
+      if (!parsed.success) {
+        const msg = parsed.error.errors[0]?.message ?? "Invalid position data";
+        toast.error(msg);
+        throw new Error(msg);
+      }
       const { error } = await supabase.from("positions").insert({
         user_id: user.id,
         ticker: pos.ticker,
