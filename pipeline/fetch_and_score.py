@@ -560,27 +560,51 @@ def main() -> None:
     download_list = UNIVERSE + ["SPY", "^VIX"]
     logger.info(f"Downloading 1y daily OHLCV for {len(download_list)} symbols…")
 
-    raw: pd.DataFrame | None = yf.download(
-        tickers=download_list,
-        period="1y",  # enough history for SMA200
-        interval="1d",
-        auto_adjust=True,
-        progress=False,
-        threads=True,
-        group_by="column",  # default: outer=field, inner=ticker
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=5, max=30),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True,
     )
+    def _bulk_download(tickers: list[str]) -> pd.DataFrame:
+        result = yf.download(
+            tickers=tickers,
+            period="1y",  # enough history for SMA200
+            interval="1d",
+            auto_adjust=True,
+            progress=False,
+            threads=True,
+            group_by="column",  # default: outer=field, inner=ticker
+        )
+        if result is None or result.empty:
+            raise RuntimeError("yf.download returned no data — aborting run")
+        return result
 
-    if raw is None or raw.empty:
-        raise RuntimeError("yf.download returned no data — aborting run")
+    raw = _bulk_download(download_list)
 
     def get_df(ticker: str) -> pd.DataFrame:
-        """Extract single-ticker OHLCV from the bulk MultiIndex download."""
+        """Extract single-ticker OHLCV from the bulk MultiIndex download.
+
+        Falls back to an individual yf.Ticker download if bulk extraction
+        fails for any reason (e.g. malformed ADR data, corporate-action
+        column quirks), so one bad ticker never blocks the whole run.
+        """
         try:
             result = raw.xs(ticker, level=1, axis=1).dropna(how="all")
             df = pd.DataFrame(result).copy()
             df.index = pd.to_datetime(df.index)
             return df.sort_index()
-        except (KeyError, TypeError):
+        except Exception as exc:
+            logger.warning(
+                f"get_df({ticker}): bulk extraction failed ({exc}) — trying individual download"
+            )
+            try:
+                fallback = yf.Ticker(ticker).history(period="1y", auto_adjust=True)
+                if not fallback.empty:
+                    fallback.index = pd.to_datetime(fallback.index)
+                    return fallback.sort_index()
+            except Exception as exc2:
+                logger.error(f"get_df({ticker}): individual fallback also failed ({exc2})")
             return pd.DataFrame()
 
     # ── VIX ──────────────────────────────────────────────────────────────────
