@@ -7,10 +7,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.ai-analysis]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-brief]
-verify_jwt = false
+verify_jwt = true
 
 [functions.check-alerts]
 verify_jwt = false
