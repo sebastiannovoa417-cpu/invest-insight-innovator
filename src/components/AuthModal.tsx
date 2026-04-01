@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { X, LogIn, UserPlus } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface AuthModalProps {

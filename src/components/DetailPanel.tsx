@@ -31,7 +31,7 @@ export function DetailPanel({ stock, onClose, regime, onOpenPosition }: DetailPa
   const [confirmOpen, setConfirmOpen] = useState(false);
   const { text: aiText, loading: aiLoading, error: aiError, analyze, reset: resetAi } = useAiTradeAnalysis();
 
-  useEffect(() => { setShares("1"); resetAi(); setConfirmOpen(false); }, [stock?.ticker]);
+  useEffect(() => { setShares("1"); resetAi(); setConfirmOpen(false); }, [stock?.ticker, resetAi]);
 
   if (!stock) return null;
 

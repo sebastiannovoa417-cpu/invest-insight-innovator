@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(start \"\" \"c:\\\\Users\\\\sebas\\\\Downloads\\\\invest-insight-innovator\\\\stock-scorer-playground.html\")"
+    ]
+  }
+}

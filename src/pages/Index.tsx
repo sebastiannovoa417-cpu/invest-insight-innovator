@@ -57,9 +57,9 @@ const Index = () => {
   const VALID_SORT_OPTIONS: SortOption[] = ["score", "rsi", "volume", "ticker"];
 
   // Versioned localStorage keys — bump suffix when filter schema changes to avoid stale values.
-  const LS_TRADE  = "sp_v2_tradeFilter";
-  const LS_SCORE  = "sp_v2_scoreFilter";
-  const LS_SORT   = "sp_v2_sortBy";
+  const LS_TRADE = "sp_v2_tradeFilter";
+  const LS_SCORE = "sp_v2_scoreFilter";
+  const LS_SORT = "sp_v2_sortBy";
 
   function getStored<T extends string>(key: string, valid: T[], fallback: T): T {
     const v = localStorage.getItem(key) as T;
@@ -77,7 +77,6 @@ const Index = () => {
       }
       localStorage.removeItem(old);
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("dashboard");
