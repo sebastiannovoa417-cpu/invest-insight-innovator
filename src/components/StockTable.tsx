@@ -48,6 +48,7 @@ export function StockTable({ stocks, watchlist, scoreHistory, onToggleWatchlist,
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
+              aria-label="Previous page"
               title="Previous page"
               className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
             >
@@ -59,6 +60,7 @@ export function StockTable({ stocks, watchlist, scoreHistory, onToggleWatchlist,
             <button
               onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={page === totalPages - 1}
+              aria-label="Next page"
               title="Next page"
               className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
             >
@@ -98,8 +100,9 @@ export function StockTable({ stocks, watchlist, scoreHistory, onToggleWatchlist,
               <span className="text-muted-foreground font-mono text-[10px]">{pageOffset + i + 1}</span>
               <button
                 onClick={(e) => { e.stopPropagation(); onToggleWatchlist(stock.ticker); }}
-                className={cn("transition-colors", isWatchlisted ? "text-primary" : "text-border hover:text-muted-foreground")}
+                aria-label={`${isWatchlisted ? "Remove" : "Add"} ${stock.ticker} ${isWatchlisted ? "from" : "to"} watchlist`}
                 title={isWatchlisted ? "Remove from watchlist" : "Add to watchlist"}
+                className={cn("transition-colors", isWatchlisted ? "text-primary" : "text-border hover:text-muted-foreground")}
               >
                 <Star className={cn("w-3.5 h-3.5", isWatchlisted && "fill-primary")} />
               </button>

@@ -103,7 +103,7 @@ export function DetailPanel({ stock, onClose, regime, onOpenPosition }: DetailPa
             </span>
           </div>
         </div>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors mt-1" title="Close">
+        <button onClick={onClose} aria-label="Close detail panel" title="Close" className="text-muted-foreground hover:text-foreground transition-colors mt-1">
           <X className="w-5 h-5" />
         </button>
       </div>

@@ -55,8 +55,9 @@ export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
         {messages.length > 0 && (
           <button
             onClick={clear}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1"
+            aria-label="Clear chat"
             title="Clear chat"
+            className="text-muted-foreground hover:text-foreground transition-colors p-1"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -143,6 +144,7 @@ export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
           <button
             onClick={handleSend}
             disabled={!input.trim() || loading}
+            aria-label="Send message"
             className="h-9 w-9 flex items-center justify-center rounded-md bg-primary text-primary-foreground disabled:opacity-40 hover:bg-primary/90 transition-colors"
           >
             {loading ? (
