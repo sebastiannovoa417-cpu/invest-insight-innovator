@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stock Scorer Playground</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --panel: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --accent: #6366f1;
+    --green: #22c55e;
+    --cyan: #22d3ee;
+    --yellow: #eab308;
+    --orange: #f97316;
+    --red: #ef4444;
+    --gray: #475569;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  header h1 { font-size: 15px; font-weight: 600; }
+  header .subtitle { font-size: 12px; color: var(--muted); }
+
+  .main {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    flex: 1;
+  }
+
+  /* ── Controls ── */
+  .controls {
+    padding: 18px;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .control-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .control-label {
+    font-size: 12px;
+    color: var(--text);
+    min-width: 76px;
+  }
+
+  .control-value {
+    font-size: 12px;
+    font-family: monospace;
+    color: var(--accent);
+    min-width: 46px;
+    text-align: right;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+
+  input[type="text"] {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 14px;
+    font-family: monospace;
+    font-weight: 600;
+    width: 100%;
+    outline: none;
+    letter-spacing: .05em;
+  }
+  input[type="text"]:focus { border-color: var(--accent); }
+
+  /* Presets */
+  .presets { display: flex; flex-wrap: wrap; gap: 5px; }
+  .preset-btn {
+    padding: 4px 9px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--muted);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all .12s;
+  }
+  .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* RSI visualization bar */
+  .rsi-viz {
+    height: 5px;
+    border-radius: 3px;
+    margin-top: 6px;
+    background: linear-gradient(to right,
+      #ef4444 0%,  #ef4444 20%,
+      #f97316 20%, #f97316 40%,
+      #22c55e 40%, #22c55e 60%,
+      #22c55e 60%, #eab308 75%,
+      #ef4444 75%, #ef4444 100%);
+    position: relative;
+  }
+  .rsi-marker {
+    position: absolute;
+    width: 9px; height: 9px;
+    background: white;
+    border-radius: 50%;
+    top: -2px;
+    transform: translateX(-50%);
+    border: 2px solid var(--bg);
+    transition: left .1s;
+    pointer-events: none;
+  }
+
+  .divider { height: 1px; background: var(--border); }
+
+  /* ── Right panel ── */
+  .right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 18px;
+    overflow-y: auto;
+  }
+
+  /* Score card */
+  .score-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+  }
+
+  .score-number {
+    font-size: 60px;
+    font-weight: 800;
+    line-height: 1;
+    min-width: 72px;
+    text-align: center;
+    transition: color .2s;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .score-meta { flex: 1; }
+  .score-ticker { font-size: 18px; font-weight: 700; font-family: monospace; letter-spacing: .06em; margin-bottom: 3px; }
+  .score-desc { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+
+  .score-bar {
+    height: 7px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .3s, background .3s;
+  }
+
+  /* Rule grid */
+  .rules-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+  }
+
+  .rule-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 11px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    transition: border-color .15s, opacity .15s;
+  }
+  .rule-card.pass  { border-color: rgba(34,197,94,.45); }
+  .rule-card.fail  { opacity: .45; }
+  .rule-card.penalty { border-color: rgba(239,68,68,.45); }
+
+  .rule-icon  { font-size: 16px; min-width: 20px; text-align: center; }
+  .rule-info  { flex: 1; min-width: 0; }
+  .rule-name  { font-size: 11px; font-weight: 500; }
+  .rule-cond  { font-size: 10px; color: var(--muted); font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .rule-pts   { font-size: 13px; font-weight: 700; min-width: 20px; text-align: right; }
+
+  /* Prompt */
+  .prompt-section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+
+  .prompt-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 9px;
+  }
+
+  .prompt-text {
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text);
+    min-height: 56px;
+  }
+
+  .copy-btn {
+    padding: 4px 11px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all .12s;
+  }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-btn.copied { border-color: var(--green); color: var(--green); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Stock Scorer Playground</h1>
+  <span class="subtitle">8-point scoring system · adjust signals, see score update live</span>
+</header>
+
+<div class="main">
+
+  <!-- ── Controls ── -->
+  <div class="controls">
+
+    <div>
+      <div class="section-label">Ticker</div>
+      <input type="text" id="ticker" value="AAPL" maxlength="6"
+        oninput="this.value=this.value.toUpperCase();updateAll()">
+    </div>
+
+    <div>
+      <div class="section-label">Presets</div>
+      <div class="presets">
+        <button class="preset-btn" onclick="applyPreset('perfect')">Perfect Bull</button>
+        <button class="preset-btn" onclick="applyPreset('overbought')">Overbought</button>
+        <button class="preset-btn" onclick="applyPreset('early')">Early Uptrend</button>
+        <button class="preset-btn" onclick="applyPreset('neutral')">Neutral</button>
+        <button class="preset-btn" onclick="applyPreset('bearish')">Bearish</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+      <div class="section-label">Price &amp; Moving Averages</div>
+      <div class="control-row">
+        <span class="control-label">Price</span>
+        <input type="range" id="price" min="50" max="500" step="1" value="185" oninput="updateAll()">
+        <span class="control-value" id="price-val">$185</span>
+      </div>
+      <div class="control-row">
+        <span class="control-label">SMA_50</span>
+        <input type="range" id="sma50" min="50" max="500" step="1" value="182" oninput="updateAll()">
+        <span class="control-value" id="sma50-val">$182</span>
+      </div>
+      <div class="control-row">
+        <span class="control-label">SMA_200</span>
+        <input type="range" id="sma200" min="50" max="500" step="1" value="175" oninput="updateAll()">
+        <span class="control-value" id="sma200-val">$175</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+      <div class="section-label">Momentum — RSI_14</div>
+      <div class="control-row">
+        <span class="control-label">RSI</span>
+        <input type="range" id="rsi" min="0" max="100" step="1" value="68" oninput="updateAll()">
+        <span class="control-value" id="rsi-val">68</span>
+      </div>
+      <div class="rsi-viz">
+        <div class="rsi-marker" id="rsi-marker"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--muted)">
+        <span>Oversold &lt;40</span><span>Healthy 60–75</span><span>OB &gt;75</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+      <div class="section-label">Volume Spike</div>
+      <div class="control-row">
+        <span class="control-label">Vol / SMA_20</span>
+        <input type="range" id="volume" min="0" max="300" step="5" value="180" oninput="updateAll()">
+        <span class="control-value" id="volume-val">1.8×</span>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px">Threshold: ≥ 1.5× for +1 point</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+      <div class="section-label">52-Week High Position</div>
+      <div class="control-row">
+        <span class="control-label">% Below High</span>
+        <input type="range" id="high52w" min="0" max="40" step="0.5" value="3.6" oninput="updateAll()">
+        <span class="control-value" id="high52w-val">−3.6%</span>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px">≤5% → +2 pts · ≤10% → +1 pt</div>
+    </div>
+
+  </div>
+
+  <!-- ── Right panel ── -->
+  <div class="right-panel">
+
+    <div class="score-card">
+      <div class="score-number" id="score-number">8</div>
+      <div class="score-meta">
+        <div class="score-ticker" id="score-ticker">AAPL</div>
+        <div class="score-desc" id="score-desc">Strong Buy Signal · 8/8</div>
+        <div class="score-bar">
+          <div class="score-bar-fill" id="score-bar-fill" style="width:100%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Rule Breakdown</div>
+      <div class="rules-grid" id="rules-grid"></div>
+    </div>
+
+    <div class="prompt-section">
+      <div class="prompt-header">
+        <div class="section-label" style="margin:0">Generated Prompt</div>
+        <button class="copy-btn" id="copy-btn" onclick="copyPrompt()">Copy Prompt</button>
+      </div>
+      <div class="prompt-text" id="prompt-text"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const PRESETS = {
+  perfect:    { ticker:'AAPL', price:185, sma50:182, sma200:175, rsi:68, volume:180, high52w:3.6  },
+  overbought: { ticker:'NVDA', price:290, sma50:280, sma200:240, rsi:82, volume:200, high52w:1.0  },
+  early:      { ticker:'META', price:145, sma50:142, sma200:160, rsi:55, volume:90,  high52w:22   },
+  neutral:    { ticker:'AMZN', price:180, sma50:180, sma200:172, rsi:50, volume:110, high52w:15   },
+  bearish:    { ticker:'TSLA', price:150, sma50:165, sma200:185, rsi:38, volume:80,  high52w:35   },
+};
+
+const state = { ...PRESETS.perfect };
+
+function applyPreset(name) {
+  const p = PRESETS[name];
+  Object.assign(state, p);
+  document.getElementById('ticker').value    = p.ticker;
+  document.getElementById('price').value     = p.price;
+  document.getElementById('sma50').value     = p.sma50;
+  document.getElementById('sma200').value    = p.sma200;
+  document.getElementById('rsi').value       = p.rsi;
+  document.getElementById('volume').value    = p.volume;
+  document.getElementById('high52w').value   = p.high52w;
+  updateAll();
+}
+
+function readState() {
+  state.ticker  = document.getElementById('ticker').value.trim() || 'STOCK';
+  state.price   = +document.getElementById('price').value;
+  state.sma50   = +document.getElementById('sma50').value;
+  state.sma200  = +document.getElementById('sma200').value;
+  state.rsi     = +document.getElementById('rsi').value;
+  state.volume  = +document.getElementById('volume').value;
+  state.high52w = +document.getElementById('high52w').value;
+}
+
+function computeScore() {
+  const { price, sma50, sma200, rsi, volume, high52w } = state;
+  const volMult = volume / 100;
+  const rules = [];
+  let score = 0;
+
+  function rule(name, cond, icon, pts, type) {
+    rules.push({ name, cond, icon, pts, type });
+    score += pts;
+  }
+
+  const r1a = price > sma200;
+  rule('Price > SMA_200',        `$${price} > $${sma200}`,              r1a?'📈':'—',  r1a?1:0,  r1a?'pass':'fail');
+
+  const r1b = price > sma50;
+  rule('Price > SMA_50',         `$${price} > $${sma50}`,               r1b?'📊':'—',  r1b?1:0,  r1b?'pass':'fail');
+
+  const r1c = sma50 > sma200;
+  rule('Golden Cross',           `SMA50 $${sma50} > SMA200 $${sma200}`, r1c?'✨':'—',  r1c?1:0,  r1c?'pass':'fail');
+
+  const r2a = rsi >= 60 && rsi <= 75;
+  rule('Healthy RSI (60–75)',    `RSI ${rsi}`,                          r2a?'💚':'—',  r2a?2:0,  r2a?'pass':'fail');
+
+  const r2b = rsi > 75;
+  rule('Overbought penalty',     `RSI ${rsi} > 75`,                     r2b?'⚠️':'✅', r2b?-1:0, r2b?'penalty':'fail');
+
+  const r3  = volMult >= 1.5;
+  rule('Volume Spike',           `${volMult.toFixed(1)}× ≥ 1.5×`,      r3?'🔊':'—',   r3?1:0,   r3?'pass':'fail');
+
+  const r4a = high52w <= 5;
+  rule('Within 5% of 52W High',  `−${high52w.toFixed(1)}% ≤ 5%`,       r4a?'🏔️':'—', r4a?2:0,  r4a?'pass':'fail');
+
+  const r4b = !r4a && high52w <= 10;
+  rule('Within 10% of 52W High', `−${high52w.toFixed(1)}% ≤ 10%`,      r4b?'⛰️':'—', r4b?1:0,  r4b?'pass':'fail');
+
+  score = Math.max(0, score);
+  return { score, rules };
+}
+
+function scoreColor(s) {
+  if (s >= 7) return 'var(--green)';
+  if (s >= 5) return 'var(--cyan)';
+  if (s >= 3) return 'var(--yellow)';
+  return 'var(--gray)';
+}
+
+function scoreDesc(s) {
+  if (s >= 7) return 'Strong Buy Signal';
+  if (s >= 5) return 'Moderate Buy Signal';
+  if (s >= 3) return 'Weak Signal · meets minimum';
+  return 'Below Threshold · excluded from report';
+}
+
+function renderPreview({ score, rules }) {
+  const color = scoreColor(score);
+  document.getElementById('score-number').textContent = score;
+  document.getElementById('score-number').style.color = color;
+  document.getElementById('score-ticker').textContent = state.ticker;
+  document.getElementById('score-desc').textContent   = scoreDesc(score) + ` · ${score}/8`;
+  const fill = document.getElementById('score-bar-fill');
+  fill.style.width      = (Math.max(0, score) / 8 * 100) + '%';
+  fill.style.background = color;
+
+  document.getElementById('rules-grid').innerHTML = rules.map(r => `
+    <div class="rule-card ${r.type}">
+      <span class="rule-icon">${r.icon}</span>
+      <div class="rule-info">
+        <div class="rule-name">${r.name}</div>
+        <div class="rule-cond">${r.cond}</div>
+      </div>
+      <span class="rule-pts" style="color:${r.type==='pass'?'var(--green)':r.type==='penalty'?'var(--red)':'var(--gray)'}">
+        ${r.pts>0?'+'+r.pts:r.pts<0?r.pts:'—'}
+      </span>
+    </div>`).join('');
+}
+
+function buildPrompt({ score, rules }) {
+  const { ticker, price, sma50, sma200, rsi, volume, high52w } = state;
+  const volMult = (volume / 100).toFixed(1);
+  const parts = [];
+
+  // Trend signals
+  const aboveBoth = price > sma200 && price > sma50;
+  const aboveNeither = price <= sma200 && price <= sma50;
+  if (aboveBoth)      parts.push(`price ($${price}) is above both SMA_50 ($${sma50}) and SMA_200 ($${sma200})`);
+  else if (aboveNeither) parts.push(`price ($${price}) is below both SMA_50 ($${sma50}) and SMA_200 ($${sma200}), signaling a downtrend`);
+  else if (price > sma50)  parts.push(`price ($${price}) is above SMA_50 ($${sma50}) but below SMA_200 ($${sma200})`);
+  else                     parts.push(`price ($${price}) is below SMA_50 ($${sma50}) but above SMA_200 ($${sma200})`);
+
+  if (sma50 > sma200) parts.push(`a golden cross is in place (SMA_50 $${sma50} > SMA_200 $${sma200})`);
+
+  // RSI
+  if (rsi >= 60 && rsi <= 75)  parts.push(`RSI of ${rsi} sits in the healthy momentum zone (60–75, +2 pts)`);
+  else if (rsi > 75)           parts.push(`RSI of ${rsi} is overbought (>75), triggering a −1 penalty`);
+  else if (rsi < 40)           parts.push(`RSI of ${rsi} is oversold (<40)`);
+  else                         parts.push(`RSI of ${rsi} is neutral — outside the 60–75 scoring zone`);
+
+  // Volume
+  if (+volMult >= 1.5) parts.push(`volume at ${volMult}× the 20-day average confirms buying conviction`);
+  else                 parts.push(`volume at ${volMult}× the average is below the 1.5× spike threshold`);
+
+  // 52W high
+  if (high52w <= 5)       parts.push(`price is within ${high52w.toFixed(1)}% of its 52-week high (+2 pts — momentum leader)`);
+  else if (high52w <= 10) parts.push(`price is ${high52w.toFixed(1)}% below its 52-week high (+1 pt — approaching the high)`);
+  else                    parts.push(`price is ${high52w.toFixed(1)}% below its 52-week high — no 52W high bonus`);
+
+  const qualifies = score >= 3 ? 'qualifies for the daily report' : 'does not meet the 3-point minimum threshold';
+  const verdict   = score >= 7 ? 'High-conviction buy candidate.' : score >= 5 ? 'Moderate buy potential.' : score >= 3 ? 'Weak signal — cross-check against market regime.' : 'No actionable signal.';
+  const passing   = rules.filter(r => r.type === 'pass' && r.pts > 0).map(r => r.name);
+
+  return `Score ${ticker} with the 8-point system: ${parts.join('; ')}. Final score: ${score}/8 — ${qualifies}.${passing.length ? ' Passing rules: ' + passing.join(', ') + '.' : ''} ${verdict}`;
+}
+
+function updateAll() {
+  readState();
+
+  // Display values
+  document.getElementById('price-val').textContent   = '$' + state.price;
+  document.getElementById('sma50-val').textContent   = '$' + state.sma50;
+  document.getElementById('sma200-val').textContent  = '$' + state.sma200;
+  document.getElementById('rsi-val').textContent     = state.rsi;
+  document.getElementById('volume-val').textContent  = (state.volume / 100).toFixed(1) + '×';
+  document.getElementById('high52w-val').textContent = '−' + (+state.high52w).toFixed(1) + '%';
+
+  // RSI marker
+  document.getElementById('rsi-marker').style.left = state.rsi + '%';
+
+  const result = computeScore();
+  renderPreview(result);
+  document.getElementById('prompt-text').textContent = buildPrompt(result);
+}
+
+function copyPrompt() {
+  navigator.clipboard.writeText(document.getElementById('prompt-text').textContent).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy Prompt'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+updateAll();
+</script>
+</body>
+</html>

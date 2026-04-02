@@ -53,7 +53,7 @@ export function PositionsPanel({ positions, stocks, onClose, onClosePosition, in
       {!inline && (
         <div className="sticky top-0 z-10 bg-card border-b border-border px-5 py-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-foreground">Positions</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground" title="Close">
+          <button onClick={onClose} aria-label="Close positions panel" title="Close" className="text-muted-foreground hover:text-foreground">
             <X className="w-5 h-5" />
           </button>
         </div>

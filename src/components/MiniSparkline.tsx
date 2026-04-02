@@ -1,5 +1,3 @@
-import { cn } from "@/lib/utils";
-
 interface MiniSparklineProps {
   data: number[];
   color?: string;

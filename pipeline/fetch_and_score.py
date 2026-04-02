@@ -40,10 +40,55 @@ logger = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-SYNC_URL = os.environ["SUPABASE_SYNC_URL"]
-PRICES_URL = os.environ.get("SUPABASE_PRICES_URL", "")  # optional — skip if not set
-ALERTS_URL = os.environ.get("SUPABASE_ALERTS_URL", "")  # optional — skip if not set
-SYNC_API_KEY = os.environ["SYNC_API_KEY"]
+SYNC_URL = os.environ.get("SUPABASE_SYNC_URL", "").strip()
+PRICES_URL = os.environ.get("SUPABASE_PRICES_URL", "")  # optional  skip if not set
+ALERTS_URL = os.environ.get("SUPABASE_ALERTS_URL", "")  # optional  skip if not set
+# Prefer a dedicated SYNC_API_KEY; fall back to the service role key which is
+# always available as a built-in Supabase edge-function env var.
+SYNC_API_KEY = (
+    os.environ.get("SYNC_API_KEY", "").strip()
+    or os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+)
+
+if not SYNC_URL:
+    raise SystemExit("ERROR: SUPABASE_SYNC_URL environment variable is not set or empty.")
+if not SYNC_API_KEY:
+    raise SystemExit(
+        "ERROR: Neither SYNC_API_KEY nor SUPABASE_SERVICE_ROLE_KEY is set. "
+        "At least one must be provided."
+    )
+    
+    UNIVERSE_NAME = "SwingPulse 25 - v1.0"
+
+UNIVERSE: list[str] = [
+    # Under $10
+    "PLUG",
+    "NIO",
+    "SOFI",
+    "MARA",
+    "VALE",
+    "F",
+    "AAL",
+    "SNAP",
+    "NOK",
+    "XPEV",
+    # Swing Trade Leaders 2026
+    "LMT",
+    "CIEN",
+    "FIX",
+    "MPC",
+    "MU",
+    "AMAT",
+    "NVDA",
+    "META",
+    "TSLA",
+    "AMZN",
+    "MSFT",
+    "AAPL",
+    "GE",
+    "FDX",
+    "GOOGL",
+]
 UNIVERSE_NAME = "SwingPulse 25 — v1.0"
 
 
@@ -560,27 +605,51 @@ def main() -> None:
     download_list = UNIVERSE + ["SPY", "^VIX"]
     logger.info(f"Downloading 1y daily OHLCV for {len(download_list)} symbols…")
 
-    raw: pd.DataFrame | None = yf.download(
-        tickers=download_list,
-        period="1y",  # enough history for SMA200
-        interval="1d",
-        auto_adjust=True,
-        progress=False,
-        threads=True,
-        group_by="column",  # default: outer=field, inner=ticker
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=5, max=30),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True,
     )
+    def _bulk_download(tickers: list[str]) -> pd.DataFrame:
+        result = yf.download(
+            tickers=tickers,
+            period="1y",  # enough history for SMA200
+            interval="1d",
+            auto_adjust=True,
+            progress=False,
+            threads=True,
+            group_by="column",  # default: outer=field, inner=ticker
+        )
+        if result is None or result.empty:
+            raise RuntimeError("yf.download returned no data — aborting run")
+        return result
 
-    if raw is None or raw.empty:
-        raise RuntimeError("yf.download returned no data — aborting run")
+    raw = _bulk_download(download_list)
 
     def get_df(ticker: str) -> pd.DataFrame:
-        """Extract single-ticker OHLCV from the bulk MultiIndex download."""
+        """Extract single-ticker OHLCV from the bulk MultiIndex download.
+
+        Falls back to an individual yf.Ticker download if bulk extraction
+        fails for any reason (e.g. malformed ADR data, corporate-action
+        column quirks), so one bad ticker never blocks the whole run.
+        """
         try:
             result = raw.xs(ticker, level=1, axis=1).dropna(how="all")
             df = pd.DataFrame(result).copy()
             df.index = pd.to_datetime(df.index)
             return df.sort_index()
-        except (KeyError, TypeError):
+        except Exception as exc:
+            logger.warning(
+                f"get_df({ticker}): bulk extraction failed ({exc}) — trying individual download"
+            )
+            try:
+                fallback = yf.Ticker(ticker).history(period="1y", auto_adjust=True)
+                if not fallback.empty:
+                    fallback.index = pd.to_datetime(fallback.index)
+                    return fallback.sort_index()
+            except Exception as exc2:
+                logger.error(f"get_df({ticker}): individual fallback also failed ({exc2})")
             return pd.DataFrame()
 
     # ── VIX ──────────────────────────────────────────────────────────────────
@@ -671,7 +740,12 @@ def main() -> None:
     }
 
     logger.info(f"POSTing payload ({len(stocks_payload)} stocks) to Supabase…")
-    result = post_to_supabase(payload, headers)
+    resp = requests.post(SYNC_URL, json=payload, headers=headers, timeout=60)
+    if not resp.ok:
+        logger.error(f"HTTP {resp.status_code} from sync-ingest: {resp.text}")
+    resp.raise_for_status()
+
+    result = resp.json()
     logger.info(f"Sync complete → {result}")
 
     # ── Upload price history (best-effort — skip if PRICES_URL not configured) ─

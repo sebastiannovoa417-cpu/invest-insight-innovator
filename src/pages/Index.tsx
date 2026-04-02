@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useDeferredValue } from "react";
+import { useState, useMemo, useEffect, useCallback, useDeferredValue, useRef, lazy, Suspense } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Star } from "lucide-react";
 import { SyncBar } from "@/components/SyncBar";
@@ -10,9 +10,9 @@ import { DetailPanel } from "@/components/DetailPanel";
 import { StatusBar } from "@/components/StatusBar";
 import { AuthModal } from "@/components/AuthModal";
 import { PositionsPanel } from "@/components/PositionsPanel";
-import { BacktestPanel } from "@/components/BacktestPanel";
+const BacktestPanel = lazy(() => import("@/components/BacktestPanel").then(m => ({ default: m.BacktestPanel })));
+const AiChatPanel = lazy(() => import("@/components/AiChatPanel").then(m => ({ default: m.AiChatPanel })));
 import { AiBrief } from "@/components/AiBrief";
-import { AiChatPanel } from "@/components/AiChatPanel";
 import { AlertsPanel } from "@/components/AlertsPanel";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useStocks, useRegime, useLastRun, useScoreHistory, useWatchlist, usePositions, useRunWatcher } from "@/hooks/use-data";
@@ -27,6 +27,19 @@ type ActiveTab = "dashboard" | "watchlist" | "regime" | "positions" | "backtest"
 const Index = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const prevUserRef = useRef(user);
+
+  // Re-fetch all queries when auth state changes (sign-in or sign-out).
+  // Without this, hooks like useStocks have no user dependency and keep
+  // serving stale/mock data after login if the stocks table requires auth.
+  useEffect(() => {
+    const wasLoggedIn = !!prevUserRef.current;
+    const isLoggedIn = !!user;
+    if (wasLoggedIn !== isLoggedIn) {
+      queryClient.invalidateQueries();
+    }
+    prevUserRef.current = user;
+  }, [user, queryClient]);
 
   // Data hooks
   const { data: stocks = [] } = useStocks();
@@ -43,30 +56,48 @@ const Index = () => {
   const VALID_SCORE_FILTERS: ScoreFilter[] = ["ANY", "3+", "5+", "7+"];
   const VALID_SORT_OPTIONS: SortOption[] = ["score", "rsi", "volume", "ticker"];
 
+  // Versioned localStorage keys — bump suffix when filter schema changes to avoid stale values.
+  const LS_TRADE = "sp_v2_tradeFilter";
+  const LS_SCORE = "sp_v2_scoreFilter";
+  const LS_SORT = "sp_v2_sortBy";
+
   function getStored<T extends string>(key: string, valid: T[], fallback: T): T {
     const v = localStorage.getItem(key) as T;
     return valid.includes(v) ? v : fallback;
   }
 
+  // One-time migration: copy old unversioned values to new keys, then remove old ones.
+  useEffect(() => {
+    const OLD_KEYS = ["sp_tradeFilter", "sp_scoreFilter", "sp_sortBy"];
+    const NEW_KEYS = [LS_TRADE, LS_SCORE, LS_SORT];
+    OLD_KEYS.forEach((old, i) => {
+      const val = localStorage.getItem(old);
+      if (val !== null && localStorage.getItem(NEW_KEYS[i]) === null) {
+        localStorage.setItem(NEW_KEYS[i], val);
+      }
+      localStorage.removeItem(old);
+    });
+  }, []);
+
   const [activeTab, setActiveTab] = useState<ActiveTab>("dashboard");
   const [tradeFilter, setTradeFilter] = useState<TradeFilter>(() =>
-    getStored("sp_tradeFilter", VALID_TRADE_FILTERS, "ALL")
+    getStored(LS_TRADE, VALID_TRADE_FILTERS, "ALL")
   );
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>(() =>
-    getStored("sp_scoreFilter", VALID_SCORE_FILTERS, "ANY")
+    getStored(LS_SCORE, VALID_SCORE_FILTERS, "ANY")
   );
   const [sortBy, setSortBy] = useState<SortOption>(() =>
-    getStored("sp_sortBy", VALID_SORT_OPTIONS, "score")
+    getStored(LS_SORT, VALID_SORT_OPTIONS, "score")
   );
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearch = useDeferredValue(searchQuery);
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [showAuth, setShowAuth] = useState(false);
 
-  // Persist filters to localStorage
-  useEffect(() => { localStorage.setItem("sp_tradeFilter", tradeFilter); }, [tradeFilter]);
-  useEffect(() => { localStorage.setItem("sp_scoreFilter", scoreFilter); }, [scoreFilter]);
-  useEffect(() => { localStorage.setItem("sp_sortBy", sortBy); }, [sortBy]);
+  // Persist filters to localStorage (versioned keys)
+  useEffect(() => { localStorage.setItem(LS_TRADE, tradeFilter); }, [tradeFilter]);
+  useEffect(() => { localStorage.setItem(LS_SCORE, scoreFilter); }, [scoreFilter]);
+  useEffect(() => { localStorage.setItem(LS_SORT, sortBy); }, [sortBy]);
 
   const handleResetFilters = useCallback(() => {
     setTradeFilter("ALL");
@@ -169,6 +200,7 @@ const Index = () => {
       <SyncBar
         regime={regime}
         runId={runInfo.runId}
+        ranAt={runInfo.ranAt}
         onRefresh={handleRefresh}
         onAuthClick={() => setShowAuth(true)}
         onPositionsClick={() => setActiveTab("positions")}
@@ -376,12 +408,16 @@ const Index = () => {
 
           {/* ── Backtest ── */}
           <TabsContent value="backtest">
-            <BacktestPanel stocks={stocks} />
+            <Suspense fallback={<div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Loading backtester…</div>}>
+              <BacktestPanel stocks={stocks} />
+            </Suspense>
           </TabsContent>
 
           {/* ── AI ── */}
           <TabsContent value="ai">
-            <AiChatPanel stocks={stocks} regime={regime} />
+            <Suspense fallback={<div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Loading AI chat…</div>}>
+              <AiChatPanel stocks={stocks} regime={regime} />
+            </Suspense>
           </TabsContent>
 
           {/* ── Alerts ── */}

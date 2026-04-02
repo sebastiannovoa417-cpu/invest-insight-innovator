@@ -433,4 +433,5 @@ export const lastRunInfo = {
   regime: "BEARISH" as const,
   runId: "swingpulse-2025-0429",
   universe: "SwingPulse 25 — v1.0",
+  ranAt: null as string | null,
 };
