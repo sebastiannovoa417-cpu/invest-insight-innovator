@@ -40,10 +40,55 @@ logger = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-SYNC_URL = os.environ["SUPABASE_SYNC_URL"]
-PRICES_URL = os.environ.get("SUPABASE_PRICES_URL", "")  # optional — skip if not set
-ALERTS_URL = os.environ.get("SUPABASE_ALERTS_URL", "")  # optional — skip if not set
-SYNC_API_KEY = os.environ["SYNC_API_KEY"]
+SYNC_URL = os.environ.get("SUPABASE_SYNC_URL", "").strip()
+PRICES_URL = os.environ.get("SUPABASE_PRICES_URL", "")  # optional  skip if not set
+ALERTS_URL = os.environ.get("SUPABASE_ALERTS_URL", "")  # optional  skip if not set
+# Prefer a dedicated SYNC_API_KEY; fall back to the service role key which is
+# always available as a built-in Supabase edge-function env var.
+SYNC_API_KEY = (
+    os.environ.get("SYNC_API_KEY", "").strip()
+    or os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+)
+
+if not SYNC_URL:
+    raise SystemExit("ERROR: SUPABASE_SYNC_URL environment variable is not set or empty.")
+if not SYNC_API_KEY:
+    raise SystemExit(
+        "ERROR: Neither SYNC_API_KEY nor SUPABASE_SERVICE_ROLE_KEY is set. "
+        "At least one must be provided."
+    )
+    
+    UNIVERSE_NAME = "SwingPulse 25 - v1.0"
+
+UNIVERSE: list[str] = [
+    # Under $10
+    "PLUG",
+    "NIO",
+    "SOFI",
+    "MARA",
+    "VALE",
+    "F",
+    "AAL",
+    "SNAP",
+    "NOK",
+    "XPEV",
+    # Swing Trade Leaders 2026
+    "LMT",
+    "CIEN",
+    "FIX",
+    "MPC",
+    "MU",
+    "AMAT",
+    "NVDA",
+    "META",
+    "TSLA",
+    "AMZN",
+    "MSFT",
+    "AAPL",
+    "GE",
+    "FDX",
+    "GOOGL",
+]
 UNIVERSE_NAME = "SwingPulse 25 — v1.0"
 
 
@@ -695,7 +740,12 @@ def main() -> None:
     }
 
     logger.info(f"POSTing payload ({len(stocks_payload)} stocks) to Supabase…")
-    result = post_to_supabase(payload, headers)
+    resp = requests.post(SYNC_URL, json=payload, headers=headers, timeout=60)
+    if not resp.ok:
+        logger.error(f"HTTP {resp.status_code} from sync-ingest: {resp.text}")
+    resp.raise_for_status()
+
+    result = resp.json()
     logger.info(f"Sync complete → {result}")
 
     # ── Upload price history (best-effort — skip if PRICES_URL not configured) ─

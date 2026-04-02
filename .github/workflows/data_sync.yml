@@ -35,6 +35,7 @@ jobs:
         env:
           SUPABASE_SYNC_URL: ${{ secrets.SUPABASE_SYNC_URL }}
           SYNC_API_KEY: ${{ secrets.SYNC_API_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_PRICES_URL: ${{ secrets.SUPABASE_PRICES_URL }}
           SUPABASE_ALERTS_URL: ${{ secrets.SUPABASE_ALERTS_URL }}
         run: python pipeline/fetch_and_score.py
