@@ -32,7 +32,7 @@ export function useStocks() {
         return data.map(mapDbStock);
       } catch (err) {
         toast.error("Could not load stocks from Supabase — showing sample data.");
-        console.error("[useStocks]", err);
+        if (import.meta.env.DEV) console.error("[useStocks]", err);
         return mockStocks;
       }
     },
@@ -52,7 +52,7 @@ export function useRegime() {
         return mapDbRegime(data);
       } catch (err) {
         toast.error("Could not load regime data from Supabase — showing sample data.");
-        console.error("[useRegime]", err);
+        if (import.meta.env.DEV) console.error("[useRegime]", err);
         return mockRegime;
       }
     },
@@ -86,7 +86,7 @@ export function useLastRun() {
         };
       } catch (err) {
         toast.error("Could not load run info from Supabase — showing sample data.");
-        console.error("[useLastRun]", err);
+        if (import.meta.env.DEV) console.error("[useLastRun]", err);
         return lastRunInfo;
       }
     },
@@ -125,7 +125,7 @@ export function useScoreHistory() {
         return grouped;
       } catch (err) {
         toast.error("Could not load score history from Supabase — showing sample data.");
-        console.error("[useScoreHistory]", err);
+        if (import.meta.env.DEV) console.error("[useScoreHistory]", err);
         return mockScoreHistory;
       }
     },
