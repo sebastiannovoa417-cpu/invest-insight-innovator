@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useDeferredValue, useRef } from "react";
+import { useState, useMemo, useEffect, useCallback, useDeferredValue, useRef, lazy, Suspense } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Star } from "lucide-react";
 import { SyncBar } from "@/components/SyncBar";
@@ -10,9 +10,9 @@ import { DetailPanel } from "@/components/DetailPanel";
 import { StatusBar } from "@/components/StatusBar";
 import { AuthModal } from "@/components/AuthModal";
 import { PositionsPanel } from "@/components/PositionsPanel";
-import { BacktestPanel } from "@/components/BacktestPanel";
+const BacktestPanel = lazy(() => import("@/components/BacktestPanel").then(m => ({ default: m.BacktestPanel })));
+const AiChatPanel = lazy(() => import("@/components/AiChatPanel").then(m => ({ default: m.AiChatPanel })));
 import { AiBrief } from "@/components/AiBrief";
-import { AiChatPanel } from "@/components/AiChatPanel";
 import { AlertsPanel } from "@/components/AlertsPanel";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useStocks, useRegime, useLastRun, useScoreHistory, useWatchlist, usePositions, useRunWatcher } from "@/hooks/use-data";
@@ -408,12 +408,16 @@ const Index = () => {
 
           {/* ── Backtest ── */}
           <TabsContent value="backtest">
-            <BacktestPanel stocks={stocks} />
+            <Suspense fallback={<div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Loading backtester…</div>}>
+              <BacktestPanel stocks={stocks} />
+            </Suspense>
           </TabsContent>
 
           {/* ── AI ── */}
           <TabsContent value="ai">
-            <AiChatPanel stocks={stocks} regime={regime} />
+            <Suspense fallback={<div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Loading AI chat…</div>}>
+              <AiChatPanel stocks={stocks} regime={regime} />
+            </Suspense>
           </TabsContent>
 
           {/* ── Alerts ── */}
