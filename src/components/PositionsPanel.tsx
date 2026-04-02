@@ -7,10 +7,11 @@ interface PositionsPanelProps {
   positions: Position[];
   stocks: Stock[];
   onClose: () => void;
-  onClosePosition: (args: { id: string; exitPrice: number }) => void;
+  onClosePosition: (args: { id: string; exitPrice: number; position: Position }) => void;
+  inline?: boolean;
 }
 
-export function PositionsPanel({ positions, stocks, onClose, onClosePosition }: PositionsPanelProps) {
+export function PositionsPanel({ positions, stocks, onClose, onClosePosition, inline = false }: PositionsPanelProps) {
   const [closingId, setClosingId] = useState<string | null>(null);
   const [exitPrice, setExitPrice] = useState("");
 
@@ -20,6 +21,12 @@ export function PositionsPanel({ positions, stocks, onClose, onClosePosition }: 
   const getCurrentPrice = (ticker: string) => stocks.find((s) => s.ticker === ticker)?.price ?? 0;
 
   const getPnl = (pos: Position) => {
+    // For closed positions, prefer the immutably stored realizedPnl if available
+    if (pos.status === "closed" && pos.realizedPnl !== null) {
+      const dollars = pos.realizedPnl;
+      const percent = pos.entryPrice > 0 ? (dollars / (pos.entryPrice * pos.shares)) * 100 : 0;
+      return { dollars, percent };
+    }
     const current = pos.status === "closed" ? (pos.exitPrice ?? 0) : getCurrentPrice(pos.ticker);
     const diff = pos.direction === "LONG" ? current - pos.entryPrice : pos.entryPrice - current;
     return { dollars: diff * pos.shares, percent: (diff / pos.entryPrice) * 100 };
@@ -31,9 +38,9 @@ export function PositionsPanel({ positions, stocks, onClose, onClosePosition }: 
   const wins = closedPnls.filter((p) => p.dollars > 0).length;
   const winRate = closedPnls.length > 0 ? ((wins / closedPnls.length) * 100).toFixed(0) : "—";
 
-  const handleClose = (id: string) => {
+  const handleClose = (id: string, pos: Position) => {
     if (closingId === id && exitPrice) {
-      onClosePosition({ id, exitPrice: parseFloat(exitPrice) });
+      onClosePosition({ id, exitPrice: parseFloat(exitPrice), position: pos });
       setClosingId(null);
       setExitPrice("");
     } else {
@@ -42,13 +49,15 @@ export function PositionsPanel({ positions, stocks, onClose, onClosePosition }: 
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 z-30 w-full max-w-md bg-card border-l border-border shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-200">
-      <div className="sticky top-0 z-10 bg-card border-b border-border px-5 py-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-foreground">Positions</h2>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-          <X className="w-5 h-5" />
-        </button>
-      </div>
+    <div className={inline ? "w-full" : "fixed inset-y-0 right-0 z-30 w-full max-w-md bg-card border-l border-border shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-200"}>
+      {!inline && (
+        <div className="sticky top-0 z-10 bg-card border-b border-border px-5 py-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-foreground">Positions</h2>
+          <button onClick={onClose} aria-label="Close positions panel" title="Close" className="text-muted-foreground hover:text-foreground">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
 
       <div className="p-5 space-y-6">
         {/* Stats */}
@@ -108,7 +117,7 @@ export function PositionsPanel({ positions, stocks, onClose, onClosePosition }: 
                           autoFocus
                         />
                         <button
-                          onClick={() => handleClose(pos.id)}
+                          onClick={() => handleClose(pos.id, pos)}
                           disabled={!exitPrice}
                           className="px-3 h-8 rounded bg-short text-short-foreground text-xs font-semibold disabled:opacity-50"
                         >
@@ -123,7 +132,7 @@ export function PositionsPanel({ positions, stocks, onClose, onClosePosition }: 
                       </div>
                     ) : (
                       <button
-                        onClick={() => handleClose(pos.id)}
+                        onClick={() => handleClose(pos.id, pos)}
                         className="w-full h-7 rounded border border-border text-xs text-muted-foreground hover:text-foreground hover:border-short transition-colors"
                       >
                         Close Position

@@ -2,3 +2,15 @@ project_id = "cbvuewxjacuqyxkpwoum"
 
 [functions.sync-ingest]
 verify_jwt = false
+
+[functions.sync-prices]
+verify_jwt = false
+
+[functions.ai-analysis]
+verify_jwt = true
+
+[functions.ai-brief]
+verify_jwt = true
+
+[functions.check-alerts]
+verify_jwt = false

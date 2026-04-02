@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { X, LogIn, UserPlus } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface AuthModalProps {
@@ -30,8 +29,8 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
         toast.success("Account created! Check your email to confirm.");
       }
       onClose();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setLoading(false);
     }
@@ -46,7 +45,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
             <h2 className="text-lg font-bold text-foreground">
               {mode === "signin" ? "Sign In" : "Create Account"}
             </h2>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <button onClick={onClose} aria-label="Close" title="Close" className="text-muted-foreground hover:text-foreground">
               <X className="w-5 h-5" />
             </button>
           </div>

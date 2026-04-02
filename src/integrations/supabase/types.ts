@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      alerts: {
+        Row: {
+          condition: string
+          created_at: string
+          id: string
+          status: string
+          threshold: number
+          ticker: string
+          triggered_at: string | null
+          user_id: string
+        }
+        Insert: {
+          condition: string
+          created_at?: string
+          id?: string
+          status?: string
+          threshold: number
+          ticker: string
+          triggered_at?: string | null
+          user_id: string
+        }
+        Update: {
+          condition?: string
+          created_at?: string
+          id?: string
+          status?: string
+          threshold?: number
+          ticker?: string
+          triggered_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       positions: {
         Row: {
           created_at: string
@@ -24,6 +57,7 @@ export type Database = {
           exit_price: number | null
           id: string
           notes: string | null
+          realized_pnl: number | null
           shares: number
           status: string
           stop_loss: number | null
@@ -41,6 +75,7 @@ export type Database = {
           exit_price?: number | null
           id?: string
           notes?: string | null
+          realized_pnl?: number | null
           shares?: number
           status?: string
           stop_loss?: number | null
@@ -58,6 +93,7 @@ export type Database = {
           exit_price?: number | null
           id?: string
           notes?: string | null
+          realized_pnl?: number | null
           shares?: number
           status?: string
           stop_loss?: number | null
@@ -179,6 +215,7 @@ export type Database = {
           price: number
           risk_reward: number | null
           rsi: number | null
+          short_interest: number | null
           signals: Json
           stop_loss: number | null
           target: number | null
@@ -205,6 +242,7 @@ export type Database = {
           price: number
           risk_reward?: number | null
           rsi?: number | null
+          short_interest?: number | null
           signals?: Json
           stop_loss?: number | null
           target?: number | null
@@ -231,6 +269,7 @@ export type Database = {
           price?: number
           risk_reward?: number | null
           rsi?: number | null
+          short_interest?: number | null
           signals?: Json
           stop_loss?: number | null
           target?: number | null

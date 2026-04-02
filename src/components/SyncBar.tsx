@@ -6,19 +6,30 @@ import { useAuth } from "@/hooks/use-auth";
 interface SyncBarProps {
   regime: RegimeData;
   runId: string;
+  ranAt?: string | null;
   onRefresh?: () => void;
   onAuthClick?: () => void;
   onPositionsClick?: () => void;
 }
 
-export function SyncBar({ regime, runId, onRefresh, onAuthClick, onPositionsClick }: SyncBarProps) {
+export function SyncBar({ regime, runId, ranAt, onRefresh, onAuthClick, onPositionsClick }: SyncBarProps) {
   const { user, signOut } = useAuth();
-  const regimeColor = regime.status === "BULLISH" ? "bg-long text-long-foreground regime-glow-bullish" 
-    : regime.status === "BEARISH" ? "bg-short text-short-foreground regime-glow-bearish" 
+  const regimeColor = regime.status === "BULLISH" ? "bg-long text-long-foreground regime-glow-bullish"
+    : regime.status === "BEARISH" ? "bg-short text-short-foreground regime-glow-bearish"
     : "bg-muted text-muted-foreground";
+
+  const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+  const isStale = !ranAt || (Date.now() - new Date(ranAt).getTime()) > SIX_HOURS_MS;
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm">
+      {isStale && (
+        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-1.5 text-center text-xs text-amber-400 font-medium">
+          ⚠ Market data is stale — last updated{" "}
+          {ranAt ? new Date(ranAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "never"}.
+          {" "}Re-enable the pipeline in GitHub Actions or trigger a manual run.
+        </div>
+      )}
       <div className="flex items-center justify-between px-4 py-2.5 gap-4">
         <div className="flex items-center gap-3">
           <h1 className="text-sm font-semibold tracking-[0.3em] text-foreground">SWINGPULSE</h1>
@@ -52,6 +63,7 @@ export function SyncBar({ regime, runId, onRefresh, onAuthClick, onPositionsClic
           {user && (
             <button
               onClick={onPositionsClick}
+              aria-label="View positions"
               className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-muted-foreground hover:text-primary transition-colors border border-border hover:border-primary/50"
             >
               <Briefcase className="w-3 h-3" />
@@ -60,6 +72,7 @@ export function SyncBar({ regime, runId, onRefresh, onAuthClick, onPositionsClic
           )}
           <button
             onClick={onRefresh}
+            aria-label="Refresh data"
             className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-muted-foreground hover:text-primary transition-colors border border-border hover:border-primary/50"
           >
             <RefreshCw className="w-3 h-3" />
@@ -68,14 +81,16 @@ export function SyncBar({ regime, runId, onRefresh, onAuthClick, onPositionsClic
           {user ? (
             <button
               onClick={() => signOut()}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-muted-foreground hover:text-foreground transition-colors border border-border"
+              aria-label={`Sign out (${user.email})`}
               title={user.email}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-muted-foreground hover:text-foreground transition-colors border border-border"
             >
               <LogOut className="w-3 h-3" />
             </button>
           ) : (
             <button
               onClick={onAuthClick}
+              aria-label="Sign in"
               className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-primary hover:text-primary/80 transition-colors border border-primary/50"
             >
               <User className="w-3 h-3" />

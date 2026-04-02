@@ -1,10 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { mapDbStock, mapDbRegime, mapDbPosition, type Stock, type RegimeData, type ScoreHistoryPoint, type Position } from "@/lib/types";
 import { mockStocks, mockRegime, lastRunInfo, mockScoreHistory } from "@/lib/mock-data";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
+
+const openPositionSchema = z.object({
+  ticker: z.string().min(1),
+  direction: z.enum(["LONG", "SHORT"]),
+  entryPrice: z.number().positive("Entry price must be positive"),
+  shares: z
+    .number()
+    .positive("Shares must be positive")
+    .int("Shares must be a whole number")
+    .max(100_000, "Share count seems unreasonably large"),
+  stopLoss: z.number().positive().optional(),
+  target: z.number().positive().optional(),
+});
 
 // ─── Stocks ─────────────────────────────────────────────
 export function useStocks() {
@@ -18,7 +32,7 @@ export function useStocks() {
         return data.map(mapDbStock);
       } catch (err) {
         toast.error("Could not load stocks from Supabase — showing sample data.");
-        console.error("[useStocks]", err);
+        if (import.meta.env.DEV) console.error("[useStocks]", err);
         return mockStocks;
       }
     },
@@ -38,7 +52,7 @@ export function useRegime() {
         return mapDbRegime(data);
       } catch (err) {
         toast.error("Could not load regime data from Supabase — showing sample data.");
-        console.error("[useRegime]", err);
+        if (import.meta.env.DEV) console.error("[useRegime]", err);
         return mockRegime;
       }
     },
@@ -68,10 +82,11 @@ export function useLastRun() {
           regime: data.regime ?? "UNKNOWN",
           runId: data.run_id,
           universe: data.universe ?? "SwingPulse 25",
+          ranAt: data.ran_at,
         };
       } catch (err) {
         toast.error("Could not load run info from Supabase — showing sample data.");
-        console.error("[useLastRun]", err);
+        if (import.meta.env.DEV) console.error("[useLastRun]", err);
         return lastRunInfo;
       }
     },
@@ -103,14 +118,14 @@ export function useScoreHistory() {
             date: new Date(row.recorded_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
           });
         }
-        // Keep last 10 per ticker
+        // Keep last 90 data points per ticker for richer sparkline/trend data
         for (const ticker of Object.keys(grouped)) {
-          grouped[ticker] = grouped[ticker].slice(-10);
+          grouped[ticker] = grouped[ticker].slice(-90);
         }
         return grouped;
       } catch (err) {
         toast.error("Could not load score history from Supabase — showing sample data.");
-        console.error("[useScoreHistory]", err);
+        if (import.meta.env.DEV) console.error("[useScoreHistory]", err);
         return mockScoreHistory;
       }
     },
@@ -169,6 +184,7 @@ export function usePositions() {
       const { data, error } = await supabase
         .from("positions")
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []).map(mapDbPosition);
@@ -186,6 +202,12 @@ export function usePositions() {
       target?: number;
     }) => {
       if (!user) throw new Error("Not logged in");
+      const parsed = openPositionSchema.safeParse(pos);
+      if (!parsed.success) {
+        const msg = parsed.error.errors[0]?.message ?? "Invalid position data";
+        toast.error(msg);
+        throw new Error(msg);
+      }
       const { error } = await supabase.from("positions").insert({
         user_id: user.id,
         ticker: pos.ticker,
@@ -205,11 +227,21 @@ export function usePositions() {
   });
 
   const closePosition = useMutation({
-    mutationFn: async ({ id, exitPrice }: { id: string; exitPrice: number }) => {
+    mutationFn: async ({ id, exitPrice, position }: { id: string; exitPrice: number; position: Position }) => {
       if (!user) throw new Error("Not logged in");
+      // Compute and store realized P&L at close time so it's immutably recorded
+      const diff = position.direction === "LONG"
+        ? exitPrice - position.entryPrice
+        : position.entryPrice - exitPrice;
+      const realizedPnl = diff * position.shares;
       const { error } = await supabase
         .from("positions")
-        .update({ status: "closed", exit_price: exitPrice, exit_date: new Date().toISOString() })
+        .update({
+          status: "closed",
+          exit_price: exitPrice,
+          exit_date: new Date().toISOString(),
+          realized_pnl: realizedPnl,
+        } as Record<string, unknown>)
         .eq("id", id)
         .eq("user_id", user.id);
       if (error) throw error;
@@ -244,7 +276,11 @@ export function useRunWatcher() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "script_runs" },
         () => {
-          queryClient.invalidateQueries();
+          // Targeted invalidation: only refresh market data, not user-specific caches
+          queryClient.invalidateQueries({ queryKey: ["stocks"] });
+          queryClient.invalidateQueries({ queryKey: ["regime"] });
+          queryClient.invalidateQueries({ queryKey: ["lastRun"] });
+          queryClient.invalidateQueries({ queryKey: ["scoreHistory"] });
         },
       )
       .subscribe();

@@ -15,13 +15,13 @@ export function DualScoreBar({ bullScore, bearScore, maxScore = 8 }: DualScoreBa
         <div className="h-[3px] rounded-full bg-border overflow-hidden">
           <div
             className="h-full rounded-full bg-long score-bar-fill"
-            style={{ width: `${bullWidth}%` }}
+            style={{ "--bull-w": `${bullWidth}%`, width: "var(--bull-w)" } as React.CSSProperties}
           />
         </div>
         <div className="h-[3px] rounded-full bg-border overflow-hidden">
           <div
             className="h-full rounded-full bg-short score-bar-fill"
-            style={{ width: `${bearWidth}%` }}
+            style={{ "--bear-w": `${bearWidth}%`, width: "var(--bear-w)" } as React.CSSProperties}
           />
         </div>
       </div>

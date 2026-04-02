@@ -44,6 +44,7 @@ export interface Stock {
   news: NewsItem[];
   earningsDate?: string;
   earningsWarning: boolean;
+  shortInterest?: number;
   updatedAt: string;
 }
 
@@ -77,6 +78,7 @@ export interface Position {
   exitPrice: number | null;
   exitDate: string | null;
   notes: string | null;
+  realizedPnl: number | null;
 }
 
 // Transform Supabase row to app Stock type
@@ -116,6 +118,7 @@ export function mapDbStock(row: Tables<"stocks">): Stock {
     news,
     earningsDate: row.earnings_date ?? undefined,
     earningsWarning: row.earnings_warning,
+    shortInterest: row.short_interest ?? undefined,
     updatedAt: new Date(row.updated_at).toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
@@ -151,5 +154,38 @@ export function mapDbPosition(row: Tables<"positions">): Position {
     exitPrice: row.exit_price,
     exitDate: row.exit_date,
     notes: row.notes,
+    realizedPnl: (row as Record<string, unknown>)["realized_pnl"] as number | null ?? null,
+  };
+}
+
+// ── Alerts ───────────────────────────────────────────────────────────────────
+
+export type AlertCondition =
+  | "bull_score_gte"
+  | "bear_score_gte"
+  | "rsi_above"
+  | "rsi_below"
+  | "price_above"
+  | "price_below";
+
+export interface Alert {
+  id: string;
+  ticker: string;
+  condition: AlertCondition;
+  threshold: number;
+  status: "active" | "triggered";
+  triggeredAt: string | null;
+  createdAt: string;
+}
+
+export function mapDbAlert(row: Tables<"alerts">): Alert {
+  return {
+    id: row.id,
+    ticker: row.ticker,
+    condition: row.condition as AlertCondition,
+    threshold: Number(row.threshold),
+    status: row.status as "active" | "triggered",
+    triggeredAt: row.triggered_at,
+    createdAt: row.created_at,
   };
 }
