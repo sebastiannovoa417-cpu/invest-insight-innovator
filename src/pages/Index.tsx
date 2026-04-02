@@ -194,7 +194,7 @@ const Index = () => {
   }, [stocks, regime]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-background" style={{ fontFamily: "Tahoma, MS Sans Serif, Arial, sans-serif" }}>
       <div className="scanline-overlay" />
 
       <SyncBar
@@ -206,56 +206,66 @@ const Index = () => {
         onPositionsClick={() => setActiveTab("positions")}
       />
 
-      <main className="flex-1 px-4 md:px-6 py-4 max-w-[1400px] mx-auto w-full">
+      <main className="flex-1 px-2 md:px-4 py-2 max-w-[1400px] mx-auto w-full">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ActiveTab)}>
-          <TabsList className="w-full justify-start mb-4 bg-card border border-border h-auto p-1 rounded-lg gap-1">
-            <TabsTrigger
-              value="dashboard"
-              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              Dashboard <span className="ml-1 opacity-60">({stocks.length})</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="watchlist"
-              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              <Star className="w-3 h-3 mr-1" />
-              Watchlist <span className="ml-1 opacity-60">({watchlistStocks.length})</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="regime"
-              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              Regime
-            </TabsTrigger>
-            <TabsTrigger
-              value="positions"
-              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              Positions <span className="ml-1 opacity-60">({positions.filter(p => p.status === "open").length})</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="backtest"
-              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              Backtest
-            </TabsTrigger>
-            <TabsTrigger
-              value="ai"
-              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              ✦ AI
-            </TabsTrigger>            <TabsTrigger
-              value="alerts"
-              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              🔔 Alerts
-              {alerts.filter((a) => a.status === "triggered").length > 0 && (
-                <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-black">
-                  {alerts.filter((a) => a.status === "triggered").length}
+          {/* Win2K-style tab bar */}
+          <TabsList
+            style={{
+              width: "100%",
+              justifyContent: "flex-start",
+              display: "flex",
+              gap: 0,
+              backgroundColor: "transparent",
+              border: "none",
+              padding: 0,
+              marginBottom: 0,
+              height: "auto",
+              borderRadius: 0,
+            }}
+          >
+            {(
+              [
+                { value: "dashboard", label: `Dashboard (${stocks.length})` },
+                { value: "watchlist", label: `★ Watchlist (${watchlistStocks.length})` },
+                { value: "regime", label: "Regime" },
+                { value: "positions", label: `Positions (${positions.filter(p => p.status === "open").length})` },
+                { value: "backtest", label: "Backtest" },
+                { value: "ai", label: "✦ AI" },
+                {
+                  value: "alerts",
+                  label: `🔔 Alerts${alerts.filter((a) => a.status === "triggered").length > 0 ? ` [${alerts.filter((a) => a.status === "triggered").length}]` : ""}`,
+                },
+              ] as { value: ActiveTab; label: string }[]
+            ).map((tab) => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                style={{ borderRadius: 0, padding: 0, background: "none", border: "none", boxShadow: "none" }}
+              >
+                <span
+                  className={activeTab === tab.value ? "win-tab-active" : "win-tab-inactive"}
+                  style={{ display: "block" }}
+                >
+                  {tab.label}
                 </span>
-              )}
-            </TabsTrigger>          </TabsList>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {/* Tab content panel — classic Win2K raised border below tabs */}
+          <div
+            style={{
+              backgroundColor: "#d4d0c8",
+              borderStyle: "solid",
+              borderWidth: "2px",
+              borderTopColor: "#ffffff",
+              borderLeftColor: "#ffffff",
+              borderRightColor: "#808080",
+              borderBottomColor: "#808080",
+              boxShadow: "inset -1px -1px 0 #404040, inset 1px 1px 0 #dfdfdf",
+              padding: "6px",
+            }}
+          >
 
           {/* ── Dashboard ── */}
           <TabsContent value="dashboard">
@@ -287,10 +297,18 @@ const Index = () => {
           {/* ── Watchlist ── */}
           <TabsContent value="watchlist">
             {watchlistStocks.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border bg-card p-12 text-center">
-                <Star className="w-8 h-8 text-muted-foreground mx-auto mb-3 opacity-40" />
-                <p className="text-sm font-medium text-muted-foreground">No stocks in your watchlist yet.</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Click the ★ next to any ticker in the Dashboard to add it here.</p>
+              <div
+                className="win-sunken"
+                style={{
+                  backgroundColor: "#ffffff",
+                  padding: "40px",
+                  textAlign: "center",
+                  fontFamily: "Tahoma, MS Sans Serif, sans-serif",
+                }}
+              >
+                <Star className="w-8 h-8 mx-auto mb-3" style={{ color: "#c0c0c0" }} />
+                <p style={{ fontSize: "12px", fontWeight: "bold", color: "#000" }}>No stocks in your watchlist yet.</p>
+                <p style={{ fontSize: "11px", color: "#666", marginTop: "4px" }}>Click the ★ next to any ticker in the Dashboard to add it here.</p>
               </div>
             ) : (
               <>
@@ -320,74 +338,72 @@ const Index = () => {
 
           {/* ── Regime ── */}
           <TabsContent value="regime">
-            <div className="space-y-4">
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontFamily: "Tahoma, MS Sans Serif, sans-serif" }}>
               {/* Status header */}
-              <div className="rounded-lg border border-border bg-card p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">MARKET REGIME</h2>
-                  <span className={cn(
-                    "px-3 py-1 rounded-full text-sm font-bold tracking-wide",
-                    regime.status === "BULLISH" ? "bg-long/20 text-long" :
-                      regime.status === "BEARISH" ? "bg-short/20 text-short" :
-                        "bg-muted text-muted-foreground"
-                  )}>
+              <div className="win-panel" style={{ padding: "8px" }}>
+                <div className="win-titlebar" style={{ marginBottom: "8px", padding: "2px 4px", fontSize: "11px" }}>
+                  <span>Market Regime Analysis</span>
+                  <span
+                    style={{
+                      backgroundColor: regime.status === "BULLISH" ? "#008000" : regime.status === "BEARISH" ? "#cc0000" : "#808080",
+                      color: "#ffffff",
+                      padding: "1px 8px",
+                      fontSize: "11px",
+                      fontWeight: "bold",
+                      border: "1px solid #000",
+                    }}
+                  >
                     {regime.status}
                   </span>
                 </div>
-                {/* Regime score progress */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                <div style={{ marginBottom: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "3px" }}>
                     <span>Regime Score</span>
-                    <span className="font-mono text-foreground">{regime.regimeScore}/6</span>
+                    <span style={{ fontFamily: "Courier New", fontWeight: "bold" }}>{regime.regimeScore}/6</span>
                   </div>
-                  <div className="h-2 rounded-full bg-border overflow-hidden">
+                  <div className="win-progress-track" style={{ height: "16px" }}>
                     <div
-                      className={cn("h-full rounded-full transition-all",
-                        regime.status === "BULLISH" ? "bg-long" :
-                          regime.status === "BEARISH" ? "bg-short" :
-                            "bg-muted-foreground"
-                      )}
-                      style={{ "--bar-w": `${(regime.regimeScore / 6) * 100}%`, width: "var(--bar-w)" } as React.CSSProperties}
+                      className={regime.status === "BULLISH" ? "win-progress-fill-long" : regime.status === "BEARISH" ? "win-progress-fill-short" : ""}
+                      style={{ width: `${(regime.regimeScore / 6) * 100}%`, height: "100%", backgroundColor: regime.status === "NEUTRAL" ? "#808080" : undefined }}
                     />
                   </div>
                 </div>
-                {/* SPY vs SMA200 bar */}
-                <div className="mb-2">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                    <span>SPY / SMA 200 ratio</span>
-                    <span className={cn("font-mono font-semibold", regime.ratio >= 1 ? "text-long" : "text-short")}>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "3px" }}>
+                    <span>SPY / SMA 200 Ratio</span>
+                    <span style={{ fontFamily: "Courier New", fontWeight: "bold", color: regime.ratio >= 1 ? "#008000" : "#cc0000" }}>
                       {regime.ratio.toFixed(4)}
                     </span>
                   </div>
-                  <div className="h-1.5 rounded-full bg-border overflow-hidden">
+                  <div className="win-progress-track" style={{ height: "12px" }}>
                     <div
-                      className={cn("h-full rounded-full", regime.ratio >= 1 ? "bg-long" : "bg-short")}
-                      style={{ "--bar-w": `${Math.min(regime.ratio * 50, 100)}%`, width: "var(--bar-w)" } as React.CSSProperties}
+                      className={regime.ratio >= 1 ? "win-progress-fill-long" : "win-progress-fill-short"}
+                      style={{ width: `${Math.min(regime.ratio * 50, 100)}%`, height: "100%" }}
                     />
                   </div>
                 </div>
               </div>
 
               {/* Key metrics grid */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "4px" }} className="md:[grid-template-columns:repeat(3,1fr)]">
                 {[
-                  { label: "SPY Price", value: `$${regime.spyPrice.toFixed(2)}`, color: regime.ratio >= 1 ? "text-long" : "text-short" },
-                  { label: "SMA 200", value: `$${regime.sma200.toFixed(2)}`, color: "text-muted-foreground" },
-                  { label: "SMA 50", value: `$${regime.sma50.toFixed(2)}`, color: "text-muted-foreground" },
-                  { label: "SPY RSI", value: regime.spyRsi.toFixed(1), color: regime.spyRsi > 70 ? "text-short" : regime.spyRsi < 30 ? "text-long" : "text-foreground" },
-                  { label: "VIX", value: regime.vix.toFixed(2), color: regime.vix > 25 ? "text-short" : "text-long" },
-                  { label: "SPY − SMA200", value: `${((regime.spyPrice - regime.sma200) >= 0 ? "+" : "")}${(regime.spyPrice - regime.sma200).toFixed(2)}`, color: regime.spyPrice >= regime.sma200 ? "text-long" : "text-short" },
+                  { label: "SPY Price", value: `$${regime.spyPrice.toFixed(2)}`, color: regime.ratio >= 1 ? "#008000" : "#cc0000" },
+                  { label: "SMA 200", value: `$${regime.sma200.toFixed(2)}`, color: "#444" },
+                  { label: "SMA 50", value: `$${regime.sma50.toFixed(2)}`, color: "#444" },
+                  { label: "SPY RSI", value: regime.spyRsi.toFixed(1), color: regime.spyRsi > 70 ? "#cc0000" : regime.spyRsi < 30 ? "#008000" : "#000" },
+                  { label: "VIX", value: regime.vix.toFixed(2), color: regime.vix > 25 ? "#cc0000" : "#008000" },
+                  { label: "SPY − SMA200", value: `${((regime.spyPrice - regime.sma200) >= 0 ? "+" : "")}${(regime.spyPrice - regime.sma200).toFixed(2)}`, color: regime.spyPrice >= regime.sma200 ? "#008000" : "#cc0000" },
                 ].map((m) => (
-                  <div key={m.label} className="rounded-lg border border-border bg-card p-4 text-center">
-                    <div className={cn("text-xl font-bold font-mono", m.color)}>{m.value}</div>
-                    <div className="text-[10px] text-muted-foreground tracking-wider mt-0.5">{m.label}</div>
+                  <div key={m.label} className="win-panel" style={{ padding: "6px", textAlign: "center" }}>
+                    <div style={{ fontSize: "18px", fontWeight: "bold", fontFamily: "Courier New", color: m.color }}>{m.value}</div>
+                    <div style={{ fontSize: "9px", color: "#444", textTransform: "uppercase", letterSpacing: "0.05em", marginTop: "2px" }}>{m.label}</div>
                   </div>
                 ))}
               </div>
 
               {/* Interpretation */}
-              <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground leading-relaxed">
-                <span className="font-semibold text-foreground">Interpretation: </span>
+              <div className="win-sunken" style={{ backgroundColor: "#fffbcc", padding: "8px", fontSize: "11px" }}>
+                <span style={{ fontWeight: "bold" }}>Interpretation: </span>
                 {regime.status === "BULLISH" && "SPY is trading above SMA 200 — bulls are in control. Favour LONG setups with regime-aligned scores."}
                 {regime.status === "BEARISH" && "SPY is trading below SMA 200 — bears are in control. Favour SHORT setups with regime-aligned scores."}
                 {regime.status === "NEUTRAL" && "SPY is near SMA 200 — no clear directional bias. Require higher score thresholds before entering any setup."}
@@ -420,13 +436,14 @@ const Index = () => {
           <TabsContent value="alerts">
             <AlertsPanel stocks={stocks} />
           </TabsContent>
+          </div>{/* end Win2K tab panel */}
         </Tabs>
       </main>
 
       {/* Detail Panel (slide-over — works across all tabs) */}
       {selectedStock && (
         <>
-          <div className="fixed inset-0 z-20 bg-background/60 backdrop-blur-sm" onClick={() => setSelectedStock(null)} />
+          <div className="fixed inset-0 z-20" style={{ backgroundColor: "rgba(0,0,0,0.4)" }} onClick={() => setSelectedStock(null)} />
           <DetailPanel
             stock={selectedStock}
             regime={regime}

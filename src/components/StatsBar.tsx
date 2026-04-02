@@ -19,21 +19,54 @@ export function StatsBar({ stocks, regime }: StatsBarProps) {
   const earningsRisk = stocks.filter(s => s.earningsWarning).length;
 
   const stats = [
-    { label: "LONG SETUPS", value: longSetups, color: "text-long" },
-    { label: "SHORT SETUPS", value: shortSetups, color: "text-short" },
-    { label: "SCORE 6+", value: score6Plus, color: "text-primary" },
-    { label: "AVG DIR SCORE", value: avgDirScore, color: "text-foreground" },
-    { label: "⚡ CONFLICTS", value: conflicts, color: "text-muted-foreground" },
-    { label: "SPY / SMA200", value: regime.ratio.toFixed(3), color: regime.ratio > 1 ? "text-long" : "text-short" },
-    { label: "⚠ EARNINGS", value: earningsRisk, color: earningsRisk > 0 ? "text-amber-400" : "text-muted-foreground" },
+    { label: "LONG SETUPS", value: longSetups, color: "#008000" },
+    { label: "SHORT SETUPS", value: shortSetups, color: "#cc0000" },
+    { label: "SCORE 6+", value: score6Plus, color: "#0050cc" },
+    { label: "AVG DIR SCORE", value: avgDirScore, color: "#000" },
+    { label: "⚡ CONFLICTS", value: conflicts, color: "#666" },
+    { label: "SPY / SMA200", value: regime.ratio.toFixed(3), color: regime.ratio > 1 ? "#008000" : "#cc0000" },
+    { label: "⚠ EARNINGS", value: earningsRisk, color: earningsRisk > 0 ? "#cc8800" : "#666" },
   ];
 
   return (
-    <div className="grid grid-cols-4 md:grid-cols-7 gap-3 mt-4">
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(4, 1fr)",
+        gap: "4px",
+        marginTop: "4px",
+        fontFamily: "Tahoma, MS Sans Serif, sans-serif",
+      }}
+      className="md:[grid-template-columns:repeat(7,1fr)]"
+    >
       {stats.map((stat) => (
-        <div key={stat.label} className="rounded-lg border border-border bg-card p-3 text-center">
-          <div className={`text-lg font-bold font-mono ${stat.color}`}>{stat.value}</div>
-          <div className="text-[10px] text-muted-foreground tracking-wider mt-0.5">{stat.label}</div>
+        <div
+          key={stat.label}
+          className="win-panel"
+          style={{ padding: "4px 6px", textAlign: "center" }}
+        >
+          <div
+            style={{
+              fontSize: "18px",
+              fontWeight: "bold",
+              fontFamily: "Courier New",
+              color: stat.color,
+              lineHeight: 1.2,
+            }}
+          >
+            {stat.value}
+          </div>
+          <div
+            style={{
+              fontSize: "9px",
+              color: "#444",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              marginTop: "2px",
+            }}
+          >
+            {stat.label}
+          </div>
         </div>
       ))}
     </div>

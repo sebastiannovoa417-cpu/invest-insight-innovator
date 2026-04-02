@@ -9,23 +9,35 @@ export function DualScoreBar({ bullScore, bearScore, maxScore = 8 }: DualScoreBa
   const bearWidth = (bearScore / maxScore) * 100;
 
   return (
-    <div className="flex items-center gap-1.5 min-w-[100px]">
-      <span className="text-[10px] font-mono text-long w-4 text-right">▲{bullScore}</span>
-      <div className="flex-1 flex flex-col gap-0.5">
-        <div className="h-[3px] rounded-full bg-border overflow-hidden">
+    <div style={{ display: "flex", alignItems: "center", gap: "4px", minWidth: "100px" }}>
+      <span style={{ fontSize: "9px", fontFamily: "Courier New", color: "#008000", width: "20px", textAlign: "right" }}>
+        ▲{bullScore}
+      </span>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2px" }}>
+        {/* Bull bar */}
+        <div
+          className="win-progress-track"
+          style={{ height: "6px" }}
+        >
           <div
-            className="h-full rounded-full bg-long score-bar-fill"
-            style={{ "--bull-w": `${bullWidth}%`, width: "var(--bull-w)" } as React.CSSProperties}
+            className="win-progress-fill-long score-bar-fill"
+            style={{ width: `${bullWidth}%`, height: "100%" }}
           />
         </div>
-        <div className="h-[3px] rounded-full bg-border overflow-hidden">
+        {/* Bear bar */}
+        <div
+          className="win-progress-track"
+          style={{ height: "6px" }}
+        >
           <div
-            className="h-full rounded-full bg-short score-bar-fill"
-            style={{ "--bear-w": `${bearWidth}%`, width: "var(--bear-w)" } as React.CSSProperties}
+            className="win-progress-fill-short score-bar-fill"
+            style={{ width: `${bearWidth}%`, height: "100%" }}
           />
         </div>
       </div>
-      <span className="text-[10px] font-mono text-short w-4">▼{bearScore}</span>
+      <span style={{ fontSize: "9px", fontFamily: "Courier New", color: "#cc0000", width: "20px" }}>
+        ▼{bearScore}
+      </span>
     </div>
   );
 }
