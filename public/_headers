@@ -1,0 +1,10 @@
+# Hashed assets — cache 1 year, immutable (content hash in filename guarantees freshness)
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Everything else (index.html, robots.txt, favicon) — revalidate on every visit
+/*
+  Cache-Control: public, max-age=0, must-revalidate
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin

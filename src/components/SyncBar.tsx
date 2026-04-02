@@ -63,6 +63,7 @@ export function SyncBar({ regime, runId, ranAt, onRefresh, onAuthClick, onPositi
           {user && (
             <button
               onClick={onPositionsClick}
+              aria-label="View positions"
               className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-muted-foreground hover:text-primary transition-colors border border-border hover:border-primary/50"
             >
               <Briefcase className="w-3 h-3" />
@@ -71,6 +72,7 @@ export function SyncBar({ regime, runId, ranAt, onRefresh, onAuthClick, onPositi
           )}
           <button
             onClick={onRefresh}
+            aria-label="Refresh data"
             className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-muted-foreground hover:text-primary transition-colors border border-border hover:border-primary/50"
           >
             <RefreshCw className="w-3 h-3" />
@@ -79,14 +81,16 @@ export function SyncBar({ regime, runId, ranAt, onRefresh, onAuthClick, onPositi
           {user ? (
             <button
               onClick={() => signOut()}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-muted-foreground hover:text-foreground transition-colors border border-border"
+              aria-label={`Sign out (${user.email})`}
               title={user.email}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-muted-foreground hover:text-foreground transition-colors border border-border"
             >
               <LogOut className="w-3 h-3" />
             </button>
           ) : (
             <button
               onClick={onAuthClick}
+              aria-label="Sign in"
               className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-primary hover:text-primary/80 transition-colors border border-primary/50"
             >
               <User className="w-3 h-3" />

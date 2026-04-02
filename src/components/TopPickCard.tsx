@@ -26,7 +26,6 @@ export function TopPickCard({ stock, regime }: TopPickCardProps) {
               strokeWidth="4" strokeLinecap="round"
               strokeDasharray={`${fillPercent} ${circumference}`}
               transform="rotate(-90 44 44)"
-              className="score-bar-fill"
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
