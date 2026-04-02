@@ -1,5 +1,3 @@
-import { cn } from "@/lib/utils";
-
 interface StatusBarProps {
   lastRun: string;
   stockCount: number;
@@ -10,18 +8,19 @@ interface StatusBarProps {
 
 export function StatusBar({ lastRun, stockCount, regime, universe, connected }: StatusBarProps) {
   return (
-    <footer className="border-t border-border bg-background px-4 py-2 flex items-center justify-between text-[10px] text-muted-foreground">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1.5">
-          <div className={cn("w-1.5 h-1.5 rounded-full", connected ? "bg-long" : "bg-short")} />
-          <span>{connected ? "Live" : "Offline"} · Supabase</span>
+    <footer className="win-statusbar" style={{ fontFamily: "Tahoma, MS Sans Serif, sans-serif" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+        <div className="win-statusbar-cell" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <span className={connected ? "win-led-on" : "win-led-off"} />
+          <span>{connected ? "Connected" : "Offline"} — Supabase</span>
         </div>
-        <span>Last run: {lastRun} · {stockCount} stocks · {regime}</span>
+        <div className="win-statusbar-cell">
+          Last run: {lastRun} | {stockCount} stocks | {regime}
+        </div>
       </div>
-      <div className="flex items-center gap-2">
-        <span>SwingPulse · v2.0</span>
-        <span>·</span>
-        <span>{universe}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+        <div className="win-statusbar-cell">SwingPulse v2.0</div>
+        <div className="win-statusbar-cell">{universe}</div>
       </div>
     </footer>
   );

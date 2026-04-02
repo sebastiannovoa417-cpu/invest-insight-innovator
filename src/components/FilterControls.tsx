@@ -1,5 +1,4 @@
 import { Search, X, RotateCcw } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export type TradeFilter = "ALL" | "LONG" | "SHORT";
 export type ScoreFilter = "ANY" | "3+" | "5+" | "7+";
@@ -27,37 +26,42 @@ export function FilterControls({
   const isFiltered = tradeFilter !== "ALL" || scoreFilter !== "ANY" || sortBy !== "score" || searchQuery !== "";
 
   return (
-    <div className="flex flex-wrap items-center gap-3 py-3">
+    <div
+      className="win-panel"
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: "6px",
+        padding: "4px 6px",
+        marginBottom: "4px",
+        fontFamily: "Tahoma, MS Sans Serif, sans-serif",
+      }}
+    >
+      {/* Trade type label */}
+      <span style={{ fontSize: "11px", fontWeight: "bold", color: "#000" }}>Type:</span>
       {/* Trade Type Segmented */}
-      <div className="flex rounded-md border border-border overflow-hidden">
+      <div className="win-segmented">
         {tradeOptions.map((opt) => (
           <button
             key={opt}
             onClick={() => onTradeFilterChange(opt)}
-            className={cn(
-              "px-3 py-1.5 text-xs font-medium transition-colors",
-              tradeFilter === opt
-                ? "bg-primary text-primary-foreground"
-                : "bg-card text-muted-foreground hover:text-foreground"
-            )}
+            className={`win-segmented-btn${tradeFilter === opt ? " win-segmented-btn-active" : ""}`}
           >
             {opt}
           </button>
         ))}
       </div>
 
+      {/* Score label */}
+      <span style={{ fontSize: "11px", fontWeight: "bold", color: "#000", marginLeft: "6px" }}>Score:</span>
       {/* Score Segmented */}
-      <div className="flex rounded-md border border-border overflow-hidden">
+      <div className="win-segmented">
         {scoreOptions.map((opt) => (
           <button
             key={opt}
             onClick={() => onScoreFilterChange(opt)}
-            className={cn(
-              "px-3 py-1.5 text-xs font-medium transition-colors",
-              scoreFilter === opt
-                ? "bg-primary text-primary-foreground"
-                : "bg-card text-muted-foreground hover:text-foreground"
-            )}
+            className={`win-segmented-btn${scoreFilter === opt ? " win-segmented-btn-active" : ""}`}
           >
             {opt}
           </button>
@@ -65,54 +69,63 @@ export function FilterControls({
       </div>
 
       {/* Search */}
-      <div className="relative flex-1 min-w-[140px] max-w-[220px]">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+      <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+        <Search style={{ position: "absolute", left: "4px", top: "50%", transform: "translateY(-50%)", width: "12px", height: "12px", color: "#808080" }} />
         <input
           id="search-input"
           type="text"
           placeholder="Search… (press /)"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full h-8 pl-8 pr-7 rounded-md border border-border bg-card text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+          className="win-input"
+          style={{ paddingLeft: "20px", paddingRight: searchQuery ? "20px" : "4px", width: "180px", height: "22px" }}
         />
         {searchQuery && (
           <button
             onClick={() => onSearchChange("")}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Clear search"
+            style={{
+              position: "absolute", right: "4px", top: "50%", transform: "translateY(-50%)",
+              background: "none", border: "none", cursor: "pointer", color: "#808080", fontSize: "10px", lineHeight: 1,
+            }}
           >
-            <X className="w-3 h-3" />
+            <X style={{ width: "10px", height: "10px" }} />
           </button>
         )}
       </div>
 
-      {/* Sort */}
-      <select
-        value={sortBy}
-        onChange={(e) => onSortChange(e.target.value as SortOption)}
-        aria-label="Sort by"
-        className="h-8 px-2 rounded-md border border-border bg-card text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
-      >
-        <option value="score">SCORE ↓</option>
-        <option value="rsi">RSI</option>
-        <option value="volume">VOLUME</option>
-        <option value="ticker">TICKER</option>
-      </select>
+      {/* Sort dropdown */}
+      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+        <label htmlFor="sort-select" style={{ fontSize: "11px", fontWeight: "bold", color: "#000" }}>Sort:</label>
+        <select
+          id="sort-select"
+          value={sortBy}
+          onChange={(e) => onSortChange(e.target.value as SortOption)}
+          className="win-select"
+          style={{ height: "22px" }}
+        >
+          <option value="score">Score ↓</option>
+          <option value="rsi">RSI</option>
+          <option value="volume">Volume</option>
+          <option value="ticker">Ticker</option>
+        </select>
+      </div>
 
       {/* Reset filters */}
       {isFiltered && onResetFilters && (
         <button
           onClick={onResetFilters}
-          className="flex items-center gap-1 h-8 px-2 rounded-md border border-border bg-card text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+          className="win-btn"
+          style={{ display: "flex", alignItems: "center", gap: "4px", minWidth: "auto", padding: "2px 6px" }}
           title="Reset all filters"
         >
-          <RotateCcw className="w-3 h-3" />
+          <RotateCcw style={{ width: "10px", height: "10px" }} />
           Reset
         </button>
       )}
 
       {/* Ticker count */}
-      <span className="text-xs text-muted-foreground font-mono ml-auto">
+      <span style={{ fontSize: "11px", color: "#444", fontFamily: "Courier New", marginLeft: "auto" }}>
         {tickerCount} TICKERS
       </span>
     </div>
