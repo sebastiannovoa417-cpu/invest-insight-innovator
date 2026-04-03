@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { generateTradeBrief, generateMarketBriefing, answerQuestion } from "@/lib/ai-engine";
 import type { Stock, RegimeData } from "@/lib/types";
 
-// ── Fixtures ──────────────────────────────────────────────────────────────────
+// ── Fixtures ───────────────────────────────────────────────────────────────────────────────
 
 const signals = {
   sma200: true,
@@ -63,7 +63,7 @@ const mockRegime: RegimeData = {
   regimeScore: 5,
 };
 
-// ── generateTradeBrief ────────────────────────────────────────────────────────
+// ── generateTradeBrief ────────────────────────────────────────────────────────────────────────────
 
 describe("generateTradeBrief", () => {
   it("returns a non-empty string", () => {
@@ -127,7 +127,7 @@ describe("generateTradeBrief", () => {
   });
 });
 
-// ── generateMarketBriefing ────────────────────────────────────────────────────
+// ── generateMarketBriefing ────────────────────────────────────────────────────────────────────────────
 
 describe("generateMarketBriefing", () => {
   it("returns a multi-paragraph string", () => {
@@ -147,7 +147,7 @@ describe("generateMarketBriefing", () => {
   });
 });
 
-// ── answerQuestion ────────────────────────────────────────────────────────────
+// ── answerQuestion ───────────────────────────────────────────────────────────────────────────────
 
 describe("answerQuestion", () => {
   const stocks = [mockLongStock, mockShortStock];

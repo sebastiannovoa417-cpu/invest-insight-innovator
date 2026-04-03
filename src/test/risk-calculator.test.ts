@@ -30,13 +30,11 @@ describe("Risk Calculator", () => {
   });
 
   it("calculates suggestedShares = floor(riskDollars / stopDistance)", () => {
-    // account=10000, risk=1% → $100 at risk; stop distance=$5 → 20 shares
     const { suggestedShares } = computeRiskCalc(10_000, 1, 100, 95);
     expect(suggestedShares).toBe(20);
   });
 
   it("floors suggestedShares (no fractional shares)", () => {
-    // $100 / $3 = 33.33 → floors to 33
     const { suggestedShares } = computeRiskCalc(10_000, 1, 100, 97);
     expect(suggestedShares).toBe(33);
   });
@@ -52,30 +50,28 @@ describe("Risk Calculator", () => {
   });
 
   it("works for short setups (stopLoss > entry)", () => {
-    // SHORT: entry=50, stop=55, distance=5; $100 risk → 20 shares
     const { suggestedShares } = computeRiskCalc(10_000, 1, 50, 55);
     expect(suggestedShares).toBe(20);
   });
 
   it("clamps riskPct to minimum 0.1%", () => {
     const { riskDollars } = computeRiskCalc(10_000, 0, 100, 95);
-    expect(riskDollars).toBeCloseTo(10); // 0.1% of 10000
+    expect(riskDollars).toBeCloseTo(10);
   });
 
   it("clamps riskPct to maximum 100%", () => {
     const { riskDollars } = computeRiskCalc(10_000, 999, 100, 95);
-    expect(riskDollars).toBeCloseTo(10_000); // 100% of 10000
+    expect(riskDollars).toBeCloseTo(10_000);
   });
 
   it("handles large account sizes correctly", () => {
     const { suggestedShares } = computeRiskCalc(500_000, 2, 200, 190);
-    // risk = $10,000; stop distance = $10 → 1000 shares
     expect(suggestedShares).toBe(1_000);
   });
 
   it("handles small account size (accountVal min-clamped to 1)", () => {
     const { riskDollars } = computeRiskCalc(0, 1, 100, 95);
-    expect(riskDollars).toBeCloseTo(0.01); // 1% of 1
+    expect(riskDollars).toBeCloseTo(0.01);
   });
 
   it("maxRisk never exceeds the intended risk dollars (due to flooring)", () => {
