@@ -44,6 +44,22 @@ jobs:
         if: failure()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_BODY: |
+            ## SwingPulse Data Sync Failed
+
+            The scheduled data pipeline did not complete successfully.
+
+            **Run:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            **Trigger:** ${{ github.event_name }}
+
+            ### What to check
+            - [ ] Review the [failed run logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - [ ] Run `python pipeline/fetch_and_score.py` locally to reproduce
+            - [ ] Check yfinance is returning data for all tickers
+            - [ ] Verify Supabase Edge Function is reachable
+            - [ ] Confirm `SUPABASE_SYNC_URL` and `SYNC_API_KEY` secrets are still valid
+
+            _Close this issue once the pipeline is running again._
         run: |
           gh label create sync-failure \
             --color E53E3E \
@@ -52,23 +68,9 @@ jobs:
 
           OPEN=$(gh issue list --label sync-failure --state open --json number --jq length)
           if [ "$OPEN" -eq 0 ]; then
+            RUN_TIME=$(date -u '+%Y-%m-%d %H:%M UTC')
             gh issue create \
-              --title "Data Sync Failure — $(date -u '+%Y-%m-%d %H:%M UTC')" \
+              --title "Data Sync Failure — $RUN_TIME" \
               --label sync-failure \
-              --body "## SwingPulse Data Sync Failed
-
-The scheduled data pipeline did not complete successfully.
-
-**Run:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-**Time:** $(date -u '+%Y-%m-%d %H:%M UTC')
-**Trigger:** ${{ github.event_name }}
-
-### What to check
-- [ ] Review the [failed run logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-- [ ] Run \`python pipeline/fetch_and_score.py\` locally to reproduce
-- [ ] Check yfinance is returning data for all tickers
-- [ ] Verify Supabase Edge Function is reachable
-- [ ] Confirm \`SUPABASE_SYNC_URL\` and \`SYNC_API_KEY\` secrets are still valid
-
-_Close this issue once the pipeline is running again._"
+              --body "$ISSUE_BODY"
           fi
