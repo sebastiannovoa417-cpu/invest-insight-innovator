@@ -281,6 +281,39 @@ export type Database = {
         }
         Relationships: []
       }
+      price_history: {
+        Row: {
+          id: string
+          ticker: string
+          date: string
+          open: number
+          high: number
+          low: number
+          close: number
+          volume: number | null
+        }
+        Insert: {
+          id?: string
+          ticker: string
+          date: string
+          open: number
+          high: number
+          low: number
+          close: number
+          volume?: number | null
+        }
+        Update: {
+          id?: string
+          ticker?: string
+          date?: string
+          open?: number
+          high?: number
+          low?: number
+          close?: number
+          volume?: number | null
+        }
+        Relationships: []
+      }
       watchlist: {
         Row: {
           created_at: string
