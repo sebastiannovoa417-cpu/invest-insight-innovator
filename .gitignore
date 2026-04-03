@@ -30,3 +30,11 @@ dist-ssr
 .env
 .env.local
 pipeline/.env
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Claude Code & MCP tooling
+.claude/
+.agents/
