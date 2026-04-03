@@ -57,38 +57,7 @@ if not SYNC_API_KEY:
         "ERROR: Neither SYNC_API_KEY nor SUPABASE_SERVICE_ROLE_KEY is set. "
         "At least one must be provided."
     )
-    
-    UNIVERSE_NAME = "SwingPulse 25 - v1.0"
 
-UNIVERSE: list[str] = [
-    # Under $10
-    "PLUG",
-    "NIO",
-    "SOFI",
-    "MARA",
-    "VALE",
-    "F",
-    "AAL",
-    "SNAP",
-    "NOK",
-    "XPEV",
-    # Swing Trade Leaders 2026
-    "LMT",
-    "CIEN",
-    "FIX",
-    "MPC",
-    "MU",
-    "AMAT",
-    "NVDA",
-    "META",
-    "TSLA",
-    "AMZN",
-    "MSFT",
-    "AAPL",
-    "GE",
-    "FDX",
-    "GOOGL",
-]
 UNIVERSE_NAME = "SwingPulse 25 — v1.0"
 
 
