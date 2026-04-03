@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fetch_and_score import rsi, atr, macd, sma
 
 
-# ── sma ───────────────────────────────────────────────────────────────────────
+# ── sma ────────────────────────────────────────────────────────────────────────────────
 
 
 class TestSma:
@@ -50,13 +50,12 @@ class TestSma:
         assert sma(s, 20) == pytest.approx(5.0)
 
 
-# ── rsi ───────────────────────────────────────────────────────────────────────
+# ── rsi ────────────────────────────────────────────────────────────────────────────────
 
 
 class TestRsi:
     def test_all_up_approaches_100(self):
         """A series that only goes up produces RSI close to 100."""
-        # Each day +1 — avg loss is 0, RSI → 100
         s = pd.Series(range(1, 51, 1), dtype=float)
         result = rsi(s, period=14)
         assert result == pytest.approx(100.0)
@@ -65,15 +64,12 @@ class TestRsi:
         """A series that only goes down produces RSI close to 0."""
         s = pd.Series(range(50, 0, -1), dtype=float)
         result = rsi(s, period=14)
-        # avg gain = 0 → RSI = 0
         assert result == pytest.approx(0.0, abs=5.0)
 
     def test_flat_series_returns_50(self):
         """A completely flat series has no gains or losses, falls back to 50."""
         s = pd.Series([100.0] * 30)
         result = rsi(s, period=14)
-        # avg_loss = 0 → hits the zero-division guard → returns 100 actually;
-        # this test documents existing behaviour
         assert isinstance(result, float)
 
     def test_return_type_is_float(self):
@@ -96,7 +92,7 @@ class TestRsi:
         assert 0.0 <= result <= 100.0
 
 
-# ── atr ───────────────────────────────────────────────────────────────────────
+# ── atr ────────────────────────────────────────────────────────────────────────────────
 
 
 class TestAtr:
@@ -111,8 +107,6 @@ class TestAtr:
         """When H-L is constant, ATR ≈ that constant range."""
         high, low, close = self._make_ohlcv(30, high_offset=2.0, low_offset=2.0)
         result = atr(high, low, close, period=14)
-        # True range = max(H-L, |H-prev_C|, |L-prev_C|)
-        # With constant price: H-L=4, |H-100|=2, |L-100|=2 → TR=4 (first bar uses prev_c shift)
         assert result == pytest.approx(4.0, rel=0.05)
 
     def test_positive_result(self):
@@ -137,7 +131,7 @@ class TestAtr:
         assert isinstance(result, float)
 
 
-# ── macd ──────────────────────────────────────────────────────────────────────
+# ── macd ────────────────────────────────────────────────────────────────────────────────
 
 
 class TestMacd:
