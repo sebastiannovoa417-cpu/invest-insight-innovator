@@ -39,10 +39,13 @@ export function useLifecycle<TData, TError = Error>(
   if (status === "success" && fetchStatus === "fetching") return "refreshing";
 
   // Data is available
-  if (status === "success" && data !== undefined && data !== null) return "success";
+  if (status === "success") return "success";
 
   // Fetch failed — no usable data
   if (status === "error") return "error";
+
+  // Fetch is paused (e.g., device is offline)
+  if (status === "pending" && fetchStatus === "paused") return "loading";
 
   // Fallback — treat anything else as still loading
   return "loading";
