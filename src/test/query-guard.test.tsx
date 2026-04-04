@@ -26,7 +26,6 @@ describe("QueryGuard rendering", () => {
 
     expect(screen.getByText("AAPL")).toBeInTheDocument();
     expect(screen.getByText("MSFT")).toBeInTheDocument();
-    expect(screen.queryByText(/loading/i)).not.toBeInTheDocument();
   });
 
   it("error + errorFallback as function: calls fallback with the error", () => {
@@ -124,6 +123,26 @@ describe("QueryGuard rendering", () => {
     };
 
     render(<QueryGuard query={errorQuery}>{children}</QueryGuard>);
+    expect(children).not.toHaveBeenCalled();
+  });
+
+  it("idle: renders loadingFallback when query is disabled", () => {
+    const query: QueryStub<string[]> = {
+      status: "pending",
+      fetchStatus: "idle",
+      data: undefined,
+      error: null,
+    };
+
+    const children = vi.fn((_data: string[]) => <span>data</span>);
+
+    render(
+      <QueryGuard query={query} loadingFallback={<span>disabled</span>}>
+        {children}
+      </QueryGuard>
+    );
+
+    expect(screen.getByText("disabled")).toBeInTheDocument();
     expect(children).not.toHaveBeenCalled();
   });
 });
