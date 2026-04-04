@@ -8,7 +8,7 @@ interface QueryGuardProps<TData, TError = Error> {
   query: Pick<UseQueryResult<TData, TError>, "status" | "fetchStatus" | "data" | "error">;
   /** Rendered when data is ready. Receives the resolved (non-null) data. */
   children: (data: TData) => ReactNode;
-  /** Rendered while the first fetch is in-flight. Defaults to a spinner. */
+  /** Rendered while the first fetch is in-flight, or while the query is idle (disabled). Defaults to a spinner. */
   loadingFallback?: ReactNode;
   /** Rendered when the fetch has failed and no data is available. Defaults to an error card. */
   errorFallback?: ReactNode | ((error: TError | null) => ReactNode);
@@ -50,7 +50,7 @@ function DefaultEmpty() {
   );
 }
 
-function defaultIsEmpty<T>(data: T): boolean {
+export function defaultIsEmpty<T>(data: T): boolean {
   if (data === null || data === undefined) return true;
   if (Array.isArray(data)) return data.length === 0;
   return false;
@@ -72,7 +72,7 @@ function defaultIsEmpty<T>(data: T): boolean {
  *   {(stocks) => <StockTable stocks={stocks} />}
  * </QueryGuard>
  */
-export function QueryGuard<TData, TError extends { message?: string } = Error>({
+export function QueryGuard<TData, TError = Error>({
   query,
   children,
   loadingFallback,
