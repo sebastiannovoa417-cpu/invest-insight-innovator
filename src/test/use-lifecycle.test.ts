@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { useLifecycle, type LifecyclePhase } from "@/hooks/use-lifecycle";
-import { renderHook } from "@testing-library/react";
 
 type QueryStub = {
   status: "pending" | "success" | "error";
@@ -10,8 +9,7 @@ type QueryStub = {
 };
 
 function run(stub: QueryStub): LifecyclePhase {
-  const { result } = renderHook(() => useLifecycle(stub));
-  return result.current;
+  return useLifecycle(stub);
 }
 
 describe("useLifecycle", () => {
@@ -35,8 +33,11 @@ describe("useLifecycle", () => {
     expect(run({ status: "error", fetchStatus: "idle", data: undefined, error: new Error("oops") })).toBe("error");
   });
 
-  it("returns 'loading' for any unrecognized combination (safe fallback)", () => {
-    // success but data is null — treated as still loading
-    expect(run({ status: "success", fetchStatus: "idle", data: null, error: null })).toBe("loading");
+  it("returns 'success' when status is success even if data is null (isEmpty is QueryGuard's job)", () => {
+    expect(run({ status: "success", fetchStatus: "idle", data: null, error: null })).toBe("success");
+  });
+
+  it("returns 'loading' when fetch is paused (e.g. device offline)", () => {
+    expect(run({ status: "pending", fetchStatus: "paused", data: undefined, error: null })).toBe("loading");
   });
 });
