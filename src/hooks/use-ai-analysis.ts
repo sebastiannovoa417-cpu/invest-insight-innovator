@@ -1,12 +1,19 @@
 import { useState, useCallback } from "react";
 import type { Stock, RegimeData } from "@/lib/types";
-import { generateTradeBrief, answerQuestion } from "@/lib/ai-engine";
+import {
+  generateTradeBrief,
+  answerQuestion,
+  rankKnowledgeMatches,
+  filterBrokerWorkflows,
+  buildSources,
+  questionMentionsBroker,
+  type TradingKnowledgeRecord,
+  type KnowledgeSourceRecord,
+  type BrokerWorkflowRecord,
+  type SourceChip,
+} from "@/lib/ai-engine";
 import { supabase } from "@/integrations/supabase/client";
 
-interface SourceChip {
-  label: string;
-  url: string;
-}
 
 interface StreamMeta {
   sources?: SourceChip[];
@@ -184,6 +191,58 @@ async function streamAiAnalysis(
   return { text: fullText, meta };
 }
 
+// ── Knowledge fetch helpers (used in built-in engine fallback) ────────────────
+
+// Fetches all knowledge rows; filtering/ranking is done by rankKnowledgeMatches.
+async function fetchKnowledgeData(
+  _question: string,
+): Promise<{ rows: TradingKnowledgeRecord[]; sourceRows: KnowledgeSourceRecord[] }> {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !supabaseKey || supabaseKey === "offline-mode-key-not-configured") {
+    return { rows: [], sourceRows: [] };
+  }
+  try {
+    const headers = { "apikey": supabaseKey, "Authorization": `Bearer ${supabaseKey}` };
+    const [knowledgeRes, sourcesRes] = await Promise.all([
+      fetch(
+        `${supabaseUrl}/rest/v1/trading_knowledge?select=id,category,title,content,tags,broker,platform,source_id`,
+        { headers },
+      ),
+      fetch(
+        `${supabaseUrl}/rest/v1/knowledge_sources?select=id,publisher,url,trust_tier`,
+        { headers },
+      ),
+    ]);
+    if (!knowledgeRes.ok || !sourcesRes.ok) return { rows: [], sourceRows: [] };
+    const rows = await knowledgeRes.json() as TradingKnowledgeRecord[];
+    const sourceRows = await sourcesRes.json() as KnowledgeSourceRecord[];
+    return { rows, sourceRows };
+  } catch {
+    return { rows: [], sourceRows: [] };
+  }
+}
+
+async function fetchBrokerWorkflowData(question: string): Promise<BrokerWorkflowRecord[]> {
+  if (!questionMentionsBroker(question)) return [];
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !supabaseKey || supabaseKey === "offline-mode-key-not-configured") {
+    return [];
+  }
+  try {
+    const headers = { "apikey": supabaseKey, "Authorization": `Bearer ${supabaseKey}` };
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/broker_order_workflows?select=id,broker,platform,instrument,order_types_supported,steps_json`,
+      { headers },
+    );
+    if (!res.ok) return [];
+    return await res.json() as BrokerWorkflowRecord[];
+  } catch {
+    return [];
+  }
+}
+
 // ── Trade Analysis ────────────────────────────────────────────────────────────
 
 export function useAiTradeAnalysis() {
@@ -310,7 +369,33 @@ export function useAiChat() {
       }
     }
 
-    const answer = answerQuestion(question, stocks, defaultRegime(regime));
+    const normalizedQuestion = question.trim();
+    const historyForBuiltIn = (options?.history ?? []).map((m) => ({ role: m.role, text: m.text }));
+
+    const [{ rows: kRows, sourceRows }, wfAllRows] = await Promise.all([
+      fetchKnowledgeData(normalizedQuestion),
+      fetchBrokerWorkflowData(normalizedQuestion),
+    ]);
+
+    const knowledgeMatches = rankKnowledgeMatches(normalizedQuestion, kRows, sourceRows);
+    const matchedWorkflows = filterBrokerWorkflows(normalizedQuestion, wfAllRows);
+    const builtInSources = buildSources(knowledgeMatches);
+    const builtInUncited = knowledgeMatches.length === 0 && matchedWorkflows.length === 0;
+
+    setMessages((prev) => updateAssistantMessage(prev, assistantMessageId, (message) => ({
+      ...message,
+      sources: builtInSources,
+      uncitedWarning: builtInUncited,
+    })));
+
+    const answer = answerQuestion(
+      question,
+      stocks,
+      defaultRegime(regime),
+      historyForBuiltIn,
+      knowledgeMatches,
+      matchedWorkflows,
+    );
     simulateStream(
       answer,
       (chunk) => {
@@ -325,8 +410,8 @@ export function useAiChat() {
           assistantMessageId,
           question,
           answer,
-          sources: [],
-          uncitedWarning: false,
+          sources: builtInSources,
+          uncitedWarning: builtInUncited,
         });
       },
     );

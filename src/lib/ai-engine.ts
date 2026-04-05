@@ -5,6 +5,138 @@
 
 import type { Stock, RegimeData } from "@/lib/types";
 
+// ── Knowledge & Broker types (mirror of edge function) ────────────────────────
+
+export interface TradingKnowledgeRecord {
+    id: string;
+    category: "swing_principles" | "risk_management" | "order_mechanics" | "broker_workflows" | "app_help";
+    title: string;
+    content: string;
+    tags: string[];
+    broker: string | null;
+    platform: string | null;
+    source_id: string | null;
+}
+
+export interface KnowledgeSourceRecord {
+    id: string;
+    publisher: string;
+    trust_tier: string;
+    url: string;
+}
+
+export interface KnowledgeMatch extends TradingKnowledgeRecord {
+    sourceLabel: string | null;
+    sourceUrl: string | null;
+    trustTier: string | null;
+}
+
+export interface BrokerWorkflowRecord {
+    id: string;
+    broker: string;
+    platform: string;
+    instrument: string;
+    order_types_supported: string[];
+    steps_json: string[];
+}
+
+export interface SourceChip {
+    label: string;
+    url: string;
+}
+
+export interface HistoryEntry {
+    role: "user" | "assistant";
+    text: string;
+}
+
+const BROKER_KEYWORDS: Record<string, string> = {
+    "robinhood": "Robinhood",
+    "fidelity": "Fidelity",
+    "interactive brokers": "Interactive Brokers",
+    "ibkr": "Interactive Brokers",
+    "webull": "Webull",
+    "moomoo": "Moomoo",
+};
+
+export function scoreKnowledgeMatch(question: string, item: TradingKnowledgeRecord): number {
+    const q = question.toLowerCase();
+    let score = 0;
+
+    if (q.includes(item.category.replace(/_/g, " "))) score += 2;
+    if (item.broker && q.includes(item.broker.toLowerCase())) score += 4;
+    if (item.platform && q.includes(item.platform.toLowerCase())) score += 1;
+
+    for (const tag of item.tags ?? []) {
+        if (q.includes(tag.toLowerCase())) score += 2;
+    }
+
+    const titleWords = item.title.toLowerCase().split(/\s+/);
+    for (const word of titleWords) {
+        if (word.length >= 4 && q.includes(word)) score += 1;
+    }
+
+    if (
+        item.category === "app_help" &&
+        /score|regime|setup|signal|bull|bear|long|short|atr|entry|stop|target|r:r|risk.reward|panel|dashboard|swingpulse|universe|watchlist|position|backtest|volume.ratio|52.week|earnings.warning/.test(q)
+    ) {
+        score += 1;
+    }
+
+    return score;
+}
+
+export function rankKnowledgeMatches(
+    question: string,
+    rows: TradingKnowledgeRecord[],
+    sourceRows: KnowledgeSourceRecord[],
+): KnowledgeMatch[] {
+    const sourcesById = new Map(sourceRows.map((s) => [s.id, s]));
+    return rows
+        .map((item) => {
+            const source = item.source_id ? sourcesById.get(item.source_id) : undefined;
+            return {
+                ...item,
+                sourceLabel: source?.publisher ?? null,
+                sourceUrl: source?.url ?? null,
+                trustTier: source?.trust_tier ?? null,
+            };
+        })
+        .map((item) => ({ item, score: scoreKnowledgeMatch(question, item) }))
+        .filter((entry) => entry.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 6)
+        .map((entry) => entry.item);
+}
+
+export function filterBrokerWorkflows(question: string, rows: BrokerWorkflowRecord[]): BrokerWorkflowRecord[] {
+    const q = question.toLowerCase();
+    const mentioned = new Set<string>();
+    for (const [keyword, name] of Object.entries(BROKER_KEYWORDS)) {
+        if (q.includes(keyword)) mentioned.add(name);
+    }
+    if (mentioned.size === 0) return [];
+    return rows.filter((wf) => mentioned.has(wf.broker));
+}
+
+export function buildSources(matches: KnowledgeMatch[]): SourceChip[] {
+    const deduped = new Map<string, SourceChip>();
+    for (const match of matches) {
+        if (!match.sourceLabel || !match.sourceUrl) continue;
+        const key = `${match.sourceLabel}::${match.sourceUrl}`;
+        if (!deduped.has(key)) {
+            deduped.set(key, { label: match.sourceLabel, url: match.sourceUrl });
+        }
+        if (deduped.size >= 3) break;
+    }
+    return [...deduped.values()];
+}
+
+export function questionMentionsBroker(question: string): boolean {
+    const q = question.toLowerCase();
+    return Object.keys(BROKER_KEYWORDS).some((k) => q.includes(k));
+}
+
 // ── Company name → ticker aliases (covers the 25-ticker universe + common aliases) ─
 const COMPANY_NAMES: Record<string, string> = {
     "nvidia": "NVDA",
@@ -72,6 +204,17 @@ export function generateTradeBrief(stock: Stock, regime?: RegimeData): string {
     const contextLine =
         `ATR is ${stock.atr.toFixed(2)}; distance from 52-week extreme: ${stock.distance52w.toFixed(1)}%.`;
 
+    const passing = Object.entries(stock.signals).filter(([, v]) => v).map(([k]) => k);
+    const failing = Object.entries(stock.signals).filter(([, v]) => !v).map(([k]) => k);
+    const signalsLine =
+        `Signals passing (${passing.length}): ${passing.join(", ") || "none"}. ` +
+        `Failing (${failing.length}): ${failing.join(", ") || "none"}.`;
+
+    const siNote =
+        stock.shortInterest != null && stock.shortInterest > 0
+            ? `Short interest: ${stock.shortInterest.toFixed(1)}%.`
+            : "";
+
     const rsiNote =
         direction === "LONG"
             ? stock.rsi < 40
@@ -107,7 +250,7 @@ export function generateTradeBrief(stock: Stock, regime?: RegimeData): string {
             ? "WARNING: earnings event within 2 weeks — elevated gap risk; reduce size or avoid new entries."
             : "";
 
-    return [setupLine, priceLine, contextLine, rsiNote, volNote, regimeLine, conflictNote, earningsNote]
+    return [setupLine, priceLine, contextLine, signalsLine, siNote, rsiNote, volNote, regimeLine, conflictNote, earningsNote]
         .filter(Boolean)
         .join(" ")
         .trim();
@@ -211,6 +354,7 @@ type QuestionIntent =
     | "compare"
     | "position_size"
     | "short_interest"
+    | "broker_workflow"
     | "ticker_lookup"
     | "default";
 
@@ -272,6 +416,11 @@ function detectIntent(question: string, stocks: Stock[]): QuestionIntent {
     if (hasAnyPhrase(q, [" short ", "short setups", "bearish candidate", "sell candidate", "what to short", "bearish plays", "sell candidates", "going down", "what is going down", "downtrend", "bearish stocks", "put plays", "fading plays", "sell the rip"])) return "short_candidates";
     if (hasAnyPhrase(q, [" long ", "long setups", "bullish candidate", "buy candidate", "what to buy", "bullish plays", "buy candidates", "good buys", "should i buy", "worth buying", "going up", "what is going up", "buy the dip", "dip buy", "bullish stocks", "call plays", "upward trend"])) return "long_candidates";
 
+    if (
+        Object.keys(BROKER_KEYWORDS).some((k) => q.includes(k)) &&
+        hasAnyPhrase(q, ["how to", "how do i", "place order", "buy order", "limit order", "stop order", "order type", "trade on", "steps", "tutorial", "guide", "set up", "place a"])
+    ) return "broker_workflow";
+
     if (tickers.length >= 1) return "ticker_lookup";
     return "default";
 }
@@ -293,9 +442,36 @@ export function answerQuestion(
     question: string,
     stocks: Stock[],
     regime: RegimeData,
+    history?: HistoryEntry[],
+    knowledgeMatches?: KnowledgeMatch[],
+    brokerWorkflows?: BrokerWorkflowRecord[],
 ): string {
-    const intent = detectIntent(question, stocks);
-    const questionTickers = extractQuestionTickers(question, stocks);
+    // ── Follow-up context resolution ──────────────────────────────────────────
+    // If the question is a short follow-up (e.g. "tell me more", "which one?"),
+    // extract ticker context from recent history and prepend it so intent
+    // detection works correctly.
+    const FOLLOW_UP_RE = /^(tell me more|more details?|elaborate|explain more|what about it|how so|and that|which one|the (first|second|top) one)/i;
+    const effectiveQuestion =
+        FOLLOW_UP_RE.test(question.trim()) && (history ?? []).length > 0
+            ? (() => {
+                const tickerSet = new Set(stocks.map((s) => s.ticker));
+                const mentioned: string[] = [];
+                const mentionedSet = new Set<string>();
+                for (const msg of [...(history ?? [])].reverse().slice(0, 4)) {
+                    for (const word of msg.text.toUpperCase().split(/\W+/)) {
+                        if (tickerSet.has(word) && !mentionedSet.has(word)) {
+                            mentioned.push(word);
+                            mentionedSet.add(word);
+                        }
+                    }
+                    if (mentioned.length >= 2) break;
+                }
+                return mentioned.length > 0 ? `${question} about ${mentioned.join(", ")}` : question;
+            })()
+            : question;
+
+    const intent = detectIntent(effectiveQuestion, stocks);
+    const questionTickers = extractQuestionTickers(effectiveQuestion, stocks);
 
     // ── Regime / market conditions ────────────────────────────────────────────
     if (intent === "regime") {
@@ -600,6 +776,26 @@ export function answerQuestion(
         );
     }
 
+    // ── Broker order workflows ────────────────────────────────────────────────
+    if (intent === "broker_workflow") {
+        if (brokerWorkflows && brokerWorkflows.length > 0) {
+            const parts = brokerWorkflows.map((wf) =>
+                `${wf.broker} (${wf.platform}) — ${wf.instrument}:\n` +
+                (wf.steps_json as string[]).map((step, i) => `${i + 1}. ${step}`).join("\n")
+            );
+            return (
+                `Order workflow${parts.length > 1 ? "s" : ""}:\n\n` +
+                parts.join("\n\n") +
+                "\n\nDouble-check your broker's current interface — workflows may vary by account type."
+            );
+        }
+        return (
+            "No stored workflow found for that broker in the curated knowledge base. " +
+            "Try asking with the full broker name (e.g., 'Robinhood', 'Fidelity', 'Webull', 'Interactive Brokers'). " +
+            "If you have a live Supabase connection with broker_order_workflows data, this will return step-by-step instructions."
+        );
+    }
+
     // ── Specific ticker lookup (e.g. "Tell me about NVDA") ───────────────────
     if (intent === "ticker_lookup") {
         const ticker = questionTickers[0];
@@ -638,11 +834,18 @@ export function answerQuestion(
         .join("\n");
     const topTicker = top3[0];
     const exampleTicker = topTicker ? topTicker.ticker : "NVDA";
+    const knowledgeBlock = knowledgeMatches && knowledgeMatches.length > 0
+        ? "\n\n" + knowledgeMatches.slice(0, 2).map((m) => {
+            const src = m.sourceLabel && m.sourceUrl ? `\nSource: ${m.sourceLabel} — ${m.sourceUrl}` : "";
+            return `**${m.title}**\n${m.content}${src}`;
+        }).join("\n\n")
+        : "";
     return (
         `Regime: ${regime.status} (${regime.regimeScore}/6 conditions). VIX ${regime.vix.toFixed(1)}, SPY RSI ${regime.spyRsi.toFixed(1)}. ${defaultRegimeBias}\n` +
         `Universe: ${stocks.length} tickers \u2014 ${longCount} LONG, ${shortCount} SHORT.\n\n` +
         `Top setups right now:\n${setupLines}\n\n` +
-        `${riskNote}\n\n` +
-        `Try: "tell me about ${exampleTicker}", "top setups", "why is ${exampleTicker} rated ${topTicker?.tradeType ?? "LONG"}?", or "how is the market?"`
+        `${riskNote}` +
+        knowledgeBlock +
+        `\n\nTry: "tell me about ${exampleTicker}", "top setups", "why is ${exampleTicker} rated ${topTicker?.tradeType ?? "LONG"}?", or "how is the market?"`
     );
 }
