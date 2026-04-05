@@ -5,6 +5,41 @@
 
 import type { Stock, RegimeData } from "@/lib/types";
 
+// ── Company name → ticker aliases (covers the 25-ticker universe + common aliases) ─
+const COMPANY_NAMES: Record<string, string> = {
+    "nvidia": "NVDA",
+    "nvidia corp": "NVDA",
+    "tesla": "TSLA",
+    "apple": "AAPL",
+    "microsoft": "MSFT",
+    "meta": "META",
+    "facebook": "META",
+    "amazon": "AMZN",
+    "google": "GOOGL",
+    "alphabet": "GOOGL",
+    "netflix": "NFLX",
+    "amd": "AMD",
+    "advanced micro": "AMD",
+    "advanced micro devices": "AMD",
+    "intel": "INTC",
+    "sofi": "SOFI",
+    "mara": "MARA",
+    "marathon digital": "MARA",
+    "coinbase": "COIN",
+    "palantir": "PLTR",
+    "arm": "ARM",
+    "arm holdings": "ARM",
+    "nio": "NIO",
+    "rivian": "RIVN",
+    "super micro": "SMCI",
+    "supermicro": "SMCI",
+    "robinhood": "HOOD",
+    "shopify": "SHOP",
+    "snowflake": "SNOW",
+    "uber": "UBER",
+    "lyft": "LYFT",
+};
+
 // ── Trade Brief ────────────────────────────────────────────────────────────────
 
 /**
@@ -198,7 +233,16 @@ function normalizeQuestion(question: string): string {
 
 function extractQuestionTickers(question: string, stocks: Stock[]): string[] {
     const tokenSet = new Set(question.toUpperCase().split(/\W+/).filter(Boolean));
-    return stocks.map((s) => s.ticker).filter((ticker) => tokenSet.has(ticker));
+    const tickerSet = new Set(stocks.map((s) => s.ticker));
+    const matched = new Set(stocks.map((s) => s.ticker).filter((ticker) => tokenSet.has(ticker)));
+    // Also match company name aliases against the lowercased question
+    const lower = question.toLowerCase();
+    for (const [name, ticker] of Object.entries(COMPANY_NAMES)) {
+        if (tickerSet.has(ticker) && lower.includes(name)) {
+            matched.add(ticker);
+        }
+    }
+    return [...matched];
 }
 
 function hasAnyPhrase(input: string, phrases: string[]): boolean {
@@ -216,17 +260,17 @@ function detectIntent(question: string, stocks: Stock[]): QuestionIntent {
     if (hasAnyPhrase(q, ["news", "headline", "latest on"])) return "news";
     if (hasAnyPhrase(q, ["why", "explain", "signals for", "what signals"])) return "why";
 
-    if (hasAnyPhrase(q, ["regime", "market condition", "overall market", "broad market", "market update", "market today", "market this week", "how is the market", "spy", "vix", "market vibe", "macro"])) return "regime";
-    if (hasAnyPhrase(q, ["best r:r", "best rr", "risk reward", "reward risk", "best ratio", "highest reward", "best setup by reward"])) return "best_rr";
-    if (hasAnyPhrase(q, ["strongest", "top setup", "top pick", "best setup", "best trade", "what is hot", "any winners", "best picks", "top ideas", "hot stocks", "what should i look at", "what to trade", "top stocks"])) return "top_setups";
-    if (hasAnyPhrase(q, ["earnings", "report", "catalyst", "upcoming reports", "avoid earnings"])) return "earnings";
+    if (hasAnyPhrase(q, ["regime", "market condition", "overall market", "broad market", "market update", "market today", "market this week", "how is the market", "what is the market doing", "what is happening in the market", "spy", "vix", "market vibe", "macro", "market sentiment", "market direction", "good time to trade", "good time to buy", "market outlook", "market doing"])) return "regime";
+    if (hasAnyPhrase(q, ["best r:r", "best rr", "risk reward", "reward risk", "best ratio", "highest reward", "best setup by reward", "best risk reward", "most favorable setup", "highest ratio"])) return "best_rr";
+    if (hasAnyPhrase(q, ["strongest", "top setup", "top pick", "best setup", "best trade", "what is hot", "any winners", "best picks", "top ideas", "hot stocks", "what should i look at", "what to trade", "top stocks", "what looks good", "what looks interesting", "give me ideas", "give me trade ideas", "trade ideas", "any plays", "any opportunities", "anything interesting", "what is interesting", "scan results", "any picks", "good trades", "any ideas", "show me picks", "what to watch", "what should i watch"])) return "top_setups";
+    if (hasAnyPhrase(q, ["earnings", "report", "catalyst", "upcoming reports", "avoid earnings", "upcoming earnings", "catalyst risk", "binary events", "reporting this week", "what is reporting"])) return "earnings";
     if (hasAnyPhrase(q, ["conflict", "mixed signal", "diverge", "uncertain setups", "indecisive"])) return "conflicts";
-    if (hasAnyPhrase(q, ["volume", "vol spike", "high volume", "active stocks", "big volume", "unusual volume"])) return "volume";
-    if (hasAnyPhrase(q, ["rsi", "oversold", "overbought", "momentum", "extended", "stretched", "mean reversion"])) return "rsi";
+    if (hasAnyPhrase(q, ["volume", "vol spike", "high volume", "active stocks", "big volume", "unusual volume", "most active", "unusual activity", "what is moving", "active today", "high volume stocks", "volume spike"])) return "volume";
+    if (hasAnyPhrase(q, ["rsi", "oversold", "overbought", "momentum", "extended", "stretched", "mean reversion", "bounce candidate", "reversal plays", "reversal candidate", "oversold stocks", "overbought stocks", "extreme rsi", "stretched stocks"])) return "rsi";
 
     // Broad direction intents should not steal sizing/short-interest questions.
-    if (hasAnyPhrase(q, [" short ", "short setups", "bearish candidate", "sell candidate", "what to short", "bearish plays", "sell candidates"])) return "short_candidates";
-    if (hasAnyPhrase(q, [" long ", "long setups", "bullish candidate", "buy candidate", "what to buy", "bullish plays", "buy candidates", "good buys", "should i buy", "worth buying"])) return "long_candidates";
+    if (hasAnyPhrase(q, [" short ", "short setups", "bearish candidate", "sell candidate", "what to short", "bearish plays", "sell candidates", "going down", "what is going down", "downtrend", "bearish stocks", "put plays", "fading plays", "sell the rip"])) return "short_candidates";
+    if (hasAnyPhrase(q, [" long ", "long setups", "bullish candidate", "buy candidate", "what to buy", "bullish plays", "buy candidates", "good buys", "should i buy", "worth buying", "going up", "what is going up", "buy the dip", "dip buy", "bullish stocks", "call plays", "upward trend"])) return "long_candidates";
 
     if (tickers.length >= 1) return "ticker_lookup";
     return "default";
@@ -309,9 +353,20 @@ export function answerQuestion(
         }
     }
 
-    // ── Best R:R ─────────────────────────────────────────────────────────────
+    // ── Best R:R ─────────────────────────────────────────────────────────────────────────────
     if (intent === "best_rr") {
         const sorted = [...stocks].sort((a, b) => b.riskReward - a.riskReward).slice(0, 5);
+        const top = sorted[0];
+        const alignmentNote = top
+            ? `Note: top-ranked ${top.ticker} is a ${top.tradeType} setup. ` +
+            `Regime (${regime.status}) ${(top.tradeType === "LONG" && regime.status === "BULLISH") ||
+                (top.tradeType === "SHORT" && regime.status === "BEARISH")
+                ? "favors"
+                : regime.status === "NEUTRAL"
+                    ? "is neutral on"
+                    : "disfavors"
+            } this direction.`
+            : "";
         return (
             `Top 5 setups by R:R ratio:\n` +
             sorted
@@ -320,7 +375,8 @@ export function answerQuestion(
                         `${i + 1}. ${s.ticker} — ${s.riskReward.toFixed(2)}:1 ` +
                         `(${s.tradeType}, entry ${s.bestEntry.toFixed(2)}, stop ${s.stopLoss.toFixed(2)}, target ${s.target.toFixed(2)})`,
                 )
-                .join("\n")
+                .join("\n") +
+            (alignmentNote ? `\n\n${alignmentNote}` : "")
         );
     }
 
@@ -329,6 +385,12 @@ export function answerQuestion(
         const getScore = (s: Stock) =>
             s.tradeType === "LONG" ? s.bullScore : s.bearScore;
         const top5 = [...stocks].sort((a, b) => getScore(b) - getScore(a)).slice(0, 5);
+        const topRegimeBias =
+            regime.status === "BULLISH"
+                ? "BULLISH regime — LONG setups have structural support."
+                : regime.status === "BEARISH"
+                    ? "BEARISH regime — SHORT setups have structural support. Size down on LONGs."
+                    : "NEUTRAL regime — require ≥6/8 signals before entering either direction.";
         return (
             `Top 5 setups by signal score:\n` +
             top5
@@ -342,7 +404,8 @@ export function answerQuestion(
                         (s.conflictTrend ? " ⚠ conflict" : "")
                     );
                 })
-                .join("\n")
+                .join("\n") +
+            `\n\n${topRegimeBias}`
         );
     }
 
@@ -353,7 +416,14 @@ export function answerQuestion(
             .sort((a, b) => b.bearScore - a.bearScore);
         if (shorts.length === 0)
             return "No tickers are currently rated SHORT in the scan.";
+        const shortRegimeNote =
+            regime.status === "BULLISH"
+                ? `⚠ Regime is BULLISH — SHORT setups face structural headwinds. Require 6+/8 bear signals.\n`
+                : regime.status === "BEARISH"
+                    ? `Regime is BEARISH — conditions favour SHORT entries.\n`
+                    : `Regime is NEUTRAL — trade selectively, prefer high-conviction setups.\n`;
         return (
+            shortRegimeNote +
             `${shorts.length} SHORT setups in the universe:\n` +
             shorts
                 .slice(0, 6)
@@ -374,7 +444,14 @@ export function answerQuestion(
             .sort((a, b) => b.bullScore - a.bullScore);
         if (longs.length === 0)
             return "No tickers are currently rated LONG in the scan.";
+        const longRegimeNote =
+            regime.status === "BEARISH"
+                ? `⚠ Regime is BEARISH — LONG setups face structural headwinds. Require 6+/8 signals and reduce size.\n`
+                : regime.status === "BULLISH"
+                    ? `Regime is BULLISH — conditions favour LONG entries.\n`
+                    : `Regime is NEUTRAL — trade selectively, prefer high-conviction setups.\n`;
         return (
+            longRegimeNote +
             `${longs.length} LONG setups in the universe:\n` +
             longs
                 .slice(0, 6)
@@ -530,23 +607,42 @@ export function answerQuestion(
         if (stock) return generateTradeBrief(stock, regime);
     }
 
-    // ── Default — universe summary ────────────────────────────────────────────
+    // -- Default -- contextual market briefing (best-effort for unrecognised questions) ---
+    const defaultGetScore = (s: Stock) => s.tradeType === "LONG" ? s.bullScore : s.bearScore;
+    const top3 = [...stocks].sort((a, b) => defaultGetScore(b) - defaultGetScore(a)).slice(0, 3);
     const longCount = stocks.filter((s) => s.tradeType === "LONG").length;
     const shortCount = stocks.filter((s) => s.tradeType === "SHORT").length;
-    const avgRR =
-        stocks.reduce((sum, s) => sum + s.riskReward, 0) / (stocks.length || 1);
+    const defaultRegimeBias =
+        regime.status === "BULLISH"
+            ? "Favors LONG setups."
+            : regime.status === "BEARISH"
+                ? "Favors SHORT setups \u2014 reduce LONG size."
+                : "Mixed \u2014 require high conviction before entry.";
+    const earningsCount = stocks.filter((s) => s.earningsWarning).length;
+    const conflictCount = stocks.filter((s) => s.conflictTrend).length;
+    const riskNote =
+        earningsCount > 0 && conflictCount > 0
+            ? `\u26a0 ${earningsCount} earnings risk${earningsCount !== 1 ? "s" : ""}, ${conflictCount} trend conflict${conflictCount !== 1 ? "s" : ""} in the universe.`
+            : earningsCount > 0
+                ? `\u26a0 ${earningsCount} ticker${earningsCount !== 1 ? "s" : ""} with upcoming earnings \u2014 size down or wait.`
+                : conflictCount > 0
+                    ? `\u26a0 ${conflictCount} ticker${conflictCount !== 1 ? "s" : ""} with conflicting trend signals \u2014 wait for resolution.`
+                    : "No earnings risks or trend conflicts flagged.";
+    const setupLines = top3
+        .map((s, i) => {
+            const score = defaultGetScore(s);
+            return `${i + 1}. ${s.ticker} (${s.tradeType}) \u2014 ${score}/8 signals, R:R ${s.riskReward.toFixed(2)}:1` +
+                (s.earningsWarning ? " \u26a0 earnings" : "") +
+                (s.conflictTrend ? " \u26a0 conflict" : "");
+        })
+        .join("\n");
+    const topTicker = top3[0];
+    const exampleTicker = topTicker ? topTicker.ticker : "NVDA";
     return (
-        `Universe summary: ${stocks.length} tickers scanned — ${longCount} LONG, ${shortCount} SHORT. ` +
-        `Average R:R: ${avgRR.toFixed(2)}:1. Regime: ${regime.status}.\n\n` +
-        `Try asking:\n` +
-        `• "top setups" or "best R:R" — universe ranking\n` +
-        `• "NVDA" or "SOFI" — full analysis for any ticker\n` +
-        `• "why is SOFI rated LONG?" — signal breakdown\n` +
-        `• "news for MARA" — recent headlines\n` +
-        `• "compare NVDA vs TSLA" — side-by-side\n` +
-        `• "position size for NIO" — share count calculator\n` +
-        `• "short interest" — float & squeeze data\n` +
-        `• "earnings risks" — upcoming catalyst warnings\n` +
-        `• "how is the market today?" — regime context`
+        `Regime: ${regime.status} (${regime.regimeScore}/6 conditions). VIX ${regime.vix.toFixed(1)}, SPY RSI ${regime.spyRsi.toFixed(1)}. ${defaultRegimeBias}\n` +
+        `Universe: ${stocks.length} tickers \u2014 ${longCount} LONG, ${shortCount} SHORT.\n\n` +
+        `Top setups right now:\n${setupLines}\n\n` +
+        `${riskNote}\n\n` +
+        `Try: "tell me about ${exampleTicker}", "top setups", "why is ${exampleTicker} rated ${topTicker?.tradeType ?? "LONG"}?", or "how is the market?"`
     );
 }
