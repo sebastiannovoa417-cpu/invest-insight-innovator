@@ -89,9 +89,7 @@ SYNC_API_KEY = (
 )
 
 if not SYNC_URL:
-    raise SystemExit(
-        "ERROR: SUPABASE_SYNC_URL environment variable is not set or empty."
-    )
+    raise SystemExit("ERROR: SUPABASE_SYNC_URL environment variable is not set or empty.")
 if not SYNC_API_KEY:
     raise SystemExit(
         "ERROR: Neither SYNC_API_KEY nor SUPABASE_SERVICE_ROLE_KEY is set. "
@@ -529,6 +527,13 @@ def post_to_supabase(payload: dict, headers: dict) -> dict:
     resp = requests.post(SYNC_URL, json=payload, headers=headers, timeout=60)
     if not resp.ok:
         logger.error(f"HTTP {resp.status_code} from sync-ingest: {resp.text}")
+        if resp.status_code == 404 and "requested path is invalid" in resp.text:
+            raise SystemExit(
+                f"ERROR: Supabase returned 404 'requested path is invalid' for URL: {SYNC_URL}\n"
+                "Check that SUPABASE_SYNC_URL includes the full function path "
+                "(e.g. https://<project>.supabase.co/functions/v1/sync-ingest) "
+                "and that the Edge Function is deployed."
+            )
     resp.raise_for_status()
     return resp.json()
 
