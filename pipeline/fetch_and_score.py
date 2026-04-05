@@ -44,7 +44,25 @@ logger = logging.getLogger(__name__)
 def normalize_supabase_function_url(
     raw_url: str, function_name: str, env_var: str
 ) -> str:
-    """Accepts either a project URL or full Edge Function URL and returns a full endpoint."""
+    """
+    Normalize a Supabase URL into a full Edge Function endpoint.
+
+    Accepts either a Supabase project URL, a `/functions/v1` base URL, or a
+    complete Edge Function URL and returns the full endpoint for the requested
+    function. If the value does not resemble a Supabase URL, it is returned
+    unchanged after logging a warning.
+
+    Args:
+        raw_url: The configured URL value to normalize.
+        function_name: The Edge Function name to append when `raw_url` is not
+            already a complete function URL.
+        env_var: The environment variable name associated with `raw_url`, used
+            in warning logs.
+
+    Returns:
+        A normalized full Edge Function URL, or an empty string if `raw_url`
+        is blank after trimming whitespace.
+    """
     url = raw_url.strip().rstrip("/")
     if not url:
         return ""

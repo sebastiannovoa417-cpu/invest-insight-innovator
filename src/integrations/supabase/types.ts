@@ -47,8 +47,187 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_chat_events: {
+        Row: {
+          answer_hash: string
+          answer_preview: string | null
+          context_json: Json
+          created_at: string
+          id: string
+          question: string | null
+          user_id: string
+        }
+        Insert: {
+          answer_hash: string
+          answer_preview?: string | null
+          context_json?: Json
+          created_at?: string
+          id?: string
+          question?: string | null
+          user_id: string
+        }
+        Update: {
+          answer_hash?: string
+          answer_preview?: string | null
+          context_json?: Json
+          created_at?: string
+          id?: string
+          question?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_feedback: {
+        Row: {
+          actionable: boolean | null
+          created_at: string
+          event_id: string
+          helpful: boolean
+          id: string
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          actionable?: boolean | null
+          created_at?: string
+          event_id: string
+          helpful: boolean
+          id?: string
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          actionable?: boolean | null
+          created_at?: string
+          event_id?: string
+          helpful?: boolean
+          id?: string
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_learning_preferences: {
+        Row: {
+          allow_chat_storage: boolean
+          allow_learning: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allow_chat_storage?: boolean
+          allow_learning?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allow_chat_storage?: boolean
+          allow_learning?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      broker_order_workflows: {
+        Row: {
+          broker: string
+          created_at: string
+          id: string
+          instrument: string
+          order_types_supported: string[]
+          platform: string
+          source_id: string | null
+          steps_json: Json
+          updated_at: string
+        }
+        Insert: {
+          broker: string
+          created_at?: string
+          id?: string
+          instrument: string
+          order_types_supported?: string[]
+          platform: string
+          source_id?: string | null
+          steps_json?: Json
+          updated_at?: string
+        }
+        Update: {
+          broker?: string
+          created_at?: string
+          id?: string
+          instrument?: string
+          order_types_supported?: string[]
+          platform?: string
+          source_id?: string | null
+          steps_json?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      knowledge_citations: {
+        Row: {
+          citation_label: string
+          created_at: string
+          excerpt_summary: string | null
+          id: string
+          knowledge_id: string
+          source_url: string
+        }
+        Insert: {
+          citation_label: string
+          created_at?: string
+          excerpt_summary?: string | null
+          id?: string
+          knowledge_id: string
+          source_url: string
+        }
+        Update: {
+          citation_label?: string
+          created_at?: string
+          excerpt_summary?: string | null
+          id?: string
+          knowledge_id?: string
+          source_url?: string
+        }
+        Relationships: []
+      }
+      knowledge_sources: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          last_reviewed_at: string | null
+          publisher: string
+          topic: string
+          trust_tier: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_reviewed_at?: string | null
+          publisher: string
+          topic: string
+          trust_tier: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_reviewed_at?: string | null
+          publisher?: string
+          topic?: string
+          trust_tier?: string
+          url?: string
+        }
+        Relationships: []
+      }
       positions: {
         Row: {
+          ai_confidence_snapshot: number | null
+          ai_event_id: string | null
           created_at: string
           direction: string
           entry_date: string
@@ -57,6 +236,7 @@ export type Database = {
           exit_price: number | null
           id: string
           notes: string | null
+          opened_from_ai: boolean
           realized_pnl: number | null
           shares: number
           status: string
@@ -67,6 +247,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_confidence_snapshot?: number | null
+          ai_event_id?: string | null
           created_at?: string
           direction: string
           entry_date?: string
@@ -75,6 +257,7 @@ export type Database = {
           exit_price?: number | null
           id?: string
           notes?: string | null
+          opened_from_ai?: boolean
           realized_pnl?: number | null
           shares?: number
           status?: string
@@ -85,6 +268,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_confidence_snapshot?: number | null
+          ai_event_id?: string | null
           created_at?: string
           direction?: string
           entry_date?: string
@@ -93,6 +278,7 @@ export type Database = {
           exit_price?: number | null
           id?: string
           notes?: string | null
+          opened_from_ai?: boolean
           realized_pnl?: number | null
           shares?: number
           status?: string
@@ -311,6 +497,48 @@ export type Database = {
           low?: number
           close?: number
           volume?: number | null
+        }
+        Relationships: []
+      }
+      trading_knowledge: {
+        Row: {
+          broker: string | null
+          category: string
+          content: string
+          created_at: string
+          id: string
+          platform: string | null
+          source_id: string | null
+          tags: string[]
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          broker?: string | null
+          category: string
+          content: string
+          created_at?: string
+          id?: string
+          platform?: string | null
+          source_id?: string | null
+          tags?: string[]
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          broker?: string | null
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          platform?: string | null
+          source_id?: string | null
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          version?: number
         }
         Relationships: []
       }

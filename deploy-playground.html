@@ -606,7 +606,7 @@ function buildSections() {
       { text: 'Install Supabase CLI', code: 'npm i -g supabase' },
       { text: 'Link project', code: 'supabase link --project-ref &lt;ref&gt;' },
       { text: `Deploy: ${fns.join(', ')}`, code: `supabase functions deploy ${fns.join(' ')}` },
-      ...(S.edgeKey ? [{ text: 'Set x-api-key secret for sync-ingest & check-alerts', code: `supabase secrets set API_KEY=${mask(S.edgeKey)}` }] : []),
+      ...(S.edgeKey ? [{ text: 'Set x-api-key secret for sync-ingest & check-alerts', code: `supabase secrets set EDGE_API_KEY=${mask(S.edgeKey)}` }] : []),
       ...(S.brief || S.analysis ? [{ text: `Set Anthropic key secret`, code: `supabase secrets set ANTHROPIC_API_KEY=${S.antKey ? mask(S.antKey) : '&lt;your-key&gt;'}` }] : []),
     ]});
   }
@@ -626,9 +626,15 @@ function buildSections() {
   return secs;
 }
 
+function getGitHubPagesBasename() {
+  const path = window.location.pathname || '/';
+  const segments = path.split('/').filter(Boolean);
+  return segments.length > 0 ? `/${segments[0]}/` : '/';
+}
+
 function deploySteps() {
   if (S.target === 'ghpages') return [
-    { text: 'App is pre-configured for GitHub Pages (basename: <em>/invest-insight-innovator/</em>)', code: null },
+    { text: `App is pre-configured for GitHub Pages (basename: <em>${getGitHubPagesBasename()}</em>)`, code: null },
     { text: 'Enable Pages: Settings → Pages → Deploy from branch (gh-pages)', code: null },
     { text: 'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY as Actions secrets', code: null },
     { text: 'Build runs automatically via .github/workflows', code: 'bun run build' },
