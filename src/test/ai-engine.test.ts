@@ -180,9 +180,11 @@ describe("answerQuestion", () => {
     expect(result).toContain("LONG");
   });
 
-  it("returns a default summary for unrecognised questions", () => {
+  it("returns a contextual briefing for unrecognised questions (no help-menu)", () => {
     const result = answerQuestion("purple monkey dishwasher", stocks, mockRegime);
-    expect(result).toContain("Universe summary");
+    expect(result).not.toContain("Universe summary");
+    expect(result).toContain("Regime:");
+    expect(result).toContain("Top setups right now");
   });
 
   it("returns earnings info when asked", () => {
@@ -209,5 +211,40 @@ describe("answerQuestion", () => {
   it("handles 'should I buy NVDA' → ticker_lookup intent", () => {
     const result = answerQuestion("should I buy NVDA", stocks, mockRegime);
     expect(result).toContain("NVDA");
+  });
+
+  it("resolves company name 'nvidia' to NVDA ticker", () => {
+    const result = answerQuestion("tell me about nvidia", stocks, mockRegime);
+    expect(result).toContain("NVDA");
+  });
+
+  it("resolves company name 'tesla' to TSLA ticker", () => {
+    const result = answerQuestion("what's happening with tesla", stocks, mockRegime);
+    expect(result).toContain("TSLA");
+  });
+
+  it("handles 'give me ideas' → top_setups intent", () => {
+    const result = answerQuestion("give me ideas", stocks, mockRegime);
+    expect(result).toMatch(/Top 5 setups|NVDA|TSLA/i);
+  });
+
+  it("handles 'anything interesting' → top_setups intent", () => {
+    const result = answerQuestion("anything interesting?", stocks, mockRegime);
+    expect(result).toMatch(/Top 5 setups|NVDA|TSLA/i);
+  });
+
+  it("handles 'what is the market doing' → regime intent", () => {
+    const result = answerQuestion("what is the market doing", stocks, mockRegime);
+    expect(result).toMatch(/BULLISH|BEARISH|NEUTRAL/);
+  });
+
+  it("top_setups response includes regime bias note", () => {
+    const result = answerQuestion("top setups", stocks, mockRegime);
+    expect(result).toMatch(/BULLISH regime|BEARISH regime|NEUTRAL regime/);
+  });
+
+  it("long_candidates response includes regime context", () => {
+    const result = answerQuestion("show me long candidates", stocks, mockRegime);
+    expect(result).toMatch(/Regime is (BULLISH|BEARISH|NEUTRAL)/);
   });
 });
