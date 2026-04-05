@@ -17,7 +17,3 @@ verify_jwt = false
 
 [realtime]
 enabled = true
-
-[[realtime.tables]]
-schema = "public"
-table = "script_runs"
