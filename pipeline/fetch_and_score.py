@@ -40,9 +40,47 @@ logger = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-SYNC_URL = os.environ.get("SUPABASE_SYNC_URL", "").strip().rstrip("/")
-PRICES_URL = os.environ.get("SUPABASE_PRICES_URL", "").strip().rstrip("/")  # optional  skip if not set
-ALERTS_URL = os.environ.get("SUPABASE_ALERTS_URL", "").strip().rstrip("/")  # optional  skip if not set
+
+def normalize_supabase_function_url(
+    raw_url: str, function_name: str, env_var: str
+) -> str:
+    """Accepts either a project URL or full Edge Function URL and returns a full endpoint."""
+    url = raw_url.strip().rstrip("/")
+    if not url:
+        return ""
+
+    if "/functions/v1/" in url:
+        return url
+
+    if url.endswith("/functions/v1"):
+        return f"{url}/{function_name}"
+
+    if ".supabase.co" in url:
+        return f"{url}/functions/v1/{function_name}"
+
+    logger.warning(
+        "%s does not look like a Supabase URL. Using value as-is: %s",
+        env_var,
+        url,
+    )
+    return url
+
+
+SYNC_URL = normalize_supabase_function_url(
+    os.environ.get("SUPABASE_SYNC_URL", ""),
+    "sync-ingest",
+    "SUPABASE_SYNC_URL",
+)
+PRICES_URL = normalize_supabase_function_url(  # optional  skip if not set
+    os.environ.get("SUPABASE_PRICES_URL", ""),
+    "sync-prices",
+    "SUPABASE_PRICES_URL",
+)
+ALERTS_URL = normalize_supabase_function_url(  # optional  skip if not set
+    os.environ.get("SUPABASE_ALERTS_URL", ""),
+    "check-alerts",
+    "SUPABASE_ALERTS_URL",
+)
 # Prefer a dedicated SYNC_API_KEY; fall back to the service role key which is
 # always available as a built-in Supabase edge-function env var.
 SYNC_API_KEY = (
@@ -51,7 +89,9 @@ SYNC_API_KEY = (
 )
 
 if not SYNC_URL:
-    raise SystemExit("ERROR: SUPABASE_SYNC_URL environment variable is not set or empty.")
+    raise SystemExit(
+        "ERROR: SUPABASE_SYNC_URL environment variable is not set or empty."
+    )
 if not SYNC_API_KEY:
     raise SystemExit(
         "ERROR: Neither SYNC_API_KEY nor SUPABASE_SERVICE_ROLE_KEY is set. "
@@ -620,7 +660,9 @@ def main() -> None:
                     fallback.index = pd.to_datetime(fallback.index)
                     return fallback.sort_index()
             except Exception as exc2:
-                logger.error(f"get_df({ticker}): individual fallback also failed ({exc2})")
+                logger.error(
+                    f"get_df({ticker}): individual fallback also failed ({exc2})"
+                )
             return pd.DataFrame()
 
     # ── VIX ──────────────────────────────────────────────────────────────────
