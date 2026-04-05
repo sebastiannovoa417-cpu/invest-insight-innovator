@@ -29,7 +29,7 @@ export function StatsBar({ stocks, regime }: StatsBarProps) {
   ];
 
   return (
-    <div className="grid grid-cols-4 md:grid-cols-7 gap-3 mt-4">
+    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3 mt-4">
       {stats.map((stat) => (
         <div key={stat.label} className="rounded-lg border border-border bg-card p-3 text-center">
           <div className={`text-lg font-bold font-mono ${stat.color}`}>{stat.value}</div>
