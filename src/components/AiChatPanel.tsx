@@ -3,7 +3,7 @@ import { Send, Trash2, Sparkles, Loader2, ThumbsUp, ThumbsDown } from "lucide-re
 import { cn } from "@/lib/utils";
 import type { Stock, RegimeData } from "@/lib/types";
 import { useAiChat } from "@/hooks/use-ai-analysis";
-import { useAiLearning, useTradingKnowledge } from "@/hooks/use-data";
+import { useAiLearning } from "@/hooks/use-data";
 
 interface AiChatPanelProps {
   stocks: Stock[];
@@ -24,7 +24,6 @@ const SUGGESTED_QUESTIONS = [
 export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
   const { messages, loading, error, send, clear } = useAiChat();
   const { preferences, savePreferences, isSavingPreferences, logChatEvent, submitFeedback } = useAiLearning();
-  const { data: knowledgeItems = [] } = useTradingKnowledge();
   const [input, setInput] = useState("");
   const [eventIdsByMessage, setEventIdsByMessage] = useState<Record<string, string>>({});
   const [feedbackByMessage, setFeedbackByMessage] = useState<Record<string, "up" | "down">>({});
@@ -54,8 +53,7 @@ export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
   };
 
   const sendWithLearning = (question: string) => {
-    send(question, stocks, regime, {
-      knowledgeItems,
+    void send(question, stocks, regime, {
       onComplete: ({ assistantMessageId, question: q, answer, sources, uncitedWarning }) => {
         void logLearningEvent(assistantMessageId, q, answer);
         if (import.meta.env.DEV) {
