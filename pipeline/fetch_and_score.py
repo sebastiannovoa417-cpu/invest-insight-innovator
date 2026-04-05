@@ -52,6 +52,15 @@ SYNC_API_KEY = (
 
 if not SYNC_URL:
     raise SystemExit("ERROR: SUPABASE_SYNC_URL environment variable is not set or empty.")
+# Validate the URL includes a function-name path segment beyond /functions/v1
+# e.g. https://<project>.supabase.co/functions/v1/sync-ingest
+_url_remainder = SYNC_URL.split("://", 1)[-1] if "://" in SYNC_URL else SYNC_URL
+if "/functions/v1/" not in _url_remainder or _url_remainder.rstrip("/").endswith("/functions/v1"):
+    raise SystemExit(
+        "ERROR: SUPABASE_SYNC_URL does not appear to include a function name. "
+        "Expected format: https://<project>.supabase.co/functions/v1/<function-name>. "
+        f"Got: {SYNC_URL}"
+    )
 if not SYNC_API_KEY:
     raise SystemExit(
         "ERROR: Neither SYNC_API_KEY nor SUPABASE_SERVICE_ROLE_KEY is set. "
@@ -489,6 +498,13 @@ def post_to_supabase(payload: dict, headers: dict) -> dict:
     resp = requests.post(SYNC_URL, json=payload, headers=headers, timeout=60)
     if not resp.ok:
         logger.error(f"HTTP {resp.status_code} from sync-ingest: {resp.text}")
+        if resp.status_code == 404 and "requested path is invalid" in resp.text:
+            raise SystemExit(
+                f"ERROR: Supabase returned 404 'requested path is invalid' for URL: {SYNC_URL}\n"
+                "Check that SUPABASE_SYNC_URL includes the full function path "
+                "(e.g. https://<project>.supabase.co/functions/v1/sync-ingest) "
+                "and that the Edge Function is deployed."
+            )
     resp.raise_for_status()
     return resp.json()
 

@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 # Set required env vars before fetch_and_score is imported (they're read at
 # module level and would raise KeyError without this).
-os.environ.setdefault("SUPABASE_SYNC_URL", "https://test.example.com/sync")
+os.environ.setdefault("SUPABASE_SYNC_URL", "https://test.example.com/functions/v1/sync-ingest")
 os.environ.setdefault("SYNC_API_KEY", "test-key")
 
 # These modules are imported at the top of fetch_and_score.py but are NOT
