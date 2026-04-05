@@ -18,6 +18,8 @@ interface StreamResult {
   meta: StreamMeta;
 }
 
+const CHAT_HISTORY_WINDOW = 6;
+
 // Emits the response in small word-batches to simulate a streaming effect.
 function simulateStream(
   text: string,
@@ -124,11 +126,24 @@ async function streamAiAnalysis(
         return;
       }
 
-      const payload = JSON.parse(line) as {
+      let payload: {
         meta?: StreamMeta;
         text?: string;
         error?: string;
       };
+
+      try {
+        payload = JSON.parse(line) as {
+          meta?: StreamMeta;
+          text?: string;
+          error?: string;
+        };
+      } catch (parseError) {
+        if (import.meta.env.DEV) {
+          console.warn("[useAiChat] skipped malformed SSE payload", { line, parseError });
+        }
+        continue;
+      }
 
       if (payload.error) {
         throw new Error(payload.error);
@@ -258,7 +273,7 @@ export function useAiChat() {
     try {
       const historyForApi = (options?.history ?? [])
         .filter((m) => m.text.length > 0)
-        .slice(-8)
+        .slice(-CHAT_HISTORY_WINDOW)
         .map((m) => ({ role: m.role, content: m.text }));
 
       const result = await streamAiAnalysis(

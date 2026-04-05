@@ -92,6 +92,29 @@ interface HistoryMessage {
   content: string;
 }
 
+const MAX_QUESTION_CHARS = 500;
+const MAX_HISTORY_MESSAGES = 6;
+const MAX_HISTORY_CHARS = 500;
+const MAX_STOCKS_PER_CHAT = 50;
+
+function sanitizeHistory(input: unknown): HistoryMessage[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .filter((item): item is { role: unknown; content: unknown } => {
+      return typeof item === "object" && item !== null;
+    })
+    .map((item) => {
+      const role = item.role === "assistant" ? "assistant" : "user";
+      const content = typeof item.content === "string"
+        ? item.content.slice(0, MAX_HISTORY_CHARS)
+        : "";
+      return { role, content };
+    })
+    .filter((item) => item.content.trim().length > 0)
+    .slice(-MAX_HISTORY_MESSAGES);
+}
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -359,14 +382,32 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Server misconfiguration: ANTHROPIC_API_KEY not set" }, 500);
   }
 
-  let body: { type: string; stock?: Stock; regime?: RegimeData; question?: string; stocks?: Stock[]; history?: HistoryMessage[] };
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
     return jsonResponse({ error: "Invalid JSON" }, 400);
   }
 
-  const { type, stock, regime, question, stocks, history = [] } = body;
+  if (typeof body !== "object" || body === null) {
+    return jsonResponse({ error: "Invalid request body" }, 400);
+  }
+
+  const parsedBody = body as {
+    type?: unknown;
+    stock?: unknown;
+    regime?: unknown;
+    question?: unknown;
+    stocks?: unknown;
+    history?: unknown;
+  };
+
+  const requestType = typeof parsedBody.type === "string" ? parsedBody.type : "";
+  const stock = parsedBody.stock as Stock | undefined;
+  const regime = parsedBody.regime as RegimeData | undefined;
+  const question = parsedBody.question;
+  const stocks = parsedBody.stocks;
+  const history = sanitizeHistory(parsedBody.history);
 
   let prompt: string;
   let knowledgeMatches: KnowledgeMatch[] = [];
@@ -374,25 +415,34 @@ Deno.serve(async (req) => {
   let sources: Array<{ label: string; url: string }> = [];
   let uncitedWarning = false;
 
-  if (type === "trade" && stock) {
+  if (requestType === "trade" && stock) {
     prompt = buildTradePrompt(stock, regime);
-  } else if (type === "chat" && question && stocks) {
+  } else if (
+    requestType === "chat" &&
+    typeof question === "string" &&
+    question.trim().length > 0 &&
+    Array.isArray(stocks) &&
+    stocks.length > 0
+  ) {
+    const normalizedQuestion = question.trim().slice(0, MAX_QUESTION_CHARS);
+    const stockList = stocks.slice(0, MAX_STOCKS_PER_CHAT) as Stock[];
+
     try {
       [knowledgeMatches, brokerWorkflows] = await Promise.all([
-        fetchKnowledgeMatches(supabaseUrl, supabaseAnonKey, authToken, question),
-        fetchBrokerWorkflows(supabaseUrl, supabaseAnonKey, authToken, question),
+        fetchKnowledgeMatches(supabaseUrl, supabaseAnonKey, authToken, normalizedQuestion),
+        fetchBrokerWorkflows(supabaseUrl, supabaseAnonKey, authToken, normalizedQuestion),
       ]);
     } catch (error) {
       console.error("knowledge retrieval failed", error);
     }
     sources = buildSources(knowledgeMatches);
     uncitedWarning = knowledgeMatches.length === 0 && brokerWorkflows.length === 0;
-    prompt = buildChatPrompt(question, stocks, regime, knowledgeMatches, brokerWorkflows, uncitedWarning);
+    prompt = buildChatPrompt(normalizedQuestion, stockList, regime, knowledgeMatches, brokerWorkflows, uncitedWarning);
   } else {
     return jsonResponse({ error: "Invalid request: missing required fields" }, 400);
   }
 
-  const systemPrompt = type === "trade"
+  const systemPrompt = requestType === "trade"
     ? "You are an expert swing trading analyst. Be concise, direct, and data-driven. No disclaimers."
     : "You are SwingPulse's built-in trading assistant for US stocks and ETFs. Answer in the trader's frame: direct, specific, data-grounded. Rely on curated knowledge when provided and cite sources. Do not fabricate citations. For educational questions without curated backing, give general guidance and say so explicitly.";
 
@@ -403,7 +453,7 @@ Deno.serve(async (req) => {
       try {
         controller.enqueue(encodeEvent({ meta: { sources, uncitedWarning } }));
 
-        const historyMessages = history.slice(-6).map((m) => ({
+        const historyMessages = history.map((m) => ({
           role: m.role as "user" | "assistant",
           content: m.content,
         }));

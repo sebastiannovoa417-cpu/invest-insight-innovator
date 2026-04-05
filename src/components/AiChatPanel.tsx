@@ -213,7 +213,7 @@ export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
         ) : (
           messages.map((msg, i) => (
             <div
-              key={i}
+              key={msg.id}
               className={cn(
                 "flex",
                 msg.role === "user" ? "justify-end" : "justify-start",

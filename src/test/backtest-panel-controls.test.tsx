@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 
 import { BacktestPanel } from "@/components/BacktestPanel";
 import { mockStocks } from "@/lib/mock-data";
