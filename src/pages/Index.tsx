@@ -199,23 +199,24 @@ const Index = () => {
     setMobileMenuOpen(false);
   }, []);
 
+  const openPositionCount = useMemo(() => positions.filter(p => p.status === "open").length, [positions]);
+  const triggeredAlertCount = useMemo(() => alerts.filter((a) => a.status === "triggered").length, [alerts]);
+
   // Tab definitions for burger menu and desktop tabs
   const tabDefs = useMemo(() => [
     { value: "dashboard" as ActiveTab, label: "Dashboard", badge: `${stocks.length}` },
     { value: "watchlist" as ActiveTab, label: "Watchlist", badge: `${watchlistStocks.length}`, icon: <Star className="w-3 h-3" /> },
     { value: "regime" as ActiveTab, label: "Regime" },
-    { value: "positions" as ActiveTab, label: "Positions", badge: `${positions.filter(p => p.status === "open").length}` },
+    { value: "positions" as ActiveTab, label: "Positions", badge: `${openPositionCount}` },
     { value: "backtest" as ActiveTab, label: "Backtest" },
     { value: "ai" as ActiveTab, label: "✦ AI" },
     {
       value: "alerts" as ActiveTab,
       label: "🔔 Alerts",
-      badge: alerts.filter((a) => a.status === "triggered").length > 0
-        ? `${alerts.filter((a) => a.status === "triggered").length}`
-        : undefined,
+      badge: triggeredAlertCount > 0 ? `${triggeredAlertCount}` : undefined,
       badgeClass: "bg-amber-500 text-black",
     },
-  ], [stocks.length, watchlistStocks.length, positions, alerts]);
+  ], [stocks.length, watchlistStocks.length, openPositionCount, triggeredAlertCount]);
 
   const activeTabDef = tabDefs.find(t => t.value === activeTab);
 
@@ -274,11 +275,15 @@ const Index = () => {
             </button>
 
             {mobileMenuOpen && (
-              <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg bg-card border border-border shadow-xl overflow-hidden">
+              <div role="menu" className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg bg-card border border-border shadow-xl overflow-hidden">
                 {tabDefs.map((tab) => (
                   <button
                     key={tab.value}
+                    role="menuitem"
                     onClick={() => handleTabChange(tab.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") setMobileMenuOpen(false);
+                    }}
                     className={cn(
                       "flex items-center justify-between w-full px-4 py-3 text-sm font-medium transition-colors border-b border-border/50 last:border-b-0",
                       activeTab === tab.value
