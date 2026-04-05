@@ -3,28 +3,94 @@ import { Send, Trash2, Sparkles, Loader2, ThumbsUp, ThumbsDown } from "lucide-re
 import { cn } from "@/lib/utils";
 import type { Stock, RegimeData } from "@/lib/types";
 import { useAiChat } from "@/hooks/use-ai-analysis";
-import { useAiLearning, useTradingKnowledge } from "@/hooks/use-data";
+import { useAiLearning } from "@/hooks/use-data";
 
 interface AiChatPanelProps {
   stocks: Stock[];
   regime: RegimeData;
 }
 
-const SUGGESTED_QUESTIONS = [
-  "Which stocks have the strongest setups right now?",
-  "Is the regime favorable for LONG trades?",
-  "What are the top SHORT candidates?",
-  "Which setups have the best R:R?",
-  "Any earnings risks I should avoid?",
-  "Teach me swing setups for today's regime",
-  "How do I place a stop-limit order in Robinhood?",
-  "How do I place a trade in Fidelity or IBKR?",
-];
+interface QuestionSection {
+  id: string;
+  label: string;
+  questions: string[];
+}
+
+function buildQuestionSections(stocks: Stock[], regime: RegimeData): QuestionSection[] {
+  const topStocks = [...stocks]
+    .sort((a, b) => {
+      const sA = a.tradeType === "LONG" ? a.bullScore : a.bearScore;
+      const sB = b.tradeType === "LONG" ? b.bullScore : b.bearScore;
+      return sB - sA;
+    })
+    .slice(0, 4);
+
+  const stockQuestions: string[] = topStocks.length > 0
+    ? ([
+      `Tell me about ${topStocks[0].ticker}`,
+      topStocks.length > 1 ? `Why is ${topStocks[1].ticker} rated ${topStocks[1].tradeType}?` : null,
+      topStocks.length > 2 ? `Show me news for ${topStocks[2].ticker}` : null,
+      topStocks.length > 0 ? `Position size for ${topStocks[0].ticker}` : null,
+      topStocks.length > 1 ? `Compare ${topStocks[0].ticker} vs ${topStocks[1].ticker}` : null,
+      topStocks.length > 1 ? `What signals are failing for ${topStocks[1].ticker}?` : null,
+    ].filter(Boolean) as string[])
+    : ["Which stocks have the strongest setups right now?"];
+
+  return [
+    {
+      id: "market",
+      label: "📊 Market Overview",
+      questions: [
+        `How is the market today? (${regime.status})`,
+        "What is VIX telling us right now?",
+        "Is SPY above or below its 200-day SMA?",
+        "What does today's regime mean for my trades?",
+      ],
+    },
+    {
+      id: "setups",
+      label: "🎯 Top Setups",
+      questions: [
+        "Which stocks have the strongest setups right now?",
+        "List all LONG candidates with scores",
+        "What are the top SHORT candidates?",
+        "Which setups have the best R:R ratio?",
+        "Any earnings risks I should avoid?",
+      ],
+    },
+    {
+      id: "stocks",
+      label: "📈 Individual Stocks",
+      questions: stockQuestions,
+    },
+    {
+      id: "brokers",
+      label: "🏦 Place a Trade",
+      questions: [
+        "How do I place a trade in Robinhood?",
+        "Walk me through a limit order in Fidelity",
+        "How do I use stop-limit orders in IBKR?",
+        "What order types does Webull support?",
+        "How do I set a trailing stop in Moomoo?",
+      ],
+    },
+    {
+      id: "learn",
+      label: "📚 Learn Swing Trading",
+      questions: [
+        "Explain swing trading entry and exit discipline",
+        "How should I manage risk on each trade?",
+        "What is a stop-limit order and when should I use it?",
+        "How do volume spikes signal institutional activity?",
+        "What is backtesting and why does it matter?",
+      ],
+    },
+  ];
+}
 
 export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
   const { messages, loading, error, send, clear } = useAiChat();
   const { preferences, savePreferences, isSavingPreferences, logChatEvent, submitFeedback } = useAiLearning();
-  const { data: knowledgeItems = [] } = useTradingKnowledge();
   const [input, setInput] = useState("");
   const [eventIdsByMessage, setEventIdsByMessage] = useState<Record<string, string>>({});
   const [feedbackByMessage, setFeedbackByMessage] = useState<Record<string, "up" | "down">>({});
@@ -54,8 +120,7 @@ export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
   };
 
   const sendWithLearning = (question: string) => {
-    send(question, stocks, regime, {
-      knowledgeItems,
+    void send(question, stocks, regime, {
       onComplete: ({ assistantMessageId, question: q, answer, sources, uncitedWarning }) => {
         void logLearningEvent(assistantMessageId, q, answer);
         if (import.meta.env.DEV) {
@@ -154,26 +219,32 @@ export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center gap-5 py-8">
-            <div className="text-center space-y-1">
+          <div className="flex flex-col gap-4 py-2 w-full">
+            <div className="text-center space-y-0.5">
               <p className="text-sm font-medium text-foreground">Ask about your trading universe</p>
               <p className="text-xs text-muted-foreground">
                 {stocks.length} tickers loaded · Regime: {regime.status}
+                {regime.regimeScore != null ? ` · ${regime.regimeScore}/6 conditions` : ""}
               </p>
             </div>
-            <div className="w-full max-w-sm space-y-2">
-              {SUGGESTED_QUESTIONS.map((q) => (
-                <button
-                  key={q}
-                  onClick={() => {
-                    sendWithLearning(q);
-                  }}
-                  className="w-full text-left px-3 py-2 rounded-md border border-border text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-colors"
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
+            {buildQuestionSections(stocks, regime).map((section) => (
+              <div key={section.id} className="space-y-1">
+                <p className="text-[11px] font-semibold text-muted-foreground px-1 uppercase tracking-wide">
+                  {section.label}
+                </p>
+                <div className="space-y-1">
+                  {section.questions.map((q) => (
+                    <button
+                      key={q}
+                      onClick={() => sendWithLearning(q)}
+                      className="w-full text-left px-3 py-1.5 rounded-md border border-border text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-colors"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           messages.map((msg, i) => (

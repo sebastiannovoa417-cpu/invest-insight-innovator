@@ -122,7 +122,7 @@ export function generateMarketBriefing(regime: RegimeData, stocks: Stock[]): str
     const longPara =
         topLong.length > 0
             ? `Top LONG setups: ${topLong
-                .map((s) => `${s.ticker} (bull ${s.bullScore}/7, R:R ${s.riskReward.toFixed(1)}:1)`)
+                .map((s) => `${s.ticker} (bull ${s.bullScore}/8, R:R ${s.riskReward.toFixed(1)}:1)`)
                 .join(", ")}. ` +
             `The universe contains ${longStocks.length} long-rated ticker${longStocks.length !== 1 ? "s" : ""} ` +
             `with an average bull score of ${avgBull.toFixed(1)}.`
@@ -131,7 +131,7 @@ export function generateMarketBriefing(regime: RegimeData, stocks: Stock[]): str
     const shortPara =
         topShort.length > 0
             ? `Top SHORT setups: ${topShort
-                .map((s) => `${s.ticker} (bear ${s.bearScore}/7, R:R ${s.riskReward.toFixed(1)}:1)`)
+                .map((s) => `${s.ticker} (bear ${s.bearScore}/8, R:R ${s.riskReward.toFixed(1)}:1)`)
                 .join(", ")}. ` +
             `${shortStocks.length} ticker${shortStocks.length !== 1 ? "s are" : " is"} short-rated ` +
             `with an average bear score of ${avgBear.toFixed(1)}.`
@@ -161,6 +161,64 @@ export function generateMarketBriefing(regime: RegimeData, stocks: Stock[]): str
     return [regimePara, longPara, shortPara, riskPara].join("\n\n");
 }
 
+type QuestionIntent =
+    | "regime"
+    | "news"
+    | "why"
+    | "best_rr"
+    | "top_setups"
+    | "short_candidates"
+    | "long_candidates"
+    | "earnings"
+    | "conflicts"
+    | "volume"
+    | "rsi"
+    | "compare"
+    | "position_size"
+    | "short_interest"
+    | "ticker_lookup"
+    | "default";
+
+function normalizeQuestion(question: string): string {
+    return question.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function extractQuestionTickers(question: string, stocks: Stock[]): string[] {
+    const tokenSet = new Set(question.toUpperCase().split(/\W+/).filter(Boolean));
+    return stocks.map((s) => s.ticker).filter((ticker) => tokenSet.has(ticker));
+}
+
+function hasAnyPhrase(input: string, phrases: string[]): boolean {
+    return phrases.some((phrase) => input.includes(phrase));
+}
+
+function detectIntent(question: string, stocks: Stock[]): QuestionIntent {
+    const q = normalizeQuestion(question);
+    const tickers = extractQuestionTickers(question, stocks);
+
+    // Highest-priority specific intents first.
+    if (hasAnyPhrase(q, ["short interest", "float", "squeeze"])) return "short_interest";
+    if (hasAnyPhrase(q, ["position size", "position sizing", "how much should i buy", "how many shares", "share count", "risk per trade", "lot size"])) return "position_size";
+    if (hasAnyPhrase(q, ["compare", " versus ", " vs "]) || tickers.length >= 2) return "compare";
+    if (hasAnyPhrase(q, ["news", "headline", "latest on"])) return "news";
+    if (hasAnyPhrase(q, ["why", "explain", "signals for", "what signals"])) return "why";
+
+    if (hasAnyPhrase(q, ["regime", "market condition", "overall market", "broad market", "market update", "market today", "market this week", "how is the market", "how's the market", "spy", "vix"])) return "regime";
+    if (hasAnyPhrase(q, ["best r:r", "best rr", "risk reward", "reward risk"])) return "best_rr";
+    if (hasAnyPhrase(q, ["strongest", "top setup", "top pick", "best setup", "best trade"])) return "top_setups";
+    if (hasAnyPhrase(q, ["earnings", "report", "catalyst"])) return "earnings";
+    if (hasAnyPhrase(q, ["conflict", "mixed signal", "diverge"])) return "conflicts";
+    if (hasAnyPhrase(q, ["volume", "vol spike", "high volume"])) return "volume";
+    if (hasAnyPhrase(q, ["rsi", "oversold", "overbought"])) return "rsi";
+
+    // Broad direction intents should not steal sizing/short-interest questions.
+    if (hasAnyPhrase(q, [" short ", "short setups", "bearish candidate", "sell candidate"])) return "short_candidates";
+    if (hasAnyPhrase(q, [" long ", "long setups", "bullish candidate", "buy candidate"])) return "long_candidates";
+
+    if (tickers.length >= 1) return "ticker_lookup";
+    return "default";
+}
+
 // ── Chat Q&A ──────────────────────────────────────────────────────────────────
 
 /**
@@ -179,25 +237,67 @@ export function answerQuestion(
     stocks: Stock[],
     regime: RegimeData,
 ): string {
-    const q = question.toLowerCase();
+    const intent = detectIntent(question, stocks);
+    const questionTickers = extractQuestionTickers(question, stocks);
 
     // ── Regime / market conditions ────────────────────────────────────────────
-    if (/regime|market condition|spy|vix|overall market|broad market/.test(q)) {
+    if (intent === "regime") {
         const bias =
             regime.status === "BULLISH"
                 ? "Conditions favour a LONG bias; short setups face structural headwinds."
                 : regime.status === "BEARISH"
                     ? "Conditions favour a SHORT bias; long positions carry higher reversal risk."
                     : "Mixed regime — size down and require higher conviction before entry.";
+        const volLabel = regime.vix > 25 ? "elevated" : regime.vix > 18 ? "moderate" : "low";
+        const rsiLabel = regime.spyRsi > 70 ? "overbought" : regime.spyRsi < 30 ? "oversold" : "neutral";
+        const vs200 = regime.spyPrice > regime.sma200 ? "above" : "below";
+        const vs50 = regime.spyPrice > regime.sma50 ? "above" : "below";
         return (
-            `Regime: ${regime.status}. SPY at ${regime.spyPrice.toFixed(2)} vs SMA200 ${regime.sma200.toFixed(2)} ` +
-            `(ratio ${regime.ratio.toFixed(3)}). VIX: ${regime.vix.toFixed(1)}. ` +
-            `SPY RSI: ${regime.spyRsi.toFixed(1)}. ${bias}`
+            `Regime: ${regime.status} (${regime.regimeScore}/6 conditions met).\n` +
+            `SPY $${regime.spyPrice.toFixed(2)} — ${vs200} SMA200 $${regime.sma200.toFixed(2)}, ${vs50} SMA50 $${regime.sma50.toFixed(2)}.\n` +
+            `VIX ${regime.vix.toFixed(1)} (${volLabel} volatility). SPY RSI ${regime.spyRsi.toFixed(1)} (${rsiLabel}).\n` +
+            bias
         );
     }
 
+    // ── News for a specific ticker ────────────────────────────────────────────
+    if (intent === "news") {
+        const newsT = questionTickers[0];
+        const newsStock = newsT ? stocks.find((s) => s.ticker === newsT) : undefined;
+        if (newsStock && newsStock.news.length > 0) {
+            return (
+                `Recent news for ${newsStock.ticker} (${newsStock.name}):\n\n` +
+                newsStock.news.slice(0, 5).map((item, i) =>
+                    `${i + 1}. [${item.sentiment?.toUpperCase() ?? "NEUTRAL"}] ${item.title}\n` +
+                    `   ${item.source ?? "Unknown"} · ${item.date}` +
+                    (item.summary ? `\n   ${item.summary}` : "")
+                ).join("\n\n")
+            );
+        }
+    }
+
+    // ── Why is a ticker rated LONG/SHORT? ─────────────────────────────────────
+    if (intent === "why") {
+        const whyT = questionTickers[0];
+        const whyStock = whyT ? stocks.find((s) => s.ticker === whyT) : undefined;
+        if (whyStock) {
+            const passing = Object.entries(whyStock.signals).filter(([, v]) => v).map(([k]) => k);
+            const failing = Object.entries(whyStock.signals).filter(([, v]) => !v).map(([k]) => k);
+            const score = whyStock.tradeType === "LONG" ? whyStock.bullScore : whyStock.bearScore;
+            return (
+                `${whyStock.ticker} (${whyStock.name}) is rated ${whyStock.tradeType} — ${score}/8 signals passing.\n\n` +
+                `✅ Passing (${passing.length}): ${passing.join(", ") || "none"}\n` +
+                `❌ Failing (${failing.length}): ${failing.join(", ") || "none"}\n\n` +
+                `Setup: entry $${whyStock.bestEntry.toFixed(2)} | stop $${whyStock.stopLoss.toFixed(2)} | target $${whyStock.target.toFixed(2)} | R:R ${whyStock.riskReward.toFixed(2)}:1\n` +
+                (whyStock.shortInterest != null ? `Short interest: ${whyStock.shortInterest.toFixed(1)}%\n` : "") +
+                (whyStock.conflictTrend ? "⚠ Conflicting trend — wait for resolution before entry.\n" : "") +
+                (whyStock.earningsWarning ? "⚠ Earnings event upcoming — size down or avoid.\n" : "")
+            );
+        }
+    }
+
     // ── Best R:R ─────────────────────────────────────────────────────────────
-    if (/best r.?r|risk.?reward|reward.?risk/.test(q)) {
+    if (intent === "best_rr") {
         const sorted = [...stocks].sort((a, b) => b.riskReward - a.riskReward).slice(0, 5);
         return (
             `Top 5 setups by R:R ratio:\n` +
@@ -212,7 +312,7 @@ export function answerQuestion(
     }
 
     // ── Strongest / top setups ────────────────────────────────────────────────
-    if (/strongest|top.*(setup|pick|trade)|best.*(setup|pick|trade)/.test(q)) {
+    if (intent === "top_setups") {
         const getScore = (s: Stock) =>
             s.tradeType === "LONG" ? s.bullScore : s.bearScore;
         const top5 = [...stocks].sort((a, b) => getScore(b) - getScore(a)).slice(0, 5);
@@ -223,7 +323,7 @@ export function answerQuestion(
                     const score = getScore(s);
                     const sig = Object.values(s.signals).filter(Boolean).length;
                     return (
-                        `${i + 1}. ${s.ticker} (${s.tradeType}) — score ${score}/7, ${sig}/8 signals, ` +
+                        `${i + 1}. ${s.ticker} (${s.tradeType}) — score ${score}/8, ${sig}/8 signals, ` +
                         `R:R ${s.riskReward.toFixed(2)}:1` +
                         (s.earningsWarning ? " ⚠ earnings" : "") +
                         (s.conflictTrend ? " ⚠ conflict" : "")
@@ -234,7 +334,7 @@ export function answerQuestion(
     }
 
     // ── SHORT candidates ─────────────────────────────────────────────────────
-    if (/\bshort\b|bearish candidate|sell candidate/.test(q)) {
+    if (intent === "short_candidates") {
         const shorts = [...stocks]
             .filter((s) => s.tradeType === "SHORT")
             .sort((a, b) => b.bearScore - a.bearScore);
@@ -246,7 +346,7 @@ export function answerQuestion(
                 .slice(0, 6)
                 .map(
                     (s, i) =>
-                        `${i + 1}. ${s.ticker} — bear score ${s.bearScore}/7, entry ${s.bestEntry.toFixed(2)}, ` +
+                        `${i + 1}. ${s.ticker} — bear score ${s.bearScore}/8, entry ${s.bestEntry.toFixed(2)}, ` +
                         `stop ${s.stopLoss.toFixed(2)}, target ${s.target.toFixed(2)}, R:R ${s.riskReward.toFixed(2)}:1` +
                         (s.conflictTrend ? " ⚠ conflict" : ""),
                 )
@@ -255,7 +355,7 @@ export function answerQuestion(
     }
 
     // ── LONG candidates ──────────────────────────────────────────────────────
-    if (/\blong\b|bullish candidate|buy candidate/.test(q)) {
+    if (intent === "long_candidates") {
         const longs = [...stocks]
             .filter((s) => s.tradeType === "LONG")
             .sort((a, b) => b.bullScore - a.bullScore);
@@ -267,7 +367,7 @@ export function answerQuestion(
                 .slice(0, 6)
                 .map(
                     (s, i) =>
-                        `${i + 1}. ${s.ticker} — bull score ${s.bullScore}/7, entry ${s.bestEntry.toFixed(2)}, ` +
+                        `${i + 1}. ${s.ticker} — bull score ${s.bullScore}/8, entry ${s.bestEntry.toFixed(2)}, ` +
                         `stop ${s.stopLoss.toFixed(2)}, target ${s.target.toFixed(2)}, R:R ${s.riskReward.toFixed(2)}:1` +
                         (s.earningsWarning ? " ⚠ earnings" : ""),
                 )
@@ -276,7 +376,7 @@ export function answerQuestion(
     }
 
     // ── Earnings risks ────────────────────────────────────────────────────────
-    if (/earnings|report|\ber\b|catalyst/.test(q)) {
+    if (intent === "earnings") {
         const warned = stocks.filter((s) => s.earningsWarning);
         if (warned.length === 0)
             return "No earnings events flagged this week across the 25-ticker universe. All clear to trade normal size.";
@@ -293,7 +393,7 @@ export function answerQuestion(
     }
 
     // ── Conflicting signals ───────────────────────────────────────────────────
-    if (/conflict|mixed signal|diverge/.test(q)) {
+    if (intent === "conflicts") {
         const conflicted = stocks.filter((s) => s.conflictTrend);
         if (conflicted.length === 0)
             return "No trend conflicts detected. All rated setups have aligned signals.";
@@ -309,7 +409,7 @@ export function answerQuestion(
     }
 
     // ── Volume spikes ─────────────────────────────────────────────────────────
-    if (/volume|vol spike|high volume/.test(q)) {
+    if (intent === "volume") {
         const spiked = stocks
             .filter((s) => s.volumeSpike)
             .sort((a, b) => b.volumeRatio - a.volumeRatio);
@@ -328,7 +428,7 @@ export function answerQuestion(
     }
 
     // ── RSI extremes ─────────────────────────────────────────────────────────
-    if (/\brsi\b|oversold|overbought/.test(q)) {
+    if (intent === "rsi") {
         const oversold = stocks
             .filter((s) => s.rsi < 35)
             .sort((a, b) => a.rsi - b.rsi);
@@ -349,10 +449,70 @@ export function answerQuestion(
         return parts.join("\n");
     }
 
+    // ── Compare two tickers side by side ──────────────────────────────────────
+    if (intent === "compare") {
+        const twoTickers = questionTickers.slice(0, 2);
+        if (twoTickers.length >= 2) {
+            const a = stocks.find((s) => s.ticker === twoTickers[0])!;
+            const b = stocks.find((s) => s.ticker === twoTickers[1])!;
+            const scoreA = a.tradeType === "LONG" ? a.bullScore : a.bearScore;
+            const scoreB = b.tradeType === "LONG" ? b.bullScore : b.bearScore;
+            const betterScore = scoreA > scoreB ? a.ticker : scoreB > scoreA ? b.ticker : "Tied";
+            const betterRR = a.riskReward >= b.riskReward ? a.ticker : b.ticker;
+            return (
+                `${a.ticker} vs ${b.ticker} — side-by-side:\n\n` +
+                `${a.ticker} (${a.tradeType}): score ${scoreA}/8, entry $${a.bestEntry.toFixed(2)}, stop $${a.stopLoss.toFixed(2)}, target $${a.target.toFixed(2)}, R:R ${a.riskReward.toFixed(2)}:1, RSI ${a.rsi.toFixed(0)}` +
+                (a.earningsWarning ? " ⚠earnings" : "") + (a.conflictTrend ? " ⚠conflict" : "") + "\n" +
+                `${b.ticker} (${b.tradeType}): score ${scoreB}/8, entry $${b.bestEntry.toFixed(2)}, stop $${b.stopLoss.toFixed(2)}, target $${b.target.toFixed(2)}, R:R ${b.riskReward.toFixed(2)}:1, RSI ${b.rsi.toFixed(0)}` +
+                (b.earningsWarning ? " ⚠earnings" : "") + (b.conflictTrend ? " ⚠conflict" : "") + "\n\n" +
+                `Higher signal score: ${betterScore}\nBetter R:R: ${betterRR}`
+            );
+        }
+    }
+
+    // ── Position sizing for a ticker ─────────────────────────────────────────
+    if (intent === "position_size") {
+        const sizeT = questionTickers[0];
+        const sizeStock = sizeT ? stocks.find((s) => s.ticker === sizeT) : undefined;
+        if (sizeStock) {
+            const riskDollars = 100; // 1% of $10,000 default
+            const stopDistance = Math.abs(sizeStock.bestEntry - sizeStock.stopLoss);
+            const shares = stopDistance > 0 ? Math.floor(riskDollars / stopDistance) : 0;
+            const maxLoss = shares * stopDistance;
+            const posValue = shares * sizeStock.bestEntry;
+            return (
+                `Position sizing for ${sizeStock.ticker} (1% risk on a $10,000 example account):\n\n` +
+                `Entry $${sizeStock.bestEntry.toFixed(2)} | Stop $${sizeStock.stopLoss.toFixed(2)}\n` +
+                `Stop distance: $${stopDistance.toFixed(2)} (${((stopDistance / sizeStock.bestEntry) * 100).toFixed(1)}% of entry)\n` +
+                `Suggested shares: ${shares}\n` +
+                `Position value: ~$${posValue.toFixed(0)}\n` +
+                `Max loss: $${maxLoss.toFixed(0)}\n\n` +
+                `Formula: shares = (account × risk%) ÷ stop-distance\n` +
+                `Adjust risk% and account size to your own parameters.`
+            );
+        }
+    }
+
+    // ── Short interest ────────────────────────────────────────────────────────
+    if (intent === "short_interest") {
+        const siStocks = stocks
+            .filter((s) => s.shortInterest != null && s.shortInterest > 0)
+            .sort((a, b) => (b.shortInterest ?? 0) - (a.shortInterest ?? 0));
+        if (siStocks.length === 0)
+            return "No short interest data available in the current scan.";
+        return (
+            `Short interest data (${siStocks.length} tickers):\n\n` +
+            siStocks.slice(0, 8).map((s) =>
+                `• ${s.ticker} — ${s.shortInterest!.toFixed(1)}% SI ` +
+                `(${s.tradeType}, price $${s.price.toFixed(2)}, RSI ${s.rsi.toFixed(0)})`
+            ).join("\n") +
+            "\n\nHigh short interest (>15%) can fuel squeezes on LONGs or confirm bearish thesis on SHORTs."
+        );
+    }
+
     // ── Specific ticker lookup (e.g. "Tell me about NVDA") ───────────────────
-    const tickerMatch = question.match(/\b([A-Z]{1,5})\b/);
-    if (tickerMatch) {
-        const ticker = tickerMatch[1].toUpperCase();
+    if (intent === "ticker_lookup") {
+        const ticker = questionTickers[0];
         const stock = stocks.find((s) => s.ticker === ticker);
         if (stock) return generateTradeBrief(stock, regime);
     }
@@ -364,8 +524,16 @@ export function answerQuestion(
         stocks.reduce((sum, s) => sum + s.riskReward, 0) / (stocks.length || 1);
     return (
         `Universe summary: ${stocks.length} tickers scanned — ${longCount} LONG, ${shortCount} SHORT. ` +
-        `Average R:R: ${avgRR.toFixed(2)}:1. Regime: ${regime.status}. ` +
-        `Ask about "top picks", "short setups", "best R:R", "earnings risks", "conflicts", ` +
-        `"volume spikes", or a specific ticker like "NVDA" or "TSLA".`
+        `Average R:R: ${avgRR.toFixed(2)}:1. Regime: ${regime.status}.\n\n` +
+        `Try asking:\n` +
+        `• "top setups" or "best R:R" — universe ranking\n` +
+        `• "NVDA" or "SOFI" — full analysis for any ticker\n` +
+        `• "why is SOFI rated LONG?" — signal breakdown\n` +
+        `• "news for MARA" — recent headlines\n` +
+        `• "compare NVDA vs TSLA" — side-by-side\n` +
+        `• "position size for NIO" — share count calculator\n` +
+        `• "short interest" — float & squeeze data\n` +
+        `• "earnings risks" — upcoming catalyst warnings\n` +
+        `• "how is the market today?" — regime context`
     );
 }
