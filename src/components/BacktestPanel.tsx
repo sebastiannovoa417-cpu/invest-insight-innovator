@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, type CSSProperties } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell, ReferenceLine
@@ -6,6 +6,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { Stock } from "@/lib/types";
 import { usePriceHistory } from "@/hooks/use-price-history";
+import { useRegime } from "@/hooks/use-data";
 import {
   STRATEGIES,
   computeBuyAndHold,
@@ -48,13 +49,35 @@ function MetricCard({ label, value, color }: { label: string; value: string; col
 }
 
 function DrawdownBar({ label, pct, max, color }: { label: string; pct: number; max: number; color: string }) {
+  const ratio = Math.max(0, Math.min(1, pct / Math.max(max, 1)));
+  const segments = 20;
+  const filled = Math.round(ratio * segments);
+  const toneFill = color.includes("350")
+    ? "bg-short"
+    : color.includes("30")
+      ? "bg-amber-400"
+      : "bg-yellow-300";
+  const toneText = color.includes("350")
+    ? "text-short"
+    : color.includes("30")
+      ? "text-amber-400"
+      : "text-yellow-300";
+
   return (
     <div className="grid grid-cols-[110px_1fr_52px] items-center gap-3">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <div className="h-2 rounded-full bg-border overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ "--bar-w": `${(pct / Math.max(max, 1)) * 100}%`, "--bar-c": color, width: "var(--bar-w)", background: "var(--bar-c)" } as CSSProperties} />
+      <div className="flex h-2 rounded-full overflow-hidden bg-border">
+        {Array.from({ length: segments }).map((_, idx) => (
+          <span
+            key={idx}
+            className={cn(
+              "h-full flex-1 border-r border-background/20 last:border-r-0 transition-colors",
+              idx < filled ? toneFill : "bg-border"
+            )}
+          />
+        ))}
       </div>
-      <span className="text-xs font-mono text-right" style={{ color }}>{pct.toFixed(1)}{label === "Recovery factor" ? "x" : "%"}</span>
+      <span className={cn("text-xs font-mono text-right", toneText)}>{pct.toFixed(1)}{label === "Recovery factor" ? "x" : "%"}</span>
     </div>
   );
 }
@@ -109,7 +132,16 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
     capital: 1000,
     slippageBps: 5,
     feeBpsPerSide: 2,
+    walkForwardEnabled: false,
+    walkForwardTrainBars: 120,
+    walkForwardTestBars: 30,
+    regimeFilterEnabled: false,
+    avoidEarningsDays: 0,
+    staleAfterDays: 10,
   });
+
+  const selectedStock = useMemo(() => stocks.find(s => s.ticker === cfg.ticker), [stocks, cfg.ticker]);
+  const { data: regime } = useRegime();
 
   const set = useCallback(<K extends keyof BacktestConfig>(key: K, val: BacktestConfig[K]) => {
     setCfg(prev => ({ ...prev, [key]: val }));
@@ -119,8 +151,15 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
 
   const result = useMemo(() => {
     if (priceHistory.length < 30) return emptyBacktestResult(cfg.capital);
-    return runRealBacktest(cfg, priceHistory);
-  }, [cfg, priceHistory]);
+    return runRealBacktest(
+      {
+        ...cfg,
+        regimeStatus: regime?.status,
+        earningsDate: selectedStock?.earningsDate ?? null,
+      },
+      priceHistory,
+    );
+  }, [cfg, priceHistory, regime?.status, selectedStock?.earningsDate]);
 
   const monteCarlo = useMemo(() => {
     if (result.trades.length < 3) return null;
@@ -210,6 +249,38 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
             format={v => String(v)} onChange={v => set("slippageBps", v)} />
           <SliderRow label="FEE / SIDE (BPS)" value={cfg.feeBpsPerSide} min={0} max={25} step={1}
             format={v => String(v)} onChange={v => set("feeBpsPerSide", v)} />
+          <SliderRow label="STALE DATA ALERT (DAYS)" value={cfg.staleAfterDays ?? 10} min={1} max={30} step={1}
+            format={v => String(v)} onChange={v => set("staleAfterDays", v)} />
+          <SliderRow label="EARNINGS BLACKOUT (DAYS)" value={cfg.avoidEarningsDays ?? 0} min={0} max={10} step={1}
+            format={v => String(v)} onChange={v => set("avoidEarningsDays", v)} />
+          <SliderRow label="WF TRAIN (BARS)" value={cfg.walkForwardTrainBars ?? 120} min={50} max={220} step={10}
+            format={v => String(v)} onChange={v => set("walkForwardTrainBars", v)} />
+          <SliderRow label="WF TEST (BARS)" value={cfg.walkForwardTestBars ?? 30} min={10} max={120} step={5}
+            format={v => String(v)} onChange={v => set("walkForwardTestBars", v)} />
+          <div className="flex items-center justify-between md:col-span-3 rounded border border-border px-3 py-2.5 text-xs">
+            <label className="flex items-center gap-2 text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={cfg.walkForwardEnabled ?? false}
+                onChange={(e) => set("walkForwardEnabled", e.target.checked)}
+                className="accent-primary"
+              />
+              WALK-FORWARD MODE (trade only out-of-sample windows)
+            </label>
+            <span className="text-[10px] text-muted-foreground">{(cfg.walkForwardTrainBars ?? 120)} / {(cfg.walkForwardTestBars ?? 30)}</span>
+          </div>
+          <div className="flex items-center justify-between md:col-span-3 rounded border border-border px-3 py-2.5 text-xs">
+            <label className="flex items-center gap-2 text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={cfg.regimeFilterEnabled ?? false}
+                onChange={(e) => set("regimeFilterEnabled", e.target.checked)}
+                className="accent-primary"
+              />
+              REGIME GATING ({regime?.status ?? "NEUTRAL"})
+            </label>
+            <span className="text-[10px] text-muted-foreground">Bullish=LONG only, Bearish=SHORT only</span>
+          </div>
         </div>
       </div>
 
@@ -223,6 +294,9 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
           <p>Gap-through exits fill at the next open; same-bar stop/target conflicts use a pessimistic stop-first rule.</p>
           <p>Fees are applied on entry and exit ({cfg.feeBpsPerSide} bps per side).</p>
           <p>Position sizing compounds from current equity, not only starting capital.</p>
+          <p>Walk-forward mode only takes trades in rolling out-of-sample windows.</p>
+          <p>Regime gating uses current market regime: bullish allows longs, bearish allows shorts.</p>
+          <p>Earnings blackout skips entries ±{cfg.avoidEarningsDays ?? 0} days around {selectedStock?.earningsDate ?? "N/A"}.</p>
           <p>Warmup: {warmupBars} bars required for {cfg.strategy} indicator stability.</p>
           <p>Monte Carlo uses bootstrap resampling of historical trade returns.</p>
         </div>

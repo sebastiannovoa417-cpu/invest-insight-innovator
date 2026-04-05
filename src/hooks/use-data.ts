@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { mapDbStock, mapDbRegime, mapDbPosition, type Stock, type RegimeData, type ScoreHistoryPoint, type Position } from "@/lib/types";
 import { mockStocks, mockRegime, lastRunInfo, mockScoreHistory } from "@/lib/mock-data";
 import { useAuth } from "@/hooks/use-auth";
@@ -286,6 +287,15 @@ export interface TradingKnowledgeItem {
   sourceUrl: string | null;
 }
 
+const knowledgeCategories = ["swing_principles", "risk_management", "order_mechanics", "broker_workflows", "app_help"] as const;
+
+function normalizeKnowledgeCategory(value: string): TradingKnowledgeItem["category"] {
+  if ((knowledgeCategories as readonly string[]).includes(value)) {
+    return value as TradingKnowledgeItem["category"];
+  }
+  return "app_help";
+}
+
 function hashAnswer(answer: string): string {
   let hash = 0;
   for (let i = 0; i < answer.length; i += 1) {
@@ -351,7 +361,7 @@ export function useAiLearning() {
         question: prefs.allowChatStorage ? input.question : null,
         answer_hash: hashAnswer(input.answer),
         answer_preview: prefs.allowChatStorage ? answerPreview : null,
-        context_json: input.context,
+        context_json: input.context as Json,
       };
 
       const { data, error } = await supabase
@@ -422,7 +432,7 @@ export function useTradingKnowledge() {
         const source = row.source_id ? sourceById.get(row.source_id) : undefined;
         return {
           id: row.id,
-          category: row.category,
+          category: normalizeKnowledgeCategory(row.category),
           title: row.title,
           content: row.content,
           tags: row.tags ?? [],

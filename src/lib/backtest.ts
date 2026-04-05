@@ -1,5 +1,7 @@
 import { differenceInCalendarDays, parseISO } from "date-fns";
 
+export type MarketRegimeStatus = "BULLISH" | "BEARISH" | "NEUTRAL";
+
 export interface BacktestBar {
     ticker: string;
     date: string;
@@ -20,6 +22,15 @@ export interface BacktestConfig {
     capital: number;
     slippageBps: number;
     feeBpsPerSide: number;
+    walkForwardEnabled?: boolean;
+    walkForwardTrainBars?: number;
+    walkForwardTestBars?: number;
+    regimeFilterEnabled?: boolean;
+    regimeStatus?: MarketRegimeStatus;
+    avoidEarningsDays?: number;
+    earningsDate?: string | null;
+    staleAfterDays?: number;
+    referenceDate?: string;
 }
 
 export type TradeDirection = "LONG" | "SHORT";
@@ -89,6 +100,18 @@ interface ExitResolution {
     reason: "stop" | "target" | "eod";
 }
 
+interface BacktestRuntimeConfig {
+    walkForwardEnabled: boolean;
+    walkForwardTrainBars: number;
+    walkForwardTestBars: number;
+    regimeFilterEnabled: boolean;
+    regimeStatus: MarketRegimeStatus;
+    avoidEarningsDays: number;
+    earningsDate: string | null;
+    staleAfterDays: number;
+    referenceDate: string;
+}
+
 const TRADE_BUCKETS = ["<-5%", "-5−2", "-2−0", "0−2", "2−5", "5−10", ">10%"];
 
 export const STRATEGIES = [
@@ -98,6 +121,51 @@ export const STRATEGIES = [
     "Trend Follow SMA200",
     "Dual Momentum",
 ] as const;
+
+function withRuntimeDefaults(cfg: BacktestConfig): BacktestRuntimeConfig {
+    const referenceDate = cfg.referenceDate ?? new Date().toISOString().slice(0, 10);
+    return {
+        walkForwardEnabled: cfg.walkForwardEnabled ?? false,
+        walkForwardTrainBars: Math.max(30, cfg.walkForwardTrainBars ?? 120),
+        walkForwardTestBars: Math.max(5, cfg.walkForwardTestBars ?? 30),
+        regimeFilterEnabled: cfg.regimeFilterEnabled ?? false,
+        regimeStatus: cfg.regimeStatus ?? "NEUTRAL",
+        avoidEarningsDays: Math.max(0, cfg.avoidEarningsDays ?? 0),
+        earningsDate: cfg.earningsDate ?? null,
+        staleAfterDays: Math.max(1, cfg.staleAfterDays ?? 10),
+        referenceDate,
+    };
+}
+
+function parseDateSafe(value: string): Date | null {
+    const parsed = parseISO(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function computeSignalStart(cfg: BacktestConfig, bars: BacktestBar[]): number {
+    const lookbackStart = Math.max(0, bars.length - cfg.lookback);
+    return Math.max(lookbackStart, getStrategyWarmupBars(cfg.strategy));
+}
+
+export function createEntryEligibilityMask(cfg: BacktestConfig, bars: BacktestBar[]): boolean[] {
+    const mask = new Array(bars.length).fill(true);
+    const runtime = withRuntimeDefaults(cfg);
+    if (!runtime.walkForwardEnabled) return mask;
+
+    const signalStart = computeSignalStart(cfg, bars);
+    for (let index = 0; index < bars.length; index += 1) {
+        if (index < signalStart + runtime.walkForwardTrainBars) {
+            mask[index] = false;
+            continue;
+        }
+        const offset = index - (signalStart + runtime.walkForwardTrainBars);
+        const cycleSize = runtime.walkForwardTrainBars + runtime.walkForwardTestBars;
+        const cycleOffset = cycleSize <= 0 ? 0 : offset % cycleSize;
+        mask[index] = cycleOffset >= runtime.walkForwardTrainBars;
+    }
+
+    return mask;
+}
 
 function rollingMean(arr: number[], period: number): number[] {
     return arr.map((_, index) => {
@@ -191,6 +259,7 @@ export function applySlippage(rawPrice: number, dir: TradeDirection, side: "entr
 export function validateBacktestData(cfg: BacktestConfig, bars: BacktestBar[]): BacktestIssue[] {
     const issues: BacktestIssue[] = [];
     const requiredBars = getStrategyWarmupBars(cfg.strategy) + 2;
+    const runtime = withRuntimeDefaults(cfg);
 
     if (bars.length < requiredBars) {
         issues.push({
@@ -215,6 +284,37 @@ export function validateBacktestData(cfg: BacktestConfig, bars: BacktestBar[]): 
         if (invalidPrice || bar.low > bar.high) {
             issues.push({ code: "invalid-ohlc", message: `Invalid OHLC data at ${bar.date}.` });
             break;
+        }
+        if (bar.volume != null && (!Number.isFinite(bar.volume) || bar.volume < 0)) {
+            issues.push({ code: "invalid-volume", message: `Invalid volume at ${bar.date}.` });
+            break;
+        }
+    }
+
+    const newestBar = bars[bars.length - 1];
+    if (newestBar) {
+        const latest = parseDateSafe(newestBar.date);
+        const reference = parseDateSafe(runtime.referenceDate);
+        if (!latest || !reference) {
+            issues.push({ code: "invalid-date", message: "Could not parse price-history dates for freshness checks." });
+        } else {
+            const lagDays = differenceInCalendarDays(reference, latest);
+            if (lagDays > runtime.staleAfterDays) {
+                issues.push({
+                    code: "stale-data",
+                    message: `Latest bar is ${lagDays} calendar days old (>${runtime.staleAfterDays}). Backtest may be stale.`,
+                });
+            }
+        }
+    }
+
+    if (runtime.walkForwardEnabled) {
+        const minimumWalkForwardBars = getStrategyWarmupBars(cfg.strategy) + runtime.walkForwardTrainBars + runtime.walkForwardTestBars + 2;
+        if (bars.length < minimumWalkForwardBars) {
+            issues.push({
+                code: "walk-forward-insufficient-bars",
+                message: `Walk-forward needs at least ${minimumWalkForwardBars} bars; loaded ${bars.length}.`,
+            });
         }
     }
 
@@ -318,10 +418,14 @@ export function runSignalBacktest(
     cfg: BacktestConfig,
     bars: BacktestBar[],
     signals: BacktestSignal[],
+    entryEligibilityMask?: boolean[],
     baseIssues: BacktestIssue[] = [],
 ): BacktestResult {
     const issues = dedupeIssues(baseIssues);
     if (bars.length === 0) return emptyBacktestResult(cfg.capital, issues);
+    const runtime = withRuntimeDefaults(cfg);
+    const entryMask = entryEligibilityMask ?? new Array(bars.length).fill(true);
+    const earningsDate = runtime.earningsDate ? parseDateSafe(runtime.earningsDate) : null;
 
     let equity = cfg.capital;
     let peakEquity = cfg.capital;
@@ -394,6 +498,20 @@ export function runSignalBacktest(
             const dir = signals[index];
             if (dir && index + 1 < bars.length) {
                 const nextBar = bars[index + 1];
+                if (!entryMask[index]) {
+                    continue;
+                }
+                if (runtime.regimeFilterEnabled) {
+                    if (runtime.regimeStatus === "BULLISH" && dir === "SHORT") continue;
+                    if (runtime.regimeStatus === "BEARISH" && dir === "LONG") continue;
+                }
+                if (earningsDate && runtime.avoidEarningsDays > 0) {
+                    const entryDate = parseDateSafe(nextBar.date);
+                    if (entryDate) {
+                        const daysFromEarnings = Math.abs(differenceInCalendarDays(entryDate, earningsDate));
+                        if (daysFromEarnings <= runtime.avoidEarningsDays) continue;
+                    }
+                }
                 const entry = applySlippage(nextBar.open, dir, "entry", cfg.slippageBps);
                 const allocatedCapital = equity * positionFraction;
                 const quantity = entry > 0 ? allocatedCapital / entry : 0;
@@ -452,7 +570,8 @@ export function runRealBacktest(cfg: BacktestConfig, bars: BacktestBar[]): Backt
     const requiredBars = getStrategyWarmupBars(cfg.strategy) + 2;
     if (bars.length < requiredBars) return emptyBacktestResult(cfg.capital, issues);
     const signals = buildStrategySignals(cfg, bars);
-    return runSignalBacktest(cfg, bars, signals, issues);
+    const entryMask = createEntryEligibilityMask(cfg, bars);
+    return runSignalBacktest(cfg, bars, signals, entryMask, issues);
 }
 
 export function emptyBacktestResult(capital: number, issues: BacktestIssue[] = []): BacktestResult {
