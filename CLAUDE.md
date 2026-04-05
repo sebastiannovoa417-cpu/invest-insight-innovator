@@ -26,7 +26,7 @@ python fetch_and_score.py
 ### Data flow
 
 ```
-Python pipeline (fetch_and_score.py, every 30 min via GitHub Actions)
+Python pipeline (fetch_and_score.py, on a configurable GitHub Actions cron schedule)
   → yfinance  →  RSI / SMA / MACD / ATR scoring
   → POST to Supabase Edge Function (sync-ingest)
   → inserts into: stocks, regime, score_history, script_runs
