@@ -60,7 +60,7 @@ GitHub → Actions → Deploy → Run workflow
 The workflow runs three jobs:
 1. **Lint & Test** — must pass before anything deploys
 2. **Deploy → GitHub Pages** — builds React app, uploads to Pages
-3. **Deploy → Supabase Edge Functions** — deploys all 4 functions via Supabase CLI
+3. **Deploy → Supabase Edge Functions** — deploys all 5 functions via Supabase CLI
 
 ---
 

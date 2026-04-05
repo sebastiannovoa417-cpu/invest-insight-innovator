@@ -21,4 +21,3 @@ enabled = true
 [[realtime.tables]]
 schema = "public"
 table = "script_runs"
-filter = ""

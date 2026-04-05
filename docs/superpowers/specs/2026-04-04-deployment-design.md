@@ -23,7 +23,7 @@ Replace the three conflicting workflows with two clean ones. Update the pipeline
 ```
 quality (lint + test)
     ├─→ deploy-pages (needs: quality)   — React build → GitHub Pages
-    └─→ deploy-functions (needs: quality) — supabase functions deploy (all 4)
+    └─→ deploy-functions (needs: quality) — supabase functions deploy (all 5)
 ```
 
 ### ci.yml (pull_request to main)
