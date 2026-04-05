@@ -312,7 +312,7 @@ export function useAiLearning() {
   const preferencesQuery = useQuery({
     queryKey: ["ai-learning-preferences", user?.id],
     queryFn: async (): Promise<AiLearningPreferences> => {
-      if (!user) return { allowLearning: false, allowChatStorage: false };
+      if (!user) return { allowLearning: true, allowChatStorage: true };
 
       const { data, error } = await supabase
         .from("ai_learning_preferences")
@@ -321,7 +321,7 @@ export function useAiLearning() {
         .maybeSingle();
 
       if (error) throw error;
-      if (!data) return { allowLearning: false, allowChatStorage: false };
+      if (!data) return { allowLearning: true, allowChatStorage: true };
 
       return {
         allowLearning: data.allow_learning,
@@ -352,15 +352,13 @@ export function useAiLearning() {
   const logChatEvent = useMutation({
     mutationFn: async (input: AiChatEventInput): Promise<string | null> => {
       if (!user) return null;
-      const prefs = preferencesQuery.data;
-      if (!prefs?.allowLearning) return null;
 
       const answerPreview = input.answer.slice(0, 280);
       const payload = {
         user_id: user.id,
-        question: prefs.allowChatStorage ? input.question : null,
+        question: input.question,
         answer_hash: hashAnswer(input.answer),
-        answer_preview: prefs.allowChatStorage ? answerPreview : null,
+        answer_preview: answerPreview,
         context_json: input.context as Json,
       };
 
@@ -382,9 +380,7 @@ export function useAiLearning() {
 
   const submitFeedback = useMutation({
     mutationFn: async (input: { eventId: string; helpful: boolean; actionable?: boolean }) => {
-      if (!user) throw new Error("Not logged in");
-      const prefs = preferencesQuery.data;
-      if (!prefs?.allowLearning) return;
+      if (!user) return;
 
       const { error } = await supabase.from("ai_feedback").upsert({
         user_id: user.id,
@@ -399,7 +395,7 @@ export function useAiLearning() {
   });
 
   return {
-    preferences: preferencesQuery.data ?? { allowLearning: false, allowChatStorage: false },
+    preferences: preferencesQuery.data ?? { allowLearning: true, allowChatStorage: true },
     loadingPreferences: preferencesQuery.isLoading,
     savePreferences: savePreferences.mutate,
     isSavingPreferences: savePreferences.isPending,

@@ -90,7 +90,7 @@ function buildQuestionSections(stocks: Stock[], regime: RegimeData): QuestionSec
 
 export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
   const { messages, loading, error, send, clear } = useAiChat();
-  const { preferences, savePreferences, isSavingPreferences, logChatEvent, submitFeedback } = useAiLearning();
+  const { logChatEvent, submitFeedback } = useAiLearning();
   const [input, setInput] = useState("");
   const [eventIdsByMessage, setEventIdsByMessage] = useState<Record<string, string>>({});
   const [feedbackByMessage, setFeedbackByMessage] = useState<Record<string, "up" | "down">>({});
@@ -121,6 +121,7 @@ export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
 
   const sendWithLearning = (question: string) => {
     void send(question, stocks, regime, {
+      history: messages,
       onComplete: ({ assistantMessageId, question: q, answer, sources, uncitedWarning }) => {
         void logLearningEvent(assistantMessageId, q, answer);
         if (import.meta.env.DEV) {
@@ -162,43 +163,6 @@ export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
             Built-in
           </span>
-          <button
-            onClick={() =>
-              savePreferences({
-                allowLearning: !preferences.allowLearning,
-                allowChatStorage: preferences.allowLearning ? false : preferences.allowChatStorage,
-              })
-            }
-            disabled={isSavingPreferences}
-            className={cn(
-              "text-[10px] px-1.5 py-0.5 rounded border transition-colors",
-              preferences.allowLearning
-                ? "border-primary/30 text-primary bg-primary/10"
-                : "border-border text-muted-foreground",
-            )}
-            title="Allow AI to learn from your interactions"
-          >
-            Learn: {preferences.allowLearning ? "On" : "Off"}
-          </button>
-          <button
-            onClick={() =>
-              savePreferences({
-                allowLearning: preferences.allowLearning,
-                allowChatStorage: !preferences.allowChatStorage,
-              })
-            }
-            disabled={!preferences.allowLearning || isSavingPreferences}
-            className={cn(
-              "text-[10px] px-1.5 py-0.5 rounded border transition-colors",
-              preferences.allowChatStorage
-                ? "border-primary/30 text-primary bg-primary/10"
-                : "border-border text-muted-foreground",
-              !preferences.allowLearning && "opacity-50 cursor-not-allowed",
-            )}
-            title="Store question/answer text for better personalization"
-          >
-            Store Chat: {preferences.allowChatStorage ? "On" : "Off"}
-          </button>
         </div>
         {messages.length > 0 && (
           <button
@@ -295,7 +259,7 @@ export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
                     No curated source match found for this educational query. Treat as general guidance.
                   </div>
                 )}
-                {msg.role === "assistant" && msg.text !== "" && preferences.allowLearning && (
+                {msg.role === "assistant" && msg.text !== "" && (
                   <div className="mt-2 flex items-center gap-1.5">
                     <button
                       onClick={() => handleFeedback(msg.id, true)}

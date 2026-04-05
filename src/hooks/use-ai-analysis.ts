@@ -241,6 +241,7 @@ export function useAiChat() {
     regime?: RegimeData,
     options?: {
       onComplete?: (payload: ChatCompletePayload) => void;
+      history?: ChatMessage[];
     },
   ) => {
     const userMessageId = createMessageId();
@@ -255,8 +256,13 @@ export function useAiChat() {
     setError(null);
 
     try {
+      const historyForApi = (options?.history ?? [])
+        .filter((m) => m.text.length > 0)
+        .slice(-8)
+        .map((m) => ({ role: m.role, content: m.text }));
+
       const result = await streamAiAnalysis(
-        { type: "chat", question, stocks, regime },
+        { type: "chat", question, stocks, regime, history: historyForApi },
         {
           onMeta: (meta) => {
             setMessages((prev) => updateAssistantMessage(prev, assistantMessageId, (message) => ({
