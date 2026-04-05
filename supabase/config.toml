@@ -14,3 +14,11 @@ verify_jwt = true
 
 [functions.check-alerts]
 verify_jwt = false
+
+[realtime]
+enabled = true
+
+[[realtime.tables]]
+schema = "public"
+table = "script_runs"
+filter = ""
