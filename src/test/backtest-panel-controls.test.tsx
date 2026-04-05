@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 
 import { BacktestPanel } from "@/components/BacktestPanel";
 import { mockStocks } from "@/lib/mock-data";
@@ -14,7 +15,7 @@ vi.mock("@/hooks/use-data", () => ({
 }));
 
 vi.mock("recharts", async () => {
-    const Box = ({ children }: { children?: unknown }) => <div>{children as any}</div>;
+    const Box = ({ children }: { children?: ReactNode }) => <div>{children}</div>;
     const Nil = () => null;
     return {
         ResponsiveContainer: Box,
