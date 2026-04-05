@@ -84,7 +84,7 @@ export interface Position {
 // Transform Supabase row to app Stock type
 export function mapDbStock(row: Tables<"stocks">): Stock {
   const signals = (row.signals || {}) as Record<string, boolean>;
-  const news = (row.news || []) as NewsItem[];
+  const news = (row.news || []) as unknown as NewsItem[];
 
   return {
     ticker: row.ticker,

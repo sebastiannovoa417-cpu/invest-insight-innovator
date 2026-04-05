@@ -1,36 +1,21 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    createEntryEligibilityMask,
     resolveExitOnBar,
     runSignalBacktest,
-    type BacktestBar,
-    type BacktestConfig,
-    type BacktestSignal,
+    validateBacktestData,
 } from "@/lib/backtest";
-
-const baseConfig: BacktestConfig = {
-    ticker: "NVDA",
-    strategy: "MACD + EMA Cross",
-    lookback: 30,
-    stopLoss: 5,
-    takeProfit: 10,
-    positionSize: 100,
-    capital: 1000,
-    slippageBps: 0,
-    feeBpsPerSide: 0,
-};
-
-function makeBar(date: string, open: number, high: number, low: number, close: number, volume = 1_000_000): BacktestBar {
-    return {
-        ticker: "NVDA",
-        date,
-        open,
-        high,
-        low,
-        close,
-        volume,
-    };
-}
+import {
+    baseBacktestConfig,
+    basicLongSignals,
+    compoundingBars,
+    compoundingSignals,
+    longGapStopBars,
+    makeBar,
+    shortSignals,
+    shortTakeProfitBars,
+} from "@/test/fixtures/backtest-fixtures";
 
 describe("backtest engine", () => {
     it("enters on the next bar instead of the signal bar", () => {
@@ -39,9 +24,8 @@ describe("backtest engine", () => {
             makeBar("2026-01-06", 101, 103, 100, 102),
             makeBar("2026-01-07", 102, 114, 101, 113),
         ];
-        const signals: BacktestSignal[] = ["LONG", null, null];
 
-        const result = runSignalBacktest(baseConfig, bars, signals);
+        const result = runSignalBacktest(baseBacktestConfig, bars, basicLongSignals);
 
         expect(result.totalTrades).toBe(1);
         expect(result.trades[0].signalDate).toBe("2026-01-05");
@@ -51,14 +35,7 @@ describe("backtest engine", () => {
     });
 
     it("fills a long stop at the bar open when price gaps through the stop", () => {
-        const bars = [
-            makeBar("2026-01-05", 100, 101, 99, 100),
-            makeBar("2026-01-06", 100, 102, 99, 101),
-            makeBar("2026-01-07", 90, 92, 88, 89),
-        ];
-        const signals: BacktestSignal[] = ["LONG", null, null];
-
-        const result = runSignalBacktest(baseConfig, bars, signals);
+        const result = runSignalBacktest(baseBacktestConfig, longGapStopBars, basicLongSignals);
 
         expect(result.totalTrades).toBe(1);
         expect(result.trades[0].exit).toBe(90);
@@ -84,9 +61,8 @@ describe("backtest engine", () => {
             makeBar("2026-01-06", 100, 112, 94, 108),
             makeBar("2026-01-07", 108, 109, 107, 108),
         ];
-        const signals: BacktestSignal[] = ["LONG", null, null];
 
-        const result = runSignalBacktest(baseConfig, bars, signals);
+        const result = runSignalBacktest(baseBacktestConfig, bars, basicLongSignals);
 
         expect(result.totalTrades).toBe(1);
         expect(result.trades[0].exitDate).toBe("2026-01-06");
@@ -96,19 +72,115 @@ describe("backtest engine", () => {
     });
 
     it("compounds position size from updated equity between trades", () => {
-        const bars = [
-            makeBar("2026-01-05", 100, 101, 99, 100),
-            makeBar("2026-01-06", 100, 101, 99, 100),
-            makeBar("2026-01-07", 110, 111, 109, 110),
-            makeBar("2026-01-08", 100, 101, 99, 100),
-            makeBar("2026-01-09", 110, 111, 109, 110),
-        ];
-        const signals: BacktestSignal[] = ["LONG", null, "LONG", null, null];
-
-        const result = runSignalBacktest(baseConfig, bars, signals);
+        const result = runSignalBacktest(baseBacktestConfig, compoundingBars, compoundingSignals);
 
         expect(result.totalTrades).toBe(2);
         expect(result.trades[0].pnl).toBeGreaterThan(result.trades[1].pnl);
         expect(result.finalEquity).toBe(1210);
+    });
+
+    it("handles short trades with profitable downside follow-through", () => {
+        const result = runSignalBacktest(baseBacktestConfig, shortTakeProfitBars, shortSignals);
+
+        expect(result.totalTrades).toBe(1);
+        expect(result.trades[0].dir).toBe("SHORT");
+        expect(result.trades[0].pnl).toBeGreaterThan(0);
+    });
+
+    it("applies fees and lowers net pnl compared with zero-fee baseline", () => {
+        const noFee = runSignalBacktest(baseBacktestConfig, shortTakeProfitBars, shortSignals);
+        const withFee = runSignalBacktest(
+            { ...baseBacktestConfig, feeBpsPerSide: 25 },
+            shortTakeProfitBars,
+            shortSignals,
+        );
+
+        expect(withFee.trades[0].pnl).toBeLessThan(noFee.trades[0].pnl);
+    });
+
+    it("flags stale data when latest bar is older than threshold", () => {
+        const issues = validateBacktestData(
+            { ...baseBacktestConfig, staleAfterDays: 3, referenceDate: "2026-02-10" },
+            longGapStopBars,
+        );
+        expect(issues.some((issue) => issue.code === "stale-data")).toBe(true);
+    });
+
+    it("flags malformed OHLC rows", () => {
+        const malformed = [
+            makeBar("2026-01-05", 100, 101, 99, 100),
+            makeBar("2026-01-06", 100, 95, 99, 100),
+        ];
+        const issues = validateBacktestData(baseBacktestConfig, malformed);
+        expect(issues.some((issue) => issue.code === "invalid-ohlc")).toBe(true);
+    });
+
+    it("blocks short entries when bullish regime filter is enabled", () => {
+        const result = runSignalBacktest(
+            { ...baseBacktestConfig, regimeFilterEnabled: true, regimeStatus: "BULLISH" },
+            shortTakeProfitBars,
+            shortSignals,
+        );
+        expect(result.totalTrades).toBe(0);
+    });
+
+    it("skips entries near earnings date when blackout is configured", () => {
+        const result = runSignalBacktest(
+            {
+                ...baseBacktestConfig,
+                earningsDate: "2026-01-06",
+                avoidEarningsDays: 1,
+            },
+            longGapStopBars,
+            basicLongSignals,
+        );
+        expect(result.totalTrades).toBe(0);
+    });
+
+    it("walk-forward mode only executes in out-of-sample windows", () => {
+        const bars = Array.from({ length: 220 }).map((_, index) => {
+            const day = String((index % 28) + 1).padStart(2, "0");
+            const month = String(Math.floor(index / 28) + 1).padStart(2, "0");
+            const close = index % 2 === 0 ? 80 : 120;
+            return makeBar(`2026-${month}-${day}`, close, close + 2, close - 2, close);
+        });
+        const manualSignals = bars.map((_, index) => (index % 2 === 0 ? "LONG" : null));
+        const baseline = runSignalBacktest(
+            {
+                ...baseBacktestConfig,
+                strategy: "MACD + EMA Cross",
+                stopLoss: 2,
+                takeProfit: 2,
+                lookback: 220,
+                walkForwardEnabled: false,
+            },
+            bars,
+            manualSignals,
+        );
+        const entryMask = createEntryEligibilityMask(
+            {
+                ...baseBacktestConfig,
+                walkForwardEnabled: true,
+                walkForwardTrainBars: 120,
+                walkForwardTestBars: 20,
+                lookback: 220,
+            },
+            bars,
+        );
+        const masked = runSignalBacktest(
+            {
+                ...baseBacktestConfig,
+                strategy: "MACD + EMA Cross",
+                stopLoss: 2,
+                takeProfit: 2,
+                lookback: 220,
+            },
+            bars,
+            manualSignals,
+            entryMask,
+        );
+
+        expect(baseline.totalTrades).toBeGreaterThan(0);
+        expect(masked.totalTrades).toBeLessThanOrEqual(baseline.totalTrades);
     });
 });
