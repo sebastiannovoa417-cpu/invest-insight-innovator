@@ -3,6 +3,7 @@ import { Sparkles, RefreshCw, AlertTriangle } from "lucide-react";
 import { generateMarketBriefing } from "@/lib/ai-engine";
 import { cn } from "@/lib/utils";
 import type { Stock, RegimeData } from "@/lib/types";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AiBriefProps {
   stocks: Stock[];
@@ -25,10 +26,45 @@ export function AiBrief({ stocks, regime }: AiBriefProps) {
     // Small delay so the loading state is visible
     await new Promise<void>((r) => setTimeout(r, 350));
 
+    // Try the ai-brief edge function first
     try {
-      const result = generateMarketBriefing(regime, stocks);
-      setBriefing(result);
-      setTimestamp(new Date().toLocaleTimeString());
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+      if (
+        accessToken &&
+        supabaseUrl &&
+        supabaseKey &&
+        supabaseKey !== "offline-mode-key-not-configured"
+      ) {
+        const res = await fetch(`${supabaseUrl}/functions/v1/ai-brief`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ regime, stocks }),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { briefing: string; model: string; timestamp: string };
+          setBriefing(data.briefing);
+          setTimestamp(data.timestamp);
+          setModel(data.model);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (edgeErr) {
+      if (import.meta.env.DEV)
+        console.warn("[AiBrief] edge function unavailable, using built-in engine", edgeErr);
+    }
+
+    // Fallback: built-in engine
+    try {
+      setBriefing(generateMarketBriefing(regime, stocks));
+      setTimestamp(new Date().toISOString());
       setModel("Built-in");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Unknown error");
@@ -106,7 +142,7 @@ export function AiBrief({ stocks, regime }: AiBriefProps) {
           ))}
           {timestamp && (
             <p className="mt-3 text-[10px] font-mono text-muted-foreground">
-              Generated {new Date(timestamp).toLocaleTimeString()} · {stocks.length} tickers analyzed
+              Generated {new Date(timestamp).toLocaleTimeString()} · {stocks.length} tickers · {model}
             </p>
           )}
         </div>

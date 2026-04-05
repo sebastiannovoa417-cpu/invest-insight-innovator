@@ -163,11 +163,14 @@ ${knowledgeBlock}
 TRADER QUESTION: ${question}
 
 Rules:
+- First classify the user intent as one of: market-regime, setup-ranking, ticker-specific, comparison, risk-sizing, broker-workflow, or education.
+- Select only the most relevant data for that intent before writing the answer.
 - Use the live market data above when the question is about current setups.
 - Use curated knowledge when it is relevant, especially for educational or broker workflow questions.
 - Do not invent citations or claim a source was used if it was not supplied.
 - If curated knowledge is missing for an educational question, explicitly frame the answer as general guidance.
 - Keep the answer under 180 words and optimize for direct, practical guidance.
+- Structure the response as: 1) Direct answer, 2) Why this fits (key data points), 3) Next step the trader can take.
 
 ${uncitedWarning ? "A curated source match was not found for this educational question. Make that limitation explicit in the answer." : ""}`;
 }
@@ -319,7 +322,7 @@ Deno.serve(async (req) => {
 
   const systemPrompt = type === "trade"
     ? "You are an expert swing trading analyst. Be concise, direct, and data-driven. No disclaimers."
-    : "You are SwingPulse's built-in market and trading assistant for US stocks and ETFs. Answer clearly and practically. When curated knowledge is provided, rely on it. Do not fabricate citations or claim source-backed certainty when no curated source was supplied.";
+    : "You are SwingPulse's built-in market and trading assistant for US stocks and ETFs. Systematically interpret natural-language questions, choose the best-fit intent, and answer with concise structure. When curated knowledge is provided, rely on it. Do not fabricate citations or claim source-backed certainty when no curated source was supplied.";
 
   const client = new Anthropic({ apiKey });
 
