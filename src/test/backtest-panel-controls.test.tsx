@@ -18,10 +18,10 @@ vi.mock("recharts", async () => {
     const Nil = () => null;
     return {
         ResponsiveContainer: Box,
-        AreaChart: Box,
-        BarChart: Box,
+        AreaChart: Nil,
+        BarChart: Nil,
         Area: Nil,
-        Bar: Box,
+        Bar: Nil,
         XAxis: Nil,
         YAxis: Nil,
         CartesianGrid: Nil,
@@ -96,6 +96,46 @@ describe("BacktestPanel controls", () => {
 
         await waitFor(() => {
             expect(readTotalTrades()).toBe(0);
+        });
+    });
+
+    it("walk-forward toggle reduces or preserves trade count", async () => {
+        vi.mocked(usePriceHistory).mockReturnValue({
+            data: buildDowntrendBars(320),
+            isLoading: false,
+            isError: false,
+        } as ReturnType<typeof usePriceHistory>);
+
+        vi.mocked(useRegime).mockReturnValue({
+            data: {
+                status: "NEUTRAL",
+                spyPrice: 500,
+                sma200: 480,
+                sma50: 490,
+                spyRsi: 50,
+                vix: 16,
+                ratio: 1,
+                regimeScore: 0,
+            },
+            isLoading: false,
+            isError: false,
+        } as ReturnType<typeof useRegime>);
+
+        render(<BacktestPanel stocks={[mockStocks.find((s) => s.ticker === "NVDA") ?? mockStocks[0]]} />);
+
+        fireEvent.change(screen.getByTitle("Backtest strategy"), {
+            target: { value: "RSI Mean Reversion" },
+        });
+
+        await waitFor(() => {
+            expect(readTotalTrades()).toBeGreaterThan(0);
+        });
+
+        const baselineTrades = readTotalTrades();
+        fireEvent.click(screen.getByLabelText(/WALK-FORWARD MODE/i));
+
+        await waitFor(() => {
+            expect(readTotalTrades()).toBeLessThanOrEqual(baselineTrades);
         });
     });
 });
