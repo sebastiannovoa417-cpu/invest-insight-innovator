@@ -274,6 +274,18 @@ export interface AiChatEventInput {
   context: Record<string, unknown>;
 }
 
+export interface TradingKnowledgeItem {
+  id: string;
+  category: "swing_principles" | "risk_management" | "order_mechanics" | "broker_workflows" | "app_help";
+  title: string;
+  content: string;
+  tags: string[];
+  broker: string | null;
+  platform: string | null;
+  sourceLabel: string | null;
+  sourceUrl: string | null;
+}
+
 function hashAnswer(answer: string): string {
   let hash = 0;
   for (let i = 0; i < answer.length; i += 1) {
@@ -384,6 +396,45 @@ export function useAiLearning() {
     logChatEvent: logChatEvent.mutateAsync,
     submitFeedback: submitFeedback.mutate,
   };
+}
+
+export function useTradingKnowledge() {
+  return useQuery({
+    queryKey: ["trading-knowledge"],
+    queryFn: async (): Promise<TradingKnowledgeItem[]> => {
+      const [{ data: knowledgeRows, error: knowledgeError }, { data: sourceRows, error: sourceError }] = await Promise.all([
+        supabase
+          .from("trading_knowledge")
+          .select("id, category, title, content, tags, broker, platform, source_id")
+          .order("updated_at", { ascending: false }),
+        supabase
+          .from("knowledge_sources")
+          .select("id, publisher, url")
+          .eq("is_active", true),
+      ]);
+
+      if (knowledgeError) throw knowledgeError;
+      if (sourceError) throw sourceError;
+
+      const sourceById = new Map((sourceRows ?? []).map((src) => [src.id, src]));
+
+      return (knowledgeRows ?? []).map((row) => {
+        const source = row.source_id ? sourceById.get(row.source_id) : undefined;
+        return {
+          id: row.id,
+          category: row.category,
+          title: row.title,
+          content: row.content,
+          tags: row.tags ?? [],
+          broker: row.broker,
+          platform: row.platform,
+          sourceLabel: source?.publisher ?? null,
+          sourceUrl: source?.url ?? null,
+        };
+      });
+    },
+    staleTime: 30 * 60 * 1000,
+  });
 }
 
 // ─── Realtime Run Watcher ───────────────────────────────

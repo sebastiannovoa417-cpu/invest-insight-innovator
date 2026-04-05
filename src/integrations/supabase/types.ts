@@ -128,6 +128,102 @@ export type Database = {
         }
         Relationships: []
       }
+      broker_order_workflows: {
+        Row: {
+          broker: string
+          created_at: string
+          id: string
+          instrument: string
+          order_types_supported: string[]
+          platform: string
+          source_id: string | null
+          steps_json: Json
+          updated_at: string
+        }
+        Insert: {
+          broker: string
+          created_at?: string
+          id?: string
+          instrument: string
+          order_types_supported?: string[]
+          platform: string
+          source_id?: string | null
+          steps_json?: Json
+          updated_at?: string
+        }
+        Update: {
+          broker?: string
+          created_at?: string
+          id?: string
+          instrument?: string
+          order_types_supported?: string[]
+          platform?: string
+          source_id?: string | null
+          steps_json?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      knowledge_citations: {
+        Row: {
+          citation_label: string
+          created_at: string
+          excerpt_summary: string | null
+          id: string
+          knowledge_id: string
+          source_url: string
+        }
+        Insert: {
+          citation_label: string
+          created_at?: string
+          excerpt_summary?: string | null
+          id?: string
+          knowledge_id: string
+          source_url: string
+        }
+        Update: {
+          citation_label?: string
+          created_at?: string
+          excerpt_summary?: string | null
+          id?: string
+          knowledge_id?: string
+          source_url?: string
+        }
+        Relationships: []
+      }
+      knowledge_sources: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          last_reviewed_at: string | null
+          publisher: string
+          topic: string
+          trust_tier: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_reviewed_at?: string | null
+          publisher: string
+          topic: string
+          trust_tier: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_reviewed_at?: string | null
+          publisher?: string
+          topic?: string
+          trust_tier?: string
+          url?: string
+        }
+        Relationships: []
+      }
       positions: {
         Row: {
           ai_confidence_snapshot: number | null
@@ -401,6 +497,48 @@ export type Database = {
           low?: number
           close?: number
           volume?: number | null
+        }
+        Relationships: []
+      }
+      trading_knowledge: {
+        Row: {
+          broker: string | null
+          category: string
+          content: string
+          created_at: string
+          id: string
+          platform: string | null
+          source_id: string | null
+          tags: string[]
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          broker?: string | null
+          category: string
+          content: string
+          created_at?: string
+          id?: string
+          platform?: string | null
+          source_id?: string | null
+          tags?: string[]
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          broker?: string | null
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          platform?: string | null
+          source_id?: string | null
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          version?: number
         }
         Relationships: []
       }

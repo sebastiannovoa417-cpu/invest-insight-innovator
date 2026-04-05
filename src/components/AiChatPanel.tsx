@@ -3,7 +3,7 @@ import { Send, Trash2, Sparkles, Loader2, ThumbsUp, ThumbsDown } from "lucide-re
 import { cn } from "@/lib/utils";
 import type { Stock, RegimeData } from "@/lib/types";
 import { useAiChat } from "@/hooks/use-ai-analysis";
-import { useAiLearning } from "@/hooks/use-data";
+import { useAiLearning, useTradingKnowledge } from "@/hooks/use-data";
 
 interface AiChatPanelProps {
   stocks: Stock[];
@@ -16,11 +16,15 @@ const SUGGESTED_QUESTIONS = [
   "What are the top SHORT candidates?",
   "Which setups have the best R:R?",
   "Any earnings risks I should avoid?",
+  "Teach me swing setups for today's regime",
+  "How do I place a stop-limit order in Robinhood?",
+  "How do I place a trade in Fidelity or IBKR?",
 ];
 
 export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
   const { messages, loading, error, send, clear } = useAiChat();
   const { preferences, savePreferences, isSavingPreferences, logChatEvent, submitFeedback } = useAiLearning();
+  const { data: knowledgeItems = [] } = useTradingKnowledge();
   const [input, setInput] = useState("");
   const [eventIdsByMessage, setEventIdsByMessage] = useState<Record<string, string>>({});
   const [feedbackByMessage, setFeedbackByMessage] = useState<Record<string, "up" | "down">>({});
@@ -51,8 +55,12 @@ export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
 
   const sendWithLearning = (question: string) => {
     send(question, stocks, regime, {
-      onComplete: ({ assistantMessageId, question: q, answer }) => {
+      knowledgeItems,
+      onComplete: ({ assistantMessageId, question: q, answer, sources, uncitedWarning }) => {
         void logLearningEvent(assistantMessageId, q, answer);
+        if (import.meta.env.DEV) {
+          console.debug("[ai-chat] sources", { count: sources.length, uncitedWarning });
+        }
       },
     });
   };
@@ -194,6 +202,27 @@ export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
                 )}
                 {msg.role === "assistant" && msg.text !== "" && loading && i === messages.length - 1 && (
                   <span className="inline-block w-1 h-3.5 bg-primary/70 animate-pulse ml-0.5 align-middle" />
+                )}
+                {msg.role === "assistant" && msg.sources && msg.sources.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {msg.sources.map((source, idx) => (
+                      <a
+                        key={`${source.url}-${idx}`}
+                        href={source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] px-1.5 py-0.5 rounded border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+                        title={source.url}
+                      >
+                        Source: {source.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+                {msg.role === "assistant" && msg.uncitedWarning && (
+                  <div className="mt-2 text-[10px] rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-200">
+                    No curated source match found for this educational query. Treat as general guidance.
+                  </div>
                 )}
                 {msg.role === "assistant" && msg.text !== "" && preferences.allowLearning && (
                   <div className="mt-2 flex items-center gap-1.5">

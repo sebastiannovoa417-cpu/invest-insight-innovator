@@ -17,7 +17,8 @@ interface BacktestConfig {
   takeProfit: number;
   positionSize: number;
   capital: number;
-  maxConcurrent: number;
+  slippageBps: number;
+  feeBpsPerSide: number;
 }
 
 interface TradeResult {
@@ -131,8 +132,30 @@ const STRATEGIES = [
   "Dual Momentum",
 ];
 
+function getStrategyWarmupBars(strategy: string): number {
+  if (strategy === "Trend Follow SMA200" || strategy === "Dual Momentum") {
+    return 205;
+  }
+  if (strategy === "MACD + EMA Cross") {
+    return 40;
+  }
+  if (strategy === "RSI Mean Reversion") {
+    return 18;
+  }
+  return 25;
+}
+
+function applySlippage(rawPrice: number, dir: "LONG" | "SHORT", side: "entry" | "exit", bps: number): number {
+  const slip = bps / 10000;
+  if (dir === "LONG") {
+    return side === "entry" ? rawPrice * (1 + slip) : rawPrice * (1 - slip);
+  }
+  return side === "entry" ? rawPrice * (1 - slip) : rawPrice * (1 + slip);
+}
+
 function runRealBacktest(cfg: BacktestConfig, bars: PriceBar[]): BacktestResult {
-  if (bars.length < 30) return emptyResult(cfg.capital);
+  const warmupBars = getStrategyWarmupBars(cfg.strategy);
+  if (bars.length < warmupBars + 2) return emptyResult(cfg.capital);
 
   const closes = bars.map(b => b.close);
   const highs = bars.map(b => b.high);
@@ -147,6 +170,7 @@ function runRealBacktest(cfg: BacktestConfig, bars: PriceBar[]): BacktestResult 
   const volMa20 = rollingMean(volumes, 20);
 
   const lookbackStart = Math.max(0, bars.length - cfg.lookback);
+  const signalStart = Math.max(lookbackStart, warmupBars);
   let equity = cfg.capital;
   const equityCurve: { t: number; equity: number }[] = [{ t: 0, equity: cfg.capital }];
   const trades: TradeResult[] = [];
@@ -159,8 +183,9 @@ function runRealBacktest(cfg: BacktestConfig, bars: PriceBar[]): BacktestResult 
   const stopMult = cfg.stopLoss / 100;
   const tpMult = cfg.takeProfit / 100;
   const posSize = (cfg.positionSize / 100) * cfg.capital;
+  const feeRatePerSide = cfg.feeBpsPerSide / 10000;
 
-  for (let i = Math.max(lookbackStart, 210); i < bars.length; i++) {
+  for (let i = signalStart; i < bars.length; i++) {
     const price = closes[i];
 
     // ── Check exit conditions if in a position ──────────────────────────────
@@ -174,13 +199,16 @@ function runRealBacktest(cfg: BacktestConfig, bars: PriceBar[]): BacktestResult 
         : lows[i] <= entry * (1 - tpMult);
 
       if (stopHit || tpHit) {
-        const exitPrice = stopHit
+        const rawExit = stopHit
           ? (dir === "LONG" ? entry * (1 - stopMult) : entry * (1 + stopMult))
           : (dir === "LONG" ? entry * (1 + tpMult) : entry * (1 - tpMult));
+        const exitPrice = applySlippage(rawExit, dir, "exit", cfg.slippageBps);
         const pnlPct = dir === "LONG"
           ? ((exitPrice - entry) / entry) * 100
           : ((entry - exitPrice) / entry) * 100;
-        const pnl = posSize * (pnlPct / 100);
+        const grossPnl = posSize * (pnlPct / 100);
+        const fees = posSize * feeRatePerSide * 2;
+        const pnl = grossPnl - fees;
         equity += pnl;
         equityCurve.push({ t: equityCurve.length, equity });
 
@@ -244,8 +272,10 @@ function runRealBacktest(cfg: BacktestConfig, bars: PriceBar[]): BacktestResult 
         }
       }
 
-      if (dir) {
-        openPos = { dir, entry: price, entryIdx: i };
+      if (dir && i + 1 < bars.length) {
+        const nextOpen = bars[i + 1].open;
+        const entry = applySlippage(nextOpen, dir, "entry", cfg.slippageBps);
+        openPos = { dir, entry, entryIdx: i + 1 };
       }
     }
   }
@@ -253,11 +283,13 @@ function runRealBacktest(cfg: BacktestConfig, bars: PriceBar[]): BacktestResult 
   // Close any open position at last bar price
   if (openPos) {
     const { dir, entry, entryIdx } = openPos;
-    const exitPrice = closes[bars.length - 1];
+    const exitPrice = applySlippage(closes[bars.length - 1], dir, "exit", cfg.slippageBps);
     const pnlPct = dir === "LONG"
       ? ((exitPrice - entry) / entry) * 100
       : ((entry - exitPrice) / entry) * 100;
-    const pnl = posSize * (pnlPct / 100);
+    const grossPnl = posSize * (pnlPct / 100);
+    const fees = posSize * feeRatePerSide * 2;
+    const pnl = grossPnl - fees;
     equity += pnl;
     equityCurve.push({ t: equityCurve.length, equity });
     trades.push({
@@ -309,7 +341,7 @@ function summarise(
   const returns = equityCurve.slice(1).map((p, i) => (p.equity - equityCurve[i].equity) / equityCurve[i].equity);
   const avgRet = returns.reduce((a, b) => a + b, 0) / (returns.length || 1);
   const stdRet = Math.sqrt(returns.reduce((s, r) => s + (r - avgRet) ** 2, 0) / (returns.length || 1));
-  const sharpe = stdRet === 0 ? 0 : Math.round(Math.abs((avgRet / stdRet) * Math.sqrt(252)) * 100) / 100;
+  const sharpe = stdRet === 0 ? 0 : Math.round(((avgRet / stdRet) * Math.sqrt(252)) * 100) / 100;
 
   const buckets = ["<-5%", "-5−2", "-2−0", "0−2", "2−5", "5−10", ">10%"];
   const dist = buckets.map(b => ({ bucket: b, wins: 0, losses: 0 }));
@@ -346,23 +378,17 @@ function runMonteCarloSimulation(
 ): MonteCarloResult | null {
   if (trades.length < 3) return null;
 
-  const pnlList = trades.map(t => t.pnl);
-  const posSize = (positionSize / 100) * capital;
+  const returnList = trades.map(t => t.pnlPct / 100);
+  const positionFraction = positionSize / 100;
   const finalEquities: number[] = [];
 
   for (let s = 0; s < simCount; s++) {
-    // Fisher-Yates shuffle on a copy
-    const shuffled = [...pnlList];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    // Replay shuffled trade sequence
+    // Bootstrap sampled path (with replacement) gives distributional uncertainty.
     let eq = capital;
-    for (const pnl of shuffled) {
-      // Scale pnl proportionally if positionSize changed
-      const scale = posSize > 0 ? 1 : 1;
-      eq += pnl * scale;
+    for (let i = 0; i < returnList.length; i++) {
+      const sample = returnList[Math.floor(Math.random() * returnList.length)];
+      const pnl = eq * positionFraction * sample;
+      eq += pnl;
     }
     finalEquities.push(eq);
   }
@@ -481,7 +507,8 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
     takeProfit: 15,
     positionSize: 100,
     capital: 1000,
-    maxConcurrent: 1,
+    slippageBps: 5,
+    feeBpsPerSide: 2,
   });
 
   const set = useCallback(<K extends keyof BacktestConfig>(key: K, val: BacktestConfig[K]) => {
@@ -505,8 +532,11 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
     return computeBuyAndHold(priceHistory, cfg.lookback);
   }, [priceHistory, cfg.lookback]);
 
+  const warmupBars = useMemo(() => getStrategyWarmupBars(cfg.strategy), [cfg.strategy]);
+  const requiredBars = warmupBars + 2;
+
   const ddMax = Math.max(result.maxDrawdown, result.avgDrawdown, Math.abs(result.recoveryFactor), 1);
-  const hasData = priceHistory.length >= 30;
+  const hasData = priceHistory.length >= requiredBars;
 
   return (
     <div className="space-y-4">
@@ -514,7 +544,7 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
       {/* ── Header ── */}
       <div className="flex items-center gap-2 mb-1">
         <span className="text-[10px] font-bold tracking-[0.2em] text-primary">SWINGPULSE</span>
-        <span className="text-[10px] text-muted-foreground tracking-widest">// BACKTEST ENGINE v2.0</span>
+        <span className="text-[10px] text-muted-foreground tracking-widest">// BACKTEST ENGINE v2.1</span>
         {hasData && (
           <span className="ml-auto text-[9px] text-long tracking-wider">
             ● LIVE DATA ({priceHistory.length} bars)
@@ -522,7 +552,7 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
         )}
         {!hasData && !isLoading && (
           <span className="ml-auto text-[9px] text-muted-foreground tracking-wider">
-            ○ NO PRICE DATA — run pipeline with SUPABASE_PRICES_URL set
+            ○ NEED {requiredBars}+ BARS FOR {cfg.strategy.toUpperCase()}
           </span>
         )}
         {isLoading && (
@@ -575,8 +605,25 @@ export function BacktestPanel({ stocks = [] }: BacktestPanelProps) {
             format={v => String(v)} onChange={v => set("positionSize", v)} />
           <SliderRow label="CAPITAL ($)" value={cfg.capital} min={500} max={50000} step={500}
             format={v => `$${v.toLocaleString()}`} onChange={v => set("capital", v)} />
-          <SliderRow label="MAX CONCURRENT" value={cfg.maxConcurrent} min={1} max={10} step={1}
-            format={v => String(v)} onChange={v => set("maxConcurrent", v)} />
+          <SliderRow label="SLIPPAGE (BPS)" value={cfg.slippageBps} min={0} max={50} step={1}
+            format={v => String(v)} onChange={v => set("slippageBps", v)} />
+          <SliderRow label="FEE / SIDE (BPS)" value={cfg.feeBpsPerSide} min={0} max={25} step={1}
+            format={v => String(v)} onChange={v => set("feeBpsPerSide", v)} />
+        </div>
+      </div>
+
+      {/* ── Assumptions ── */}
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="text-[10px] font-bold tracking-[0.15em] text-muted-foreground mb-2">
+          ASSUMPTIONS & LIMITS
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+          <p>Signals are evaluated on bar close; entries are filled on the next bar open.</p>
+          <p>Exits trigger intrabar at stop/target with adverse slippage ({cfg.slippageBps} bps each side).</p>
+          <p>Fees are applied on entry and exit ({cfg.feeBpsPerSide} bps per side).</p>
+          <p>Single-position engine: one trade at a time; no portfolio concurrency yet.</p>
+          <p>Warmup: {warmupBars} bars required for {cfg.strategy} indicator stability.</p>
+          <p>Monte Carlo uses bootstrap resampling of historical trade returns.</p>
         </div>
       </div>
 
