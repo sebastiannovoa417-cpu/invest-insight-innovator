@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Trash2, Sparkles, Loader2 } from "lucide-react";
+import { Send, Trash2, Sparkles, Loader2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Stock, RegimeData } from "@/lib/types";
 import { useAiChat } from "@/hooks/use-ai-analysis";
+import { useAiLearning } from "@/hooks/use-data";
 
 interface AiChatPanelProps {
   stocks: Stock[];
@@ -19,7 +20,10 @@ const SUGGESTED_QUESTIONS = [
 
 export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
   const { messages, loading, error, send, clear } = useAiChat();
+  const { preferences, savePreferences, isSavingPreferences, logChatEvent, submitFeedback } = useAiLearning();
   const [input, setInput] = useState("");
+  const [eventIdsByMessage, setEventIdsByMessage] = useState<Record<string, string>>({});
+  const [feedbackByMessage, setFeedbackByMessage] = useState<Record<string, "up" | "down">>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -27,11 +31,45 @@ export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const logLearningEvent = async (
+    assistantMessageId: string,
+    question: string,
+    answer: string,
+  ) => {
+    const eventId = await logChatEvent({
+      question,
+      answer,
+      context: {
+        regime: regime.status,
+        stockCount: stocks.length,
+      },
+    });
+
+    if (!eventId) return;
+    setEventIdsByMessage((prev) => ({ ...prev, [assistantMessageId]: eventId }));
+  };
+
+  const sendWithLearning = (question: string) => {
+    send(question, stocks, regime, {
+      onComplete: ({ assistantMessageId, question: q, answer }) => {
+        void logLearningEvent(assistantMessageId, q, answer);
+      },
+    });
+  };
+
+  const handleFeedback = (messageId: string, helpful: boolean) => {
+    const eventId = eventIdsByMessage[messageId];
+    if (!eventId) return;
+
+    setFeedbackByMessage((prev) => ({ ...prev, [messageId]: helpful ? "up" : "down" }));
+    submitFeedback({ eventId, helpful });
+  };
+
   const handleSend = () => {
     const q = input.trim();
     if (!q || loading) return;
     setInput("");
-    send(q, stocks, regime);
+    sendWithLearning(q);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -51,10 +89,51 @@ export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
             Built-in
           </span>
+          <button
+            onClick={() =>
+              savePreferences({
+                allowLearning: !preferences.allowLearning,
+                allowChatStorage: preferences.allowLearning ? false : preferences.allowChatStorage,
+              })
+            }
+            disabled={isSavingPreferences}
+            className={cn(
+              "text-[10px] px-1.5 py-0.5 rounded border transition-colors",
+              preferences.allowLearning
+                ? "border-primary/30 text-primary bg-primary/10"
+                : "border-border text-muted-foreground",
+            )}
+            title="Allow AI to learn from your interactions"
+          >
+            Learn: {preferences.allowLearning ? "On" : "Off"}
+          </button>
+          <button
+            onClick={() =>
+              savePreferences({
+                allowLearning: preferences.allowLearning,
+                allowChatStorage: !preferences.allowChatStorage,
+              })
+            }
+            disabled={!preferences.allowLearning || isSavingPreferences}
+            className={cn(
+              "text-[10px] px-1.5 py-0.5 rounded border transition-colors",
+              preferences.allowChatStorage
+                ? "border-primary/30 text-primary bg-primary/10"
+                : "border-border text-muted-foreground",
+              !preferences.allowLearning && "opacity-50 cursor-not-allowed",
+            )}
+            title="Store question/answer text for better personalization"
+          >
+            Store Chat: {preferences.allowChatStorage ? "On" : "Off"}
+          </button>
         </div>
         {messages.length > 0 && (
           <button
-            onClick={clear}
+            onClick={() => {
+              clear();
+              setEventIdsByMessage({});
+              setFeedbackByMessage({});
+            }}
             aria-label="Clear chat"
             title="Clear chat"
             className="text-muted-foreground hover:text-foreground transition-colors p-1"
@@ -78,7 +157,9 @@ export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
               {SUGGESTED_QUESTIONS.map((q) => (
                 <button
                   key={q}
-                  onClick={() => { send(q, stocks, regime); }}
+                  onClick={() => {
+                    sendWithLearning(q);
+                  }}
                   className="w-full text-left px-3 py-2 rounded-md border border-border text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-colors"
                 >
                   {q}
@@ -113,6 +194,38 @@ export function AiChatPanel({ stocks, regime }: AiChatPanelProps) {
                 )}
                 {msg.role === "assistant" && msg.text !== "" && loading && i === messages.length - 1 && (
                   <span className="inline-block w-1 h-3.5 bg-primary/70 animate-pulse ml-0.5 align-middle" />
+                )}
+                {msg.role === "assistant" && msg.text !== "" && preferences.allowLearning && (
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleFeedback(msg.id, true)}
+                      disabled={!eventIdsByMessage[msg.id]}
+                      className={cn(
+                        "p-1 rounded border transition-colors",
+                        feedbackByMessage[msg.id] === "up"
+                          ? "border-primary/40 bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:text-foreground",
+                        !eventIdsByMessage[msg.id] && "opacity-50 cursor-not-allowed",
+                      )}
+                      title="Helpful answer"
+                    >
+                      <ThumbsUp className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => handleFeedback(msg.id, false)}
+                      disabled={!eventIdsByMessage[msg.id]}
+                      className={cn(
+                        "p-1 rounded border transition-colors",
+                        feedbackByMessage[msg.id] === "down"
+                          ? "border-primary/40 bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:text-foreground",
+                        !eventIdsByMessage[msg.id] && "opacity-50 cursor-not-allowed",
+                      )}
+                      title="Not helpful"
+                    >
+                      <ThumbsDown className="w-3 h-3" />
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

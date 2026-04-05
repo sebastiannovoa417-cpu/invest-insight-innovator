@@ -261,6 +261,131 @@ export function usePositions() {
   };
 }
 
+// ─── AI Learning (Preferences + Feedback) ─────────────────────────
+
+export interface AiLearningPreferences {
+  allowLearning: boolean;
+  allowChatStorage: boolean;
+}
+
+export interface AiChatEventInput {
+  question: string;
+  answer: string;
+  context: Record<string, unknown>;
+}
+
+function hashAnswer(answer: string): string {
+  let hash = 0;
+  for (let i = 0; i < answer.length; i += 1) {
+    hash = (hash << 5) - hash + answer.charCodeAt(i);
+    hash |= 0;
+  }
+  return `a${Math.abs(hash).toString(16)}`;
+}
+
+export function useAiLearning() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const preferencesQuery = useQuery({
+    queryKey: ["ai-learning-preferences", user?.id],
+    queryFn: async (): Promise<AiLearningPreferences> => {
+      if (!user) return { allowLearning: false, allowChatStorage: false };
+
+      const { data, error } = await supabase
+        .from("ai_learning_preferences")
+        .select("allow_learning, allow_chat_storage")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) return { allowLearning: false, allowChatStorage: false };
+
+      return {
+        allowLearning: data.allow_learning,
+        allowChatStorage: data.allow_chat_storage,
+      };
+    },
+    enabled: !!user,
+  });
+
+  const savePreferences = useMutation({
+    mutationFn: async (prefs: AiLearningPreferences) => {
+      if (!user) throw new Error("Not logged in");
+
+      const { error } = await supabase.from("ai_learning_preferences").upsert({
+        user_id: user.id,
+        allow_learning: prefs.allowLearning,
+        allow_chat_storage: prefs.allowChatStorage,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ai-learning-preferences"] });
+    },
+    onError: (err) => toast.error("Could not save AI learning settings: " + err.message),
+  });
+
+  const logChatEvent = useMutation({
+    mutationFn: async (input: AiChatEventInput): Promise<string | null> => {
+      if (!user) return null;
+      const prefs = preferencesQuery.data;
+      if (!prefs?.allowLearning) return null;
+
+      const answerPreview = input.answer.slice(0, 280);
+      const payload = {
+        user_id: user.id,
+        question: prefs.allowChatStorage ? input.question : null,
+        answer_hash: hashAnswer(input.answer),
+        answer_preview: prefs.allowChatStorage ? answerPreview : null,
+        context_json: input.context,
+      };
+
+      const { data, error } = await supabase
+        .from("ai_chat_events")
+        .insert(payload)
+        .select("id")
+        .single();
+
+      if (error) throw error;
+      return data.id;
+    },
+    onError: (err) => {
+      if (import.meta.env.DEV) {
+        console.error("[ai-learning/logChatEvent]", err);
+      }
+    },
+  });
+
+  const submitFeedback = useMutation({
+    mutationFn: async (input: { eventId: string; helpful: boolean; actionable?: boolean }) => {
+      if (!user) throw new Error("Not logged in");
+      const prefs = preferencesQuery.data;
+      if (!prefs?.allowLearning) return;
+
+      const { error } = await supabase.from("ai_feedback").upsert({
+        user_id: user.id,
+        event_id: input.eventId,
+        helpful: input.helpful,
+        actionable: input.actionable ?? null,
+      });
+
+      if (error) throw error;
+    },
+    onError: (err) => toast.error("Could not save AI feedback: " + err.message),
+  });
+
+  return {
+    preferences: preferencesQuery.data ?? { allowLearning: false, allowChatStorage: false },
+    loadingPreferences: preferencesQuery.isLoading,
+    savePreferences: savePreferences.mutate,
+    isSavingPreferences: savePreferences.isPending,
+    logChatEvent: logChatEvent.mutateAsync,
+    submitFeedback: submitFeedback.mutate,
+  };
+}
+
 // ─── Realtime Run Watcher ───────────────────────────────
 /**
  * Subscribes to Supabase Realtime on script_runs INSERT.

@@ -47,8 +47,91 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_chat_events: {
+        Row: {
+          answer_hash: string
+          answer_preview: string | null
+          context_json: Json
+          created_at: string
+          id: string
+          question: string | null
+          user_id: string
+        }
+        Insert: {
+          answer_hash: string
+          answer_preview?: string | null
+          context_json?: Json
+          created_at?: string
+          id?: string
+          question?: string | null
+          user_id: string
+        }
+        Update: {
+          answer_hash?: string
+          answer_preview?: string | null
+          context_json?: Json
+          created_at?: string
+          id?: string
+          question?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_feedback: {
+        Row: {
+          actionable: boolean | null
+          created_at: string
+          event_id: string
+          helpful: boolean
+          id: string
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          actionable?: boolean | null
+          created_at?: string
+          event_id: string
+          helpful: boolean
+          id?: string
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          actionable?: boolean | null
+          created_at?: string
+          event_id?: string
+          helpful?: boolean
+          id?: string
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_learning_preferences: {
+        Row: {
+          allow_chat_storage: boolean
+          allow_learning: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allow_chat_storage?: boolean
+          allow_learning?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allow_chat_storage?: boolean
+          allow_learning?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       positions: {
         Row: {
+          ai_confidence_snapshot: number | null
+          ai_event_id: string | null
           created_at: string
           direction: string
           entry_date: string
@@ -57,6 +140,7 @@ export type Database = {
           exit_price: number | null
           id: string
           notes: string | null
+          opened_from_ai: boolean
           realized_pnl: number | null
           shares: number
           status: string
@@ -67,6 +151,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_confidence_snapshot?: number | null
+          ai_event_id?: string | null
           created_at?: string
           direction: string
           entry_date?: string
@@ -75,6 +161,7 @@ export type Database = {
           exit_price?: number | null
           id?: string
           notes?: string | null
+          opened_from_ai?: boolean
           realized_pnl?: number | null
           shares?: number
           status?: string
@@ -85,6 +172,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_confidence_snapshot?: number | null
+          ai_event_id?: string | null
           created_at?: string
           direction?: string
           entry_date?: string
@@ -93,6 +182,7 @@ export type Database = {
           exit_price?: number | null
           id?: string
           notes?: string | null
+          opened_from_ai?: boolean
           realized_pnl?: number | null
           shares?: number
           status?: string

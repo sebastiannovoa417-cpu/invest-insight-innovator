@@ -59,8 +59,22 @@ export function useAiTradeAnalysis() {
 // ── AI Chat ───────────────────────────────────────────────────────────────────
 
 export interface ChatMessage {
+  id: string;
   role: "user" | "assistant";
   text: string;
+}
+
+export interface ChatCompletePayload {
+  assistantMessageId: string;
+  question: string;
+  answer: string;
+}
+
+function createMessageId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 export function useAiChat() {
@@ -68,8 +82,20 @@ export function useAiChat() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const send = useCallback((question: string, stocks: Stock[], regime?: RegimeData) => {
-    setMessages((prev) => [...prev, { role: "user", text: question }]);
+  const send = useCallback((
+    question: string,
+    stocks: Stock[],
+    regime?: RegimeData,
+    options?: { onComplete?: (payload: ChatCompletePayload) => void },
+  ) => {
+    const userMessageId = createMessageId();
+    const assistantMessageId = createMessageId();
+
+    setMessages((prev) => [
+      ...prev,
+      { id: userMessageId, role: "user", text: question },
+      { id: assistantMessageId, role: "assistant", text: "" },
+    ]);
     setLoading(true);
     setError(null);
 
@@ -86,22 +112,22 @@ export function useAiChat() {
 
     const answer = answerQuestion(question, stocks, regimeData);
 
-    // Add streaming placeholder
-    setMessages((prev) => [...prev, { role: "assistant", text: "" }]);
-
     simulateStream(
       answer,
       (chunk) => {
         setMessages((prev) => {
-          const updated = [...prev];
-          const last = updated[updated.length - 1];
-          if (last.role === "assistant") {
-            updated[updated.length - 1] = { role: "assistant", text: last.text + chunk };
-          }
-          return updated;
+          return prev.map((msg) => {
+            if (msg.id !== assistantMessageId || msg.role !== "assistant") {
+              return msg;
+            }
+            return { ...msg, text: msg.text + chunk };
+          });
         });
       },
-      () => setLoading(false),
+      () => {
+        setLoading(false);
+        options?.onComplete?.({ assistantMessageId, question, answer });
+      },
     );
   }, []);
 
