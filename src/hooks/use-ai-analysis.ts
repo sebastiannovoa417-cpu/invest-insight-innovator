@@ -18,7 +18,7 @@ interface StreamResult {
   meta: StreamMeta;
 }
 
-const CHAT_HISTORY_WINDOW = 6;
+const CHAT_HISTORY_WINDOW = 10;
 
 // Emits the response in small word-batches to simulate a streaming effect.
 function simulateStream(

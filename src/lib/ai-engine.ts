@@ -180,7 +180,20 @@ type QuestionIntent =
     | "default";
 
 function normalizeQuestion(question: string): string {
-    return question.toLowerCase().replace(/\s+/g, " ").trim();
+    return question
+        .toLowerCase()
+        .replace(/[?.!,;]/g, "")
+        .replace(/\b(r\/r|rr)\b/g, "risk reward")
+        .replace(/\bma\b/g, "moving average")
+        .replace(/\bema\b/g, "exponential moving average")
+        .replace(/\bsma\b/g, "simple moving average")
+        .replace(/\batr\b/g, "average true range")
+        .replace(/\bvol\b/g, "volume")
+        .replace(/\bhow's\b/g, "how is")
+        .replace(/\bwhat's\b/g, "what is")
+        .replace(/\bwhere's\b/g, "where is")
+        .replace(/\s+/g, " ")
+        .trim();
 }
 
 function extractQuestionTickers(question: string, stocks: Stock[]): string[] {
@@ -197,23 +210,23 @@ function detectIntent(question: string, stocks: Stock[]): QuestionIntent {
     const tickers = extractQuestionTickers(question, stocks);
 
     // Highest-priority specific intents first.
-    if (hasAnyPhrase(q, ["short interest", "float", "squeeze"])) return "short_interest";
-    if (hasAnyPhrase(q, ["position size", "position sizing", "how much should i buy", "how many shares", "share count", "risk per trade", "lot size"])) return "position_size";
+    if (hasAnyPhrase(q, ["short interest", "float", "squeeze", "squeeze potential", "risky stocks", "high short"])) return "short_interest";
+    if (hasAnyPhrase(q, ["position size", "position sizing", "how much should i buy", "how many shares", "share count", "risk per trade", "lot size", "how much to buy", "max shares", "risk amount"])) return "position_size";
     if (hasAnyPhrase(q, ["compare", " versus ", " vs "]) || tickers.length >= 2) return "compare";
     if (hasAnyPhrase(q, ["news", "headline", "latest on"])) return "news";
     if (hasAnyPhrase(q, ["why", "explain", "signals for", "what signals"])) return "why";
 
-    if (hasAnyPhrase(q, ["regime", "market condition", "overall market", "broad market", "market update", "market today", "market this week", "how is the market", "how's the market", "spy", "vix"])) return "regime";
-    if (hasAnyPhrase(q, ["best r:r", "best rr", "risk reward", "reward risk"])) return "best_rr";
-    if (hasAnyPhrase(q, ["strongest", "top setup", "top pick", "best setup", "best trade"])) return "top_setups";
-    if (hasAnyPhrase(q, ["earnings", "report", "catalyst"])) return "earnings";
-    if (hasAnyPhrase(q, ["conflict", "mixed signal", "diverge"])) return "conflicts";
-    if (hasAnyPhrase(q, ["volume", "vol spike", "high volume"])) return "volume";
-    if (hasAnyPhrase(q, ["rsi", "oversold", "overbought"])) return "rsi";
+    if (hasAnyPhrase(q, ["regime", "market condition", "overall market", "broad market", "market update", "market today", "market this week", "how is the market", "spy", "vix", "market vibe", "macro"])) return "regime";
+    if (hasAnyPhrase(q, ["best r:r", "best rr", "risk reward", "reward risk", "best ratio", "highest reward", "best setup by reward"])) return "best_rr";
+    if (hasAnyPhrase(q, ["strongest", "top setup", "top pick", "best setup", "best trade", "what is hot", "any winners", "best picks", "top ideas", "hot stocks", "what should i look at", "what to trade", "top stocks"])) return "top_setups";
+    if (hasAnyPhrase(q, ["earnings", "report", "catalyst", "upcoming reports", "avoid earnings"])) return "earnings";
+    if (hasAnyPhrase(q, ["conflict", "mixed signal", "diverge", "uncertain setups", "indecisive"])) return "conflicts";
+    if (hasAnyPhrase(q, ["volume", "vol spike", "high volume", "active stocks", "big volume", "unusual volume"])) return "volume";
+    if (hasAnyPhrase(q, ["rsi", "oversold", "overbought", "momentum", "extended", "stretched", "mean reversion"])) return "rsi";
 
     // Broad direction intents should not steal sizing/short-interest questions.
-    if (hasAnyPhrase(q, [" short ", "short setups", "bearish candidate", "sell candidate"])) return "short_candidates";
-    if (hasAnyPhrase(q, [" long ", "long setups", "bullish candidate", "buy candidate"])) return "long_candidates";
+    if (hasAnyPhrase(q, [" short ", "short setups", "bearish candidate", "sell candidate", "what to short", "bearish plays", "sell candidates"])) return "short_candidates";
+    if (hasAnyPhrase(q, [" long ", "long setups", "bullish candidate", "buy candidate", "what to buy", "bullish plays", "buy candidates", "good buys", "should i buy", "worth buying"])) return "long_candidates";
 
     if (tickers.length >= 1) return "ticker_lookup";
     return "default";

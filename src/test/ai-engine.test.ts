@@ -190,4 +190,24 @@ describe("answerQuestion", () => {
     const result = answerQuestion("Any earnings this week?", [earningsStock], mockRegime);
     expect(result).toContain("NVDA");
   });
+
+  it("handles casual 'what's hot right now' → top_setups intent", () => {
+    const result = answerQuestion("what's hot right now", stocks, mockRegime);
+    expect(result).toMatch(/Top 5|setup|NVDA/i);
+  });
+
+  it("handles casual 'how's the market today' → regime intent", () => {
+    const result = answerQuestion("how's the market today", stocks, mockRegime);
+    expect(result).toMatch(/BULLISH|BEARISH|NEUTRAL/);
+  });
+
+  it("handles casual 'any good buys' → long_candidates intent", () => {
+    const result = answerQuestion("any good buys", stocks, mockRegime);
+    expect(result).toMatch(/LONG|NVDA/i);
+  });
+
+  it("handles 'should I buy NVDA' → ticker_lookup intent", () => {
+    const result = answerQuestion("should I buy NVDA", stocks, mockRegime);
+    expect(result).toContain("NVDA");
+  });
 });

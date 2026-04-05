@@ -92,9 +92,9 @@ interface HistoryMessage {
   content: string;
 }
 
-const MAX_QUESTION_CHARS = 500;
-const MAX_HISTORY_MESSAGES = 6;
-const MAX_HISTORY_CHARS = 500;
+const MAX_QUESTION_CHARS = 1000;
+const MAX_HISTORY_MESSAGES = 10;
+const MAX_HISTORY_CHARS = 1000;
 const MAX_STOCKS_PER_CHAT = 50;
 
 function sanitizeHistory(input: unknown): HistoryMessage[] {
@@ -229,7 +229,8 @@ Rules:
 - For app-help or education: use CURATED KNOWLEDGE; cite sources when present.
 - Never invent citations or imply a source was used if not supplied above.
 - If curated knowledge is missing for an educational question, explicitly frame the answer as general guidance.
-- Keep the answer under 200 words. Be direct and trader-focused.
+- Be thorough but concise. Aim for 150–400 words depending on complexity. Use bullet points for multi-part answers. Be direct and trader-focused.
+- You understand casual trading questions. When a user asks informally (e.g., "what's hot?", "any good buys?", "how's the market?"), treat them as requests for top setups, regime analysis, or stock recommendations respectively. Never refuse because of informal phrasing.
 - Structure: 1) Direct answer, 2) Key supporting data or logic, 3) Concrete next step the trader can take.
 ${uncitedWarning ? "\nNo curated source was found for this question. Make that limitation explicit in your answer." : ""}`;
 }
@@ -460,7 +461,7 @@ Deno.serve(async (req) => {
 
         const stream = client.messages.stream({
           model: "claude-haiku-4-5-20251001",
-          max_tokens: 600,
+          max_tokens: 1200,
           system: systemPrompt,
           messages: [...historyMessages, { role: "user", content: prompt }],
         });
