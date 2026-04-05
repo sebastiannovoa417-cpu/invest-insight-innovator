@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { Loader2, AlertTriangle, Inbox } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
-import { useLifecycle } from "@/hooks/use-lifecycle";
+import { getLifecyclePhase } from "@/hooks/use-lifecycle";
 
 interface QueryGuardProps<TData, TError = Error> {
   /** The TanStack Query result object from any useQuery() call */
@@ -81,7 +81,7 @@ export function QueryGuard<TData, TError = Error>({
   isEmpty = defaultIsEmpty,
   loadingLabel,
 }: QueryGuardProps<TData, TError>) {
-  const phase = useLifecycle(query);
+  const phase = getLifecyclePhase(query);
 
   if (phase === "idle" || phase === "loading") {
     return <>{loadingFallback ?? <DefaultLoading label={loadingLabel} />}</>;

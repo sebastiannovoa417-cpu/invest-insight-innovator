@@ -12,22 +12,22 @@ import type { UseQueryResult } from "@tanstack/react-query";
 export type LifecyclePhase = "idle" | "loading" | "refreshing" | "success" | "error";
 
 /**
- * useLifecycle — derives a single, human-readable lifecycle phase from a
- * TanStack Query result so that every component in the app uses the same
- * language when talking about data state.
+ * getLifecyclePhase — pure utility that derives a single, human-readable
+ * lifecycle phase from a TanStack Query result so that every component in
+ * the app uses the same language when talking about data state.
  *
  * Usage:
  *   const query = useStocks();
- *   const phase = useLifecycle(query);
+ *   const phase = getLifecyclePhase(query);
  *   // phase === "loading" | "refreshing" | "success" | "error" | "idle"
  */
-export function useLifecycle<TData, TError = Error>(
+export function getLifecyclePhase<TData, TError = Error>(
   query: Pick<
     UseQueryResult<TData, TError>,
-    "status" | "fetchStatus" | "data" | "error"
+    "status" | "fetchStatus" | "error"
   >,
 ): LifecyclePhase {
-  const { status, fetchStatus, data } = query;
+  const { status, fetchStatus } = query;
 
   // Query is disabled (e.g. requires auth that is not yet available)
   if (status === "pending" && fetchStatus === "idle") return "idle";

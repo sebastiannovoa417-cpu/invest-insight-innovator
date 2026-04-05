@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { useLifecycle, type LifecyclePhase } from "@/hooks/use-lifecycle";
+import { getLifecyclePhase, type LifecyclePhase } from "@/hooks/use-lifecycle";
 
 type QueryStub = {
   status: "pending" | "success" | "error";
@@ -9,7 +9,7 @@ type QueryStub = {
 };
 
 function run(stub: QueryStub): LifecyclePhase {
-  return useLifecycle(stub);
+  return getLifecyclePhase(stub);
 }
 
 describe("useLifecycle", () => {
