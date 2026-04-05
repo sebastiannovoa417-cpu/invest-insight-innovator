@@ -71,6 +71,9 @@ export function StockTable({ stocks, watchlist, scoreHistory, onToggleWatchlist,
       )}
 
       <div className={cn("border border-border overflow-hidden", totalPages > 1 ? "rounded-b-lg" : "rounded-lg")}>
+        {/* Horizontal scroll wrapper for mobile */}
+        <div className="overflow-x-auto">
+        <div className="min-w-[560px]">
         <div className="grid grid-cols-[32px_28px_64px_80px_120px_72px_56px_52px_64px_80px] gap-0 bg-card px-3 py-2 text-[10px] font-medium text-muted-foreground tracking-wider border-b border-border">
           <span></span><span>★</span><span>TICKER</span><span>TYPE</span><span>SCORE</span>
           <span>PRICE</span><span>RSI</span><span>VOL</span><span>SPIKE</span><span>UPDATED</span>
@@ -130,6 +133,8 @@ export function StockTable({ stocks, watchlist, scoreHistory, onToggleWatchlist,
             </div>
           );
         })}
+        </div>
+        </div>
       </div>
     </div>
   );

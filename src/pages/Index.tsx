@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useDeferredValue, useRef, lazy, Suspense } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Star } from "lucide-react";
+import { Star, Menu, X } from "lucide-react";
 import { SyncBar } from "@/components/SyncBar";
 import { TopPickCard } from "@/components/TopPickCard";
 import { FilterControls, TradeFilter, ScoreFilter, SortOption } from "@/components/FilterControls";
@@ -80,6 +80,7 @@ const Index = () => {
   }, []);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("dashboard");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [tradeFilter, setTradeFilter] = useState<TradeFilter>(() =>
     getStored(LS_TRADE, VALID_TRADE_FILTERS, "ALL")
   );
@@ -193,6 +194,31 @@ const Index = () => {
     })[0];
   }, [stocks, regime]);
 
+  const handleTabChange = useCallback((tab: ActiveTab) => {
+    setActiveTab(tab);
+    setMobileMenuOpen(false);
+  }, []);
+
+  // Tab definitions for burger menu and desktop tabs
+  const tabDefs = useMemo(() => [
+    { value: "dashboard" as ActiveTab, label: "Dashboard", badge: `${stocks.length}` },
+    { value: "watchlist" as ActiveTab, label: "Watchlist", badge: `${watchlistStocks.length}`, icon: <Star className="w-3 h-3" /> },
+    { value: "regime" as ActiveTab, label: "Regime" },
+    { value: "positions" as ActiveTab, label: "Positions", badge: `${positions.filter(p => p.status === "open").length}` },
+    { value: "backtest" as ActiveTab, label: "Backtest" },
+    { value: "ai" as ActiveTab, label: "✦ AI" },
+    {
+      value: "alerts" as ActiveTab,
+      label: "🔔 Alerts",
+      badge: alerts.filter((a) => a.status === "triggered").length > 0
+        ? `${alerts.filter((a) => a.status === "triggered").length}`
+        : undefined,
+      badgeClass: "bg-amber-500 text-black",
+    },
+  ], [stocks.length, watchlistStocks.length, positions, alerts]);
+
+  const activeTabDef = tabDefs.find(t => t.value === activeTab);
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <div className="scanline-overlay" />
@@ -203,59 +229,77 @@ const Index = () => {
         ranAt={runInfo.ranAt}
         onRefresh={handleRefresh}
         onAuthClick={() => setShowAuth(true)}
-        onPositionsClick={() => setActiveTab("positions")}
+        onPositionsClick={() => handleTabChange("positions")}
       />
 
       <main className="flex-1 px-4 md:px-6 py-4 max-w-[1400px] mx-auto w-full">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ActiveTab)}>
-          <TabsList className="w-full justify-start mb-4 bg-card border border-border h-auto p-1 rounded-lg gap-1">
-            <TabsTrigger
-              value="dashboard"
-              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+        <Tabs value={activeTab} onValueChange={(v) => handleTabChange(v as ActiveTab)}>
+          {/* Desktop tab bar — hidden on mobile */}
+          <TabsList className="hidden md:flex w-full justify-start mb-4 bg-card border border-border h-auto p-1 rounded-lg gap-1">
+            {tabDefs.map((tab) => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                {tab.icon && <span className="mr-1">{tab.icon}</span>}
+                {tab.label}
+                {tab.badge !== undefined && (
+                  <span className={cn("ml-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold", tab.badgeClass ?? "opacity-60")}>
+                    {tab.badge}
+                  </span>
+                )}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {/* Mobile burger menu — visible only on mobile */}
+          <div className="md:hidden mb-4 relative">
+            <button
+              onClick={() => setMobileMenuOpen(o => !o)}
+              aria-label="Toggle navigation menu"
+              aria-expanded={mobileMenuOpen}
+              className="flex items-center justify-between w-full px-4 py-2.5 rounded-lg bg-card border border-border text-sm font-semibold"
             >
-              Dashboard <span className="ml-1 opacity-60">({stocks.length})</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="watchlist"
-              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              <Star className="w-3 h-3 mr-1" />
-              Watchlist <span className="ml-1 opacity-60">({watchlistStocks.length})</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="regime"
-              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              Regime
-            </TabsTrigger>
-            <TabsTrigger
-              value="positions"
-              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              Positions <span className="ml-1 opacity-60">({positions.filter(p => p.status === "open").length})</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="backtest"
-              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              Backtest
-            </TabsTrigger>
-            <TabsTrigger
-              value="ai"
-              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              ✦ AI
-            </TabsTrigger>            <TabsTrigger
-              value="alerts"
-              className="text-xs font-semibold tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              🔔 Alerts
-              {alerts.filter((a) => a.status === "triggered").length > 0 && (
-                <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-black">
-                  {alerts.filter((a) => a.status === "triggered").length}
-                </span>
-              )}
-            </TabsTrigger>          </TabsList>
+              <span className="flex items-center gap-2">
+                {activeTabDef?.icon && <span>{activeTabDef.icon}</span>}
+                {activeTabDef?.label ?? activeTab}
+                {activeTabDef?.badge !== undefined && (
+                  <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-bold", activeTabDef?.badgeClass ?? "bg-muted text-muted-foreground")}>
+                    {activeTabDef.badge}
+                  </span>
+                )}
+              </span>
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
+
+            {mobileMenuOpen && (
+              <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg bg-card border border-border shadow-xl overflow-hidden">
+                {tabDefs.map((tab) => (
+                  <button
+                    key={tab.value}
+                    onClick={() => handleTabChange(tab.value)}
+                    className={cn(
+                      "flex items-center justify-between w-full px-4 py-3 text-sm font-medium transition-colors border-b border-border/50 last:border-b-0",
+                      activeTab === tab.value
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                    )}
+                  >
+                    <span className="flex items-center gap-2">
+                      {tab.icon}
+                      {tab.label}
+                    </span>
+                    {tab.badge !== undefined && (
+                      <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-bold", tab.badgeClass ?? "bg-muted/30 text-muted-foreground")}>
+                        {tab.badge}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* ── Dashboard ── */}
           <TabsContent value="dashboard">
