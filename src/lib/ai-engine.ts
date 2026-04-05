@@ -834,8 +834,9 @@ export function answerQuestion(
         .join("\n");
     const topTicker = top3[0];
     const exampleTicker = topTicker ? topTicker.ticker : "NVDA";
+    const MAX_KNOWLEDGE_BLOCKS_IN_DEFAULT_RESPONSE = 2;
     const knowledgeBlock = knowledgeMatches && knowledgeMatches.length > 0
-        ? "\n\n" + knowledgeMatches.slice(0, 2).map((m) => {
+        ? "\n\n" + knowledgeMatches.slice(0, MAX_KNOWLEDGE_BLOCKS_IN_DEFAULT_RESPONSE).map((m) => {
             const src = m.sourceLabel && m.sourceUrl ? `\nSource: ${m.sourceLabel} — ${m.sourceUrl}` : "";
             return `**${m.title}**\n${m.content}${src}`;
         }).join("\n\n")

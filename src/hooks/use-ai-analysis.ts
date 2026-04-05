@@ -193,17 +193,19 @@ async function streamAiAnalysis(
 
 // ── Knowledge fetch helpers (used in built-in engine fallback) ────────────────
 
+function buildSupabaseHeaders(key: string): Record<string, string> {
+  return { "apikey": key, "Authorization": `Bearer ${key}` };
+}
+
 // Fetches all knowledge rows; filtering/ranking is done by rankKnowledgeMatches.
-async function fetchKnowledgeData(
-  _question: string,
-): Promise<{ rows: TradingKnowledgeRecord[]; sourceRows: KnowledgeSourceRecord[] }> {
+async function fetchKnowledgeData(): Promise<{ rows: TradingKnowledgeRecord[]; sourceRows: KnowledgeSourceRecord[] }> {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   if (!supabaseUrl || !supabaseKey || supabaseKey === "offline-mode-key-not-configured") {
     return { rows: [], sourceRows: [] };
   }
   try {
-    const headers = { "apikey": supabaseKey, "Authorization": `Bearer ${supabaseKey}` };
+    const headers = buildSupabaseHeaders(supabaseKey);
     const [knowledgeRes, sourcesRes] = await Promise.all([
       fetch(
         `${supabaseUrl}/rest/v1/trading_knowledge?select=id,category,title,content,tags,broker,platform,source_id`,
@@ -231,10 +233,9 @@ async function fetchBrokerWorkflowData(question: string): Promise<BrokerWorkflow
     return [];
   }
   try {
-    const headers = { "apikey": supabaseKey, "Authorization": `Bearer ${supabaseKey}` };
     const res = await fetch(
       `${supabaseUrl}/rest/v1/broker_order_workflows?select=id,broker,platform,instrument,order_types_supported,steps_json`,
-      { headers },
+      { headers: buildSupabaseHeaders(supabaseKey) },
     );
     if (!res.ok) return [];
     return await res.json() as BrokerWorkflowRecord[];
@@ -373,7 +374,7 @@ export function useAiChat() {
     const historyForBuiltIn = (options?.history ?? []).map((m) => ({ role: m.role, text: m.text }));
 
     const [{ rows: kRows, sourceRows }, wfAllRows] = await Promise.all([
-      fetchKnowledgeData(normalizedQuestion),
+      fetchKnowledgeData(),
       fetchBrokerWorkflowData(normalizedQuestion),
     ]);
 
