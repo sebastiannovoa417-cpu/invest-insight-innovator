@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(start \"\" \"c:\\\\Users\\\\sebas\\\\Downloads\\\\invest-insight-innovator\\\\stock-scorer-playground.html\")"
+      "Bash(start \"\" \"c:\\\\Users\\\\sebas\\\\Downloads\\\\invest-insight-innovator\\\\stock-scorer-playground.html\")",
+      "Bash(npm test:*)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('dependencies',{}\\), indent=2\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); devdeps = d.get\\('devDependencies',{}\\); print\\(json.dumps\\(devdeps, indent=2\\)\\)\")",
+      "Bash(npx vitest:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m 'test: fix fragile regex assertion and add idle phase test in QueryGuard:*)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "supabase"
+  ]
 }
