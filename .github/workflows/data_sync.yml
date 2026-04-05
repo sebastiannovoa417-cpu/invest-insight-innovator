@@ -1,9 +1,11 @@
 name: SwingPulse Data Sync
 
 on:
-  # Runs every 30 minutes during US market hours (Mon–Fri, ~9AM–5:30PM ET / 13:00–21:30 UTC)
+  push:
+    branches: [main]
+  # Runs every 15 minutes during US market hours (Mon–Fri, ~9AM–5:30PM ET / 13:00–21:30 UTC)
   schedule:
-    - cron: "*/30 13-21 * * 1-5"
+    - cron: "*/15 13-21 * * 1-5"
   # Allow manual trigger from the Actions tab
   workflow_dispatch:
 
