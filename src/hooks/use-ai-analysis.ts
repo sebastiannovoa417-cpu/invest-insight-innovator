@@ -197,11 +197,15 @@ function buildSupabaseHeaders(key: string): Record<string, string> {
   return { "apikey": key, "Authorization": `Bearer ${key}` };
 }
 
+function isSupabaseAvailable(url: string | undefined, key: string | undefined): url is string {
+  return !!url && !!key && key !== "offline-mode-key-not-configured";
+}
+
 // Fetches all knowledge rows; filtering/ranking is done by rankKnowledgeMatches.
 async function fetchKnowledgeData(): Promise<{ rows: TradingKnowledgeRecord[]; sourceRows: KnowledgeSourceRecord[] }> {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  if (!supabaseUrl || !supabaseKey || supabaseKey === "offline-mode-key-not-configured") {
+  if (!isSupabaseAvailable(supabaseUrl, supabaseKey)) {
     return { rows: [], sourceRows: [] };
   }
   try {
@@ -229,7 +233,7 @@ async function fetchBrokerWorkflowData(question: string): Promise<BrokerWorkflow
   if (!questionMentionsBroker(question)) return [];
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  if (!supabaseUrl || !supabaseKey || supabaseKey === "offline-mode-key-not-configured") {
+  if (!isSupabaseAvailable(supabaseUrl, supabaseKey)) {
     return [];
   }
   try {
