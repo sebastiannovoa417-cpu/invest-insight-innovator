@@ -42,7 +42,7 @@ VALUES (
   'app_help',
   'Signal: rsiMomentum — RSI Above 50',
   'The rsiMomentum signal passes when the 14-period RSI is above 50. RSI above 50 indicates that recent gains are outpacing recent losses — the stock has positive momentum. For LONG setups, rsiMomentum above 50 confirms buyers are in control. For SHORT setups in SwingPulse, this signal is inverted: it passes when RSI is below 50 (bearish momentum). An RSI of 50 is the neutral dividing line.',
-  ARRAY['rsi','rsimomemtum','momentum','50','bullish','bearish','signal']
+  ARRAY['rsi','rsimomentum','momentum','50','bullish','bearish','signal']
 );
 
 INSERT INTO public.trading_knowledge (category, title, content, tags)
@@ -130,7 +130,7 @@ SELECT
   'order_mechanics',
   'Options for Stock Traders: Call Plays and Put Plays',
   'When SwingPulse identifies a high-conviction LONG setup, traders sometimes use call options instead of shares for higher leverage. A "call play" is buying calls on a bullish setup; a "put play" is buying puts on a bearish/SHORT setup. Key concepts: "in the money" (ITM) = intrinsic value exists; "out of the money" (OTM) = pure time value, expires worthless if the move doesn''t happen. Options expiry is critical — always ensure enough time for the trade thesis to play out (at least 30–60 DTE is common for swing setups).',
-  ARRAY['call-plays','put-plays','options','dte','in-the-money','out-of-money','swing','leverage'],
+  ARRAY['call-plays','put-plays','options','dte','in-the-money','out-of-the-money','swing','leverage'],
   id
 FROM public.knowledge_sources
 WHERE url = 'https://www.schwab.com/learn/story/basic-call-and-put-options-strategies';
@@ -199,7 +199,7 @@ VALUES (
   ARRAY['universe','tickers','nvda','tsla','aapl','msft','qqq','spy','25','pipeline']
 );
 
--- ── Citating new knowledge entries ────────────────────────────────────────────
+-- ── Citing new knowledge entries ─────────────────────────────────────────────
 -- Link citations to all knowledge entries that have a source_id set above.
 INSERT INTO public.knowledge_citations (knowledge_id, citation_label, source_url, excerpt_summary)
 SELECT tk.id, ks.publisher, ks.url, left(tk.content, 220)
