@@ -14,9 +14,10 @@ export const mockRegime: RegimeData = {
 };
 
 export const mockStocks: Stock[] = [
-  // ── Under $10 ───────────────────────────────────────────────────────
+  // ── Section 1: High-Dividend, Low-Volatility, Bullish Names ─────────────
+  // Filter: LONG | score 5+ | defensive income plays, strong 2026 price action
   {
-    ticker: "PLUG", name: "Plug Power Inc", tradeType: "SHORT", bullScore: 2, bearScore: 5, price: 2.40, rsi: 38.5,
+    ticker: "MO", name: "Altria Group", tradeType: "LONG", bullScore: 6, bearScore: 2, price: 47.20, rsi: 61.4,
     volumeRatio: 2.1, volumeSpike: true,
     signals: { sma200: true, sma50: true, rsiMomentum: true, volume: true, macd: true, priceAction: false, trendStrength: true, earningsSetup: false },
     entryAtr: 2.55, entryStructure: 2.50, bestEntry: 2.55, stopLoss: 2.85, target: 1.80, riskReward: 2.5, atr: 0.12, distance52w: -62.3,
