@@ -114,7 +114,7 @@ if not SYNC_API_KEY:
         "At least one must be provided."
     )
 
-UNIVERSE_NAME = "SwingPulse 25 — v1.0"
+UNIVERSE_NAME = f"SwingPulse {len(UNIVERSE)} — v2.0"
 
 
 # ── Indicator helpers ─────────────────────────────────────────────────────────
