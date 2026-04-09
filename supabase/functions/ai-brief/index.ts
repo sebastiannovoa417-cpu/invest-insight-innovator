@@ -30,6 +30,12 @@ interface RegimeData {
   regimeScore: number;
 }
 
+// Safely convert a possibly-null/undefined value to a fixed-decimal string.
+function toFixed(value: unknown, decimals: number): string {
+  const n = Number(value);
+  return isFinite(n) ? n.toFixed(decimals) : "—";
+}
+
 function generateBrief(regime: RegimeData, stocks: Stock[]): string {
   const top5 = stocks.slice(0, 5);
   const regimeBias =
@@ -40,30 +46,19 @@ function generateBrief(regime: RegimeData, stocks: Stock[]): string {
       : "Mixed regime — require above-average conviction before committing; tighten stop distances.";
 
   const regimeSentence =
-    `Market is ${regime.status} (${regime.regimeScore}/6 conditions). ` +
-    `SPY $${regime.spyPrice.toFixed(2)} vs SMA200 $${regime.sma200.toFixed(2)} ` +
-    `(${(regime.ratio * 100).toFixed(1)}% spread), RSI ${regime.spyRsi.toFixed(1)}, VIX ${regime.vix.toFixed(1)}. ` +
+    `Market is ${regime.status} (${toFixed(regime.regimeScore, 0)}/6 conditions). ` +
+    `SPY $${toFixed(regime.spyPrice, 2)} vs SMA200 $${toFixed(regime.sma200, 2)} ` +
+    `(${toFixed((Number(regime.ratio) || 1) * 100, 1)}% spread), RSI ${toFixed(regime.spyRsi, 1)}, VIX ${toFixed(regime.vix, 1)}. ` +
     regimeBias;
-
-  const topSetups = top5
-    .map((s) => {
-      const score = s.tradeType === "SHORT" ? s.bearScore : s.bullScore;
-      const flags: string[] = [];
-      if (s.conflictTrend) flags.push("⚠ conflict");
-      if (s.earningsWarning) flags.push("⚠ earnings");
-      const flagStr = flags.length > 0 ? ` (${flags.join(", ")})` : "";
-      return `${s.ticker} (${s.tradeType}, score ${score}/8, RSI ${s.rsi.toFixed(0)}, R:R ${s.riskReward.toFixed(1)}:1)${flagStr}`;
-    })
-    .join("; ");
 
   const standouts = top5.slice(0, 3);
   const setupSentence =
     standouts.length > 0
       ? `Top setups: ${standouts.map((s) => {
-          const score = s.tradeType === "SHORT" ? s.bearScore : s.bullScore;
-          return `${s.ticker} (${s.tradeType}, ${score}/8 signals, $${s.price.toFixed(2)})`;
+          const score = s.tradeType === "SHORT" ? (s.bearScore ?? 0) : (s.bullScore ?? 0);
+          return `${s.ticker} (${s.tradeType}, ${score}/8 signals, $${toFixed(s.price, 2)}, RSI ${toFixed(s.rsi, 0)}, R:R ${toFixed(s.riskReward, 1)}:1)`;
         }).join(", ")}. ${
-          standouts[0].volumeRatio >= 1.5
+          (Number(standouts[0].volumeRatio) || 0) >= 1.5
             ? `${standouts[0].ticker} shows above-average volume — institutional interest present.`
             : `Volume is running near average — confirm entry with price action.`
         }`
