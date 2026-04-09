@@ -75,7 +75,7 @@ function generateBrief(regime: RegimeData, stocks: Stock[]): string {
     earningsCount > 0 && conflictCount > 0
       ? `Risk: ${earningsCount} ticker${earningsCount !== 1 ? "s" : ""} with imminent earnings and ${conflictCount} trend conflict${conflictCount !== 1 ? "s" : ""} — avoid new entries on flagged names.`
       : earningsCount > 0
-      ? `Risk: ${earningsCount} ticker${earningsCount !== 1 ? "s" : ""} have earnings within 7 days — size down or wait for post-earnings confirmation.`
+      ? `Risk: ${earningsCount} ticker${earningsCount !== 1 ? "s" : ""} have earnings within 14 days — size down or wait for post-earnings confirmation.`
       : conflictCount > 0
       ? `Risk: ${conflictCount} ticker${conflictCount !== 1 ? "s" : ""} show conflicting trend signals — wait for resolution before committing.`
       : "No earnings events or trend conflicts flagged this session.";
