@@ -4,6 +4,13 @@ import { CATEGORY_LABELS, type CategoryFilter } from "@/lib/stock-categories";
 
 export type { CategoryFilter };
 export type TradeFilter = "ALL" | "LONG" | "SHORT";
+
+const CATEGORY_LABEL_SHORT: Record<string, string> = {
+  "ALL": "All Categories",
+  "High Dividend Yield & High Earnings": "High Dividend",
+  "Penny Stocks": "Penny Stocks",
+};
+
 export type ScoreFilter = "ANY" | "3+" | "5+" | "7+";
 export type SortOption = "score" | "rsi" | "volume" | "ticker";
 
@@ -46,7 +53,7 @@ export function FilterControls({
                 : "bg-card text-muted-foreground hover:text-foreground"
             )}
           >
-            {opt === "ALL" ? "All Categories" : opt === "High Dividend Yield & High Earnings" ? "High Dividend" : "Penny Stocks"}
+            {CATEGORY_LABEL_SHORT[opt] ?? opt}
           </button>
         ))}
       </div>
