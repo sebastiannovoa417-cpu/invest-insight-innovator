@@ -104,8 +104,8 @@ function sanitizeHistory(input: unknown): HistoryMessage[] {
     .filter((item): item is { role: unknown; content: unknown } => {
       return typeof item === "object" && item !== null;
     })
-    .map((item) => {
-      const role = item.role === "assistant" ? "assistant" : "user";
+    .map((item): HistoryMessage => {
+      const role: "user" | "assistant" = item.role === "assistant" ? "assistant" : "user";
       const content = typeof item.content === "string"
         ? item.content.slice(0, MAX_HISTORY_CHARS)
         : "";
@@ -168,7 +168,7 @@ function buildChatPrompt(
   regime: RegimeData | undefined,
   knowledgeMatches: KnowledgeMatch[],
   brokerWorkflows: BrokerWorkflowRecord[],
-  uncitedWarning: boolean,
+  hasNoSource: boolean,
 ): string {
   const regimeContext = regime
     ? `MARKET REGIME: ${regime.status} (score ${regime.regimeScore}/6, VIX ${regime.vix.toFixed(1)}, SPY RSI ${regime.spyRsi.toFixed(1)})`
@@ -232,7 +232,7 @@ Rules:
 - Be thorough but concise. Aim for 150–400 words depending on complexity. Use bullet points for multi-part answers. Be direct and trader-focused.
 - You understand casual trading questions. When a user asks informally (e.g., "what's hot?", "any good buys?", "how's the market?"), treat them as requests for top setups, regime analysis, or stock recommendations respectively. Never refuse because of informal phrasing.
 - Structure: 1) Direct answer, 2) Key supporting data or logic, 3) Concrete next step the trader can take.
-${uncitedWarning ? "\nNo curated source was found for this question. Make that limitation explicit in your answer." : ""}`;
+${hasNoSource ? "\nNo curated source was found for this question. Make that limitation explicit in your answer." : ""}`;
 }
 
 function scoreKnowledgeMatch(question: string, item: TradingKnowledgeRecord): number {
