@@ -1,4 +1,5 @@
-import Anthropic from "npm:@anthropic-ai/sdk@^0.39.0";
+// @ts-nocheck — Deno Edge Function; VS Code TS compiler does not understand Deno imports.
+// Built-in analysis engine — no external AI API required.
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") ?? "*",
@@ -43,6 +44,8 @@ interface Stock {
   news: NewsItem[];
   earningsWarning: boolean;
   shortInterest?: number;
+  conflictTrend?: boolean;
+  volumeSpike?: boolean;
 }
 
 interface RegimeData {
@@ -97,18 +100,20 @@ const MAX_HISTORY_MESSAGES = 10;
 const MAX_HISTORY_CHARS = 1000;
 const MAX_STOCKS_PER_CHAT = 50;
 
+// ── Utility helpers ────────────────────────────────────────────────────────────
+
+function safeFixed(value: unknown, decimals: number): string {
+  const n = Number(value);
+  return isFinite(n) ? n.toFixed(decimals) : "—";
+}
+
 function sanitizeHistory(input: unknown): HistoryMessage[] {
   if (!Array.isArray(input)) return [];
-
   return input
-    .filter((item): item is { role: unknown; content: unknown } => {
-      return typeof item === "object" && item !== null;
-    })
-    .map((item) => {
-      const role = item.role === "assistant" ? "assistant" : "user";
-      const content = typeof item.content === "string"
-        ? item.content.slice(0, MAX_HISTORY_CHARS)
-        : "";
+    .filter((item): item is { role: unknown; content: unknown } => typeof item === "object" && item !== null)
+    .map((item): HistoryMessage => {
+      const role: "user" | "assistant" = item.role === "assistant" ? "assistant" : "user";
+      const content = typeof item.content === "string" ? item.content.slice(0, MAX_HISTORY_CHARS) : "";
       return { role, content };
     })
     .filter((item) => item.content.trim().length > 0)
@@ -122,146 +127,193 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function buildTradePrompt(stock: Stock, regime?: RegimeData): string {
-  const isShort = stock.tradeType === "SHORT";
-  const score = isShort ? stock.bearScore : stock.bullScore;
-  const signals = stock.signals;
-
-  const passingSignals = Object.entries(signals).filter(([, value]) => value).map(([key]) => key);
-  const failingSignals = Object.entries(signals).filter(([, value]) => !value).map(([key]) => key);
-
-  const newsLines = stock.news.slice(0, 3).map((item) =>
-    `- [${item.sentiment?.toUpperCase() ?? "NEUTRAL"}] ${item.title} (${item.source ?? ""} ${item.date})`
-  ).join("\n");
-
-  const regimeContext = regime
-    ? `Market Regime: ${regime.status} (score ${regime.regimeScore}/6, SPY RSI ${regime.spyRsi.toFixed(1)}, VIX ${regime.vix.toFixed(1)})`
-    : "";
-
-  return `Analyze this swing trade setup and give a concise 3-4 sentence trader's take. Be direct and specific about the risk/reward.
-
-TICKER: ${stock.ticker} (${stock.name})
-DIRECTION: ${stock.tradeType}
-SCORE: ${score}/8 ${isShort ? "bear" : "bull"} signals
-PRICE: $${stock.price.toFixed(2)}
-ENTRY: $${stock.bestEntry.toFixed(2)} | STOP: $${stock.stopLoss.toFixed(2)} | TARGET: $${stock.target.toFixed(2)}
-R:R: ${stock.riskReward.toFixed(2)} | ATR: $${stock.atr.toFixed(2)}
-RSI: ${stock.rsi.toFixed(1)} | VOL RATIO: ${stock.volumeRatio.toFixed(2)}x
-52W DISTANCE: ${stock.distance52w > 0 ? "+" : ""}${stock.distance52w.toFixed(1)}%
-${stock.shortInterest != null ? `SHORT INTEREST: ${stock.shortInterest.toFixed(1)}%` : ""}
-${stock.earningsWarning ? "⚠ EARNINGS WARNING: upcoming earnings within 7 days" : ""}
-
-PASSING SIGNALS (${passingSignals.length}): ${passingSignals.join(", ") || "none"}
-FAILING SIGNALS (${failingSignals.length}): ${failingSignals.join(", ") || "none"}
-
-${regimeContext}
-
-RECENT NEWS:
-${newsLines || "No recent news"}
-
-Respond in 3-4 punchy sentences: signal quality, key risk, actionability. No preamble.`;
+function encodeEvent(payload: unknown): Uint8Array {
+  return new TextEncoder().encode(`data: ${JSON.stringify(payload)}\n\n`);
 }
 
-function buildChatPrompt(
+// ── Built-in trade analysis ────────────────────────────────────────────────────
+
+function generateTradeAnalysis(stock: Stock, regime?: RegimeData): string {
+  const isShort = stock.tradeType === "SHORT";
+  const score = isShort ? (stock.bearScore ?? 0) : (stock.bullScore ?? 0);
+  const signals = stock.signals ?? {};
+  const passingSignals = Object.entries(signals).filter(([, v]) => v).map(([k]) => k);
+  const failingSignals = Object.entries(signals).filter(([, v]) => !v).map(([k]) => k);
+
+  const strengthLabel = score >= 6 ? "high-conviction" : score >= 4 ? "moderate" : "low-confidence";
+  const rrQuality =
+    (Number(stock.riskReward) || 0) >= 3 ? "well-defined" :
+    (Number(stock.riskReward) || 0) >= 2 ? "acceptable" : "tight";
+
+  const rsi = Number(stock.rsi) || 50;
+  const rsiNote = !isShort
+    ? rsi < 40 ? `RSI at ${safeFixed(rsi, 0)} is oversold — watch for a mean-reversion bounce.`
+      : rsi > 70 ? `RSI at ${safeFixed(rsi, 0)} is extended — consider waiting for a pullback.`
+      : `RSI at ${safeFixed(rsi, 0)} is constructive — healthy momentum.`
+    : rsi > 60 ? `RSI at ${safeFixed(rsi, 0)} is overbought — confirms fade opportunity.`
+      : rsi < 30 ? `RSI at ${safeFixed(rsi, 0)} is oversold — snap-back risk; size down.`
+      : `RSI at ${safeFixed(rsi, 0)} is neutral — confirm with price action.`;
+
+  const volRatio = Number(stock.volumeRatio) || 0;
+  const volNote = stock.volumeSpike
+    ? "Volume spike confirms institutional participation."
+    : volRatio > 1.5 ? `Volume ${safeFixed(volRatio, 1)}× average — above-normal activity.`
+    : "Volume near average — lacks strong institutional confirmation.";
+
+  const regimeLine = regime
+    ? ` In a ${regime.status} regime (score ${safeFixed(regime.regimeScore, 0)}/6, VIX ${safeFixed(regime.vix, 1)}).`
+    : "";
+
+  const conflictNote = stock.conflictTrend
+    ? " ⚠ Conflicting trend — short-term momentum diverges from long-term structure; wait for resolution."
+    : "";
+  const earningsNote = stock.earningsWarning
+    ? " ⚠ Earnings within 14 days — size down or wait for post-event clarity."
+    : "";
+  const siNote = Number(stock.shortInterest) > 0
+    ? ` Short interest: ${safeFixed(stock.shortInterest, 1)}%.`
+    : "";
+
+  return (
+    `${stock.ticker} (${stock.name ?? stock.ticker}) shows ${score}/8 ${stock.tradeType} signals — ${strengthLabel} setup.${regimeLine}\n\n` +
+    `Entry $${safeFixed(stock.bestEntry, 2)} / stop $${safeFixed(stock.stopLoss, 2)} / target $${safeFixed(stock.target, 2)} → R:R ${safeFixed(stock.riskReward, 2)}:1 (${rrQuality}). ATR $${safeFixed(stock.atr, 2)}, ${safeFixed(stock.distance52w, 1)}% from 52-week extreme.\n\n` +
+    `${rsiNote} ${volNote}${siNote}\n\n` +
+    `Signals passing (${passingSignals.length}): ${passingSignals.join(", ") || "none"}. Failing (${failingSignals.length}): ${failingSignals.join(", ") || "none"}.` +
+    conflictNote + earningsNote
+  );
+}
+
+// ── Built-in chat answer ───────────────────────────────────────────────────────
+
+function generateChatAnswer(
   question: string,
   stocks: Stock[],
   regime: RegimeData | undefined,
   knowledgeMatches: KnowledgeMatch[],
   brokerWorkflows: BrokerWorkflowRecord[],
-  uncitedWarning: boolean,
 ): string {
-  const regimeContext = regime
-    ? `MARKET REGIME: ${regime.status} (score ${regime.regimeScore}/6, VIX ${regime.vix.toFixed(1)}, SPY RSI ${regime.spyRsi.toFixed(1)})`
-    : "MARKET REGIME: unavailable";
+  const q = question.toLowerCase();
+  const getScore = (s: Stock) => s.tradeType === "LONG" ? (s.bullScore ?? 0) : (s.bearScore ?? 0);
 
-  const stockSummary = stocks.map((stock) => {
-    const score = stock.tradeType === "SHORT" ? stock.bearScore : stock.bullScore;
-    return `${stock.ticker} ${stock.tradeType} score=${score}/8 price=$${stock.price.toFixed(2)} entry=$${stock.bestEntry.toFixed(2)} rr=${stock.riskReward.toFixed(1)} rsi=${stock.rsi.toFixed(0)}${stock.earningsWarning ? " ⚠earnings" : ""}`;
-  }).join("\n");
+  // ── Regime / market questions ──────────────────────────────────────────────
+  if (/how.*(market|regime)|market (status|condition)|what.*(regime|market)|regime|spy\b/i.test(q)) {
+    if (!regime) return "No live market regime data available. Connect to Supabase to see live regime.";
+    const biasSentence =
+      regime.status === "BULLISH" ? "Conditions favour LONG setups — lean into buying pullbacks."
+      : regime.status === "BEARISH" ? "Bearish — reduce LONG exposure, prefer SHORTs or cash."
+      : "Mixed — require high conviction before committing.";
+    return (
+      `Market Regime: **${regime.status}** (${safeFixed(regime.regimeScore, 0)}/6 conditions passing)\n\n` +
+      `SPY $${safeFixed(regime.spyPrice, 2)} vs SMA200 $${safeFixed(regime.sma200, 2)}\n` +
+      `SPY RSI: ${safeFixed(regime.spyRsi, 1)} | VIX: ${safeFixed(regime.vix, 1)}\n\n` +
+      biasSentence
+    );
+  }
 
-  const knowledgeBlock = knowledgeMatches.length > 0
-    ? knowledgeMatches.slice(0, 5).map((item, index) => {
-      const sourceLine = item.sourceLabel && item.sourceUrl
-        ? `Source: ${item.sourceLabel} (${item.trustTier ?? "?"}) ${item.sourceUrl}`
-        : "Source: none";
-      return `${index + 1}. [${item.category}] ${item.title}\n${item.content}\n${sourceLine}`;
-    }).join("\n\n")
-    : "No curated knowledge matched this question.";
+  // ── Top setups ──────────────────────────────────────────────────────────────
+  if (/top|best|strongest|hottest|good buy|what.*look|any.*setup|setup/i.test(q)) {
+    const top = [...stocks].sort((a, b) => getScore(b) - getScore(a)).slice(0, 5);
+    if (top.length === 0) return "No stock data available right now.";
+    const lines = top.map((s, i) => {
+      const score = getScore(s);
+      const flags = [
+        s.earningsWarning ? "⚠ earnings" : "",
+        s.conflictTrend ? "⚠ conflict" : "",
+      ].filter(Boolean).join(" ");
+      return `${i + 1}. **${s.ticker}** (${s.tradeType}) — ${score}/8 signals, $${safeFixed(s.price, 2)}, R:R ${safeFixed(s.riskReward, 1)}:1, RSI ${safeFixed(s.rsi, 0)} ${flags}`;
+    }).join("\n");
+    return `Top setups right now (${stocks.length} scanned):\n\n${lines}\n\nRegime: ${regime?.status ?? "UNKNOWN"}`;
+  }
 
-  const workflowBlock = brokerWorkflows.length > 0
-    ? "\n\nBROKER ORDER WORKFLOWS:\n" + brokerWorkflows.map((wf) =>
-      `${wf.broker} (${wf.platform}): ${(wf.steps_json as unknown as string[]).join(" → ")}`
-    ).join("\n")
-    : "";
+  // ── Broker workflow ─────────────────────────────────────────────────────────
+  if (brokerWorkflows.length > 0) {
+    const parts = brokerWorkflows.map((wf) =>
+      `**${wf.broker}** (${wf.platform}) — ${wf.instrument}:\n` +
+      (wf.steps_json as string[]).map((step, i) => `${i + 1}. ${step}`).join("\n")
+    );
+    return parts.join("\n\n") + "\n\n_Verify against your broker's current UI — steps may vary by account type._";
+  }
 
-  return `You are SwingPulse's built-in trading copilot for US stocks and ETFs.
+  // ── Ticker-specific lookup ──────────────────────────────────────────────────
+  const tickerMatches = (question.match(/\b([A-Z]{2,5})\b/g) ?? []).map((t) => t.toUpperCase());
+  const mentionedStocks = [...new Set(tickerMatches)]
+    .map((t) => stocks.find((s) => s.ticker === t))
+    .filter((s): s is Stock => s !== undefined);
 
-SWINGPULSE GLOSSARY:
-- Bull score (0–8): count of 8 LONG signals passing — sma200 (price > 200-day SMA), sma50 (price > 50-day SMA), rsiMomentum (RSI-14 > 50), volume (volume ratio > 1.5×), macd (MACD line above signal), priceAction (bullish close structure), trendStrength (ADX > 20), earningsSetup (no earnings within 7 days).
-- Bear score (0–8): same 8 signals inverted for SHORT setups.
-- tradeType: "LONG" when bullScore > bearScore; "SHORT" when bearScore > bullScore.
-- Regime: BULLISH = SPY above SMA200 with ≥5 of 6 SPY macro conditions passing; BEARISH = SPY below SMA200; NEUTRAL = mixed. BULLISH favors LONGs; BEARISH favors SHORTs.
-- regimeScore: count of 6 SPY conditions passing (SPY > SMA200, SPY > SMA50, SPY RSI-14 > 50, VIX < 20, SPY MACD bullish, SPY above prior-week high).
-- bestEntry: suggested limit-order entry near nearest support/resistance level.
-- stopLoss: ATR-based protective stop (1× ATR below entry for LONG, above for SHORT).
-- target: profit-taking level (2× ATR from entry in trade direction).
-- riskReward (R:R): (target − entry) ÷ (entry − stop). Prefer ≥ 2.0.
-- ATR: Average True Range — mean daily high-low range in dollars over the last 14 days. Measures volatility.
-- volumeRatio: today's volume ÷ 20-day average. > 1.5× indicates institutional participation.
-- distance52w: % from 52-week high (LONG) or low (SHORT). Negative = below the high.
-- shortInterest: % of float sold short. > 15% = elevated short-squeeze risk.
-- earningsWarning: true when a company earnings report is ≤ 7 calendar days away — avoid new entries.
+  if (mentionedStocks.length === 1) {
+    return generateTradeAnalysis(mentionedStocks[0], regime);
+  }
 
-${regimeContext}
+  // ── Comparison ──────────────────────────────────────────────────────────────
+  if (mentionedStocks.length >= 2 && /vs|versus|compare|better/i.test(q)) {
+    const [a, b] = mentionedStocks;
+    const scoreA = getScore(a);
+    const scoreB = getScore(b);
+    const betterScore = scoreA > scoreB ? a.ticker : scoreB > scoreA ? b.ticker : "Tied";
+    const betterRR = (Number(a.riskReward) || 0) >= (Number(b.riskReward) || 0) ? a.ticker : b.ticker;
+    return (
+      `**${a.ticker} vs ${b.ticker}**\n\n` +
+      `${a.ticker} (${a.tradeType}): ${scoreA}/8 signals, $${safeFixed(a.price, 2)}, R:R ${safeFixed(a.riskReward, 2)}:1, RSI ${safeFixed(a.rsi, 0)}` +
+      (a.earningsWarning ? " ⚠ earnings" : "") + "\n" +
+      `${b.ticker} (${b.tradeType}): ${scoreB}/8 signals, $${safeFixed(b.price, 2)}, R:R ${safeFixed(b.riskReward, 2)}:1, RSI ${safeFixed(b.rsi, 0)}` +
+      (b.earningsWarning ? " ⚠ earnings" : "") + "\n\n" +
+      `Higher score: **${betterScore}** | Better R:R: **${betterRR}**`
+    );
+  }
 
-CURRENT UNIVERSE (${stocks.length} tickers):
-${stockSummary}
+  // ── Knowledge base answer ───────────────────────────────────────────────────
+  if (knowledgeMatches.length > 0) {
+    const blocks = knowledgeMatches.slice(0, 3).map((m) => {
+      const src = m.sourceLabel && m.sourceUrl ? `\n_Source: ${m.sourceLabel} — ${m.sourceUrl}_` : "";
+      return `**${m.title}**\n${m.content}${src}`;
+    });
+    return blocks.join("\n\n");
+  }
 
-CURATED KNOWLEDGE:
-${knowledgeBlock}${workflowBlock}
-
-TRADER QUESTION: ${question}
-
-Rules:
-- Classify intent as: market-regime | setup-ranking | ticker-specific | comparison | risk-sizing | broker-workflow | app-help | education.
-- For ticker-specific or comparison: use live universe data above.
-- For broker-workflow: use the BROKER ORDER WORKFLOWS section if present; otherwise use curated knowledge.
-- For app-help or education: use CURATED KNOWLEDGE; cite sources when present.
-- Never invent citations or imply a source was used if not supplied above.
-- If curated knowledge is missing for an educational question, explicitly frame the answer as general guidance.
-- Be thorough but concise. Aim for 150–400 words depending on complexity. Use bullet points for multi-part answers. Be direct and trader-focused.
-- You understand casual trading questions. When a user asks informally (e.g., "what's hot?", "any good buys?", "how's the market?"), treat them as requests for top setups, regime analysis, or stock recommendations respectively. Never refuse because of informal phrasing.
-- Structure: 1) Direct answer, 2) Key supporting data or logic, 3) Concrete next step the trader can take.
-${uncitedWarning ? "\nNo curated source was found for this question. Make that limitation explicit in your answer." : ""}`;
+  // ── Default: market overview ────────────────────────────────────────────────
+  const top3 = [...stocks].sort((a, b) => getScore(b) - getScore(a)).slice(0, 3);
+  const longCount = stocks.filter((s) => s.tradeType === "LONG").length;
+  const shortCount = stocks.filter((s) => s.tradeType === "SHORT").length;
+  const biasSentence =
+    regime?.status === "BULLISH" ? "Favours LONG setups." :
+    regime?.status === "BEARISH" ? "Favours SHORT setups — reduce LONG size." :
+    "Mixed — require high conviction.";
+  const setupLines = top3.map((s, i) =>
+    `${i + 1}. ${s.ticker} (${s.tradeType}) — ${getScore(s)}/8 signals, R:R ${safeFixed(s.riskReward, 2)}:1`
+  ).join("\n");
+  const suggestionLine = top3.length >= 2
+    ? `\nTry: "tell me about ${top3[0].ticker}", "top setups", "compare ${top3[0].ticker} vs ${top3[1].ticker}", or "how is the market?"`
+    : top3.length === 1
+    ? `\nTry: "tell me about ${top3[0].ticker}", "top setups", or "how is the market?"`
+    : "\nTry: \"top setups\" or \"how is the market?\"";
+  return (
+    `Regime: ${regime?.status ?? "UNKNOWN"} (${safeFixed(regime?.regimeScore, 0)}/6 conditions). VIX ${safeFixed(regime?.vix, 1)}. ${biasSentence}\n` +
+    `Universe: ${stocks.length} tickers — ${longCount} LONG, ${shortCount} SHORT.\n\n` +
+    `Top setups:\n${setupLines}` +
+    suggestionLine
+  );
 }
 
+// ── Knowledge fetchers ─────────────────────────────────────────────────────────
+
 function scoreKnowledgeMatch(question: string, item: TradingKnowledgeRecord): number {
-  const normalizedQuestion = question.toLowerCase();
+  const q = question.toLowerCase();
   let score = 0;
-
-  if (normalizedQuestion.includes(item.category.replace(/_/g, " "))) score += 2;
-  if (item.broker && normalizedQuestion.includes(item.broker.toLowerCase())) score += 4;
-  if (item.platform && normalizedQuestion.includes(item.platform.toLowerCase())) score += 1;
-
+  if (q.includes(item.category.replace(/_/g, " "))) score += 2;
+  if (item.broker && q.includes(item.broker.toLowerCase())) score += 4;
+  if (item.platform && q.includes(item.platform.toLowerCase())) score += 1;
   for (const tag of item.tags ?? []) {
-    if (normalizedQuestion.includes(tag.toLowerCase())) score += 2;
+    if (q.includes(tag.toLowerCase())) score += 2;
   }
-
-  const titleWords = item.title.toLowerCase().split(/\s+/);
-  for (const word of titleWords) {
-    if (word.length >= 4 && normalizedQuestion.includes(word)) score += 1;
+  for (const word of item.title.toLowerCase().split(/\s+/)) {
+    if (word.length >= 4 && q.includes(word)) score += 1;
   }
-
-  // Boost app_help entries when question is about the app or its metrics
   if (
     item.category === "app_help" &&
-    /score|regime|setup|signal|bull|bear|long|short|atr|entry|stop|target|r:r|risk.reward|panel|dashboard|swingpulse|universe|watchlist|position|backtest|volume.ratio|52.week|earnings.warning/.test(
-      normalizedQuestion,
-    )
+    /score|regime|setup|signal|bull|bear|long|short|atr|entry|stop|target|r:r|risk.reward|panel|dashboard|swingpulse|universe|watchlist|position|backtest|volume.ratio|52.week|earnings.warning/.test(q)
   ) {
     score += 1;
   }
-
   return score;
 }
 
@@ -271,43 +323,31 @@ async function fetchKnowledgeMatches(
   authToken: string,
   question: string,
 ): Promise<KnowledgeMatch[]> {
-  const commonHeaders = {
-    "Authorization": `Bearer ${authToken}`,
-    "apikey": supabaseAnonKey,
-  };
+  try {
+    const commonHeaders = { "Authorization": `Bearer ${authToken}`, "apikey": supabaseAnonKey };
+    const [knowledgeRes, sourcesRes] = await Promise.all([
+      fetch(`${supabaseUrl}/rest/v1/trading_knowledge?select=id,category,title,content,tags,broker,platform,source_id`, { headers: commonHeaders }),
+      fetch(`${supabaseUrl}/rest/v1/knowledge_sources?select=id,publisher,url,trust_tier`, { headers: commonHeaders }),
+    ]);
+    if (!knowledgeRes.ok || !sourcesRes.ok) return [];
 
-  const [knowledgeRes, sourcesRes] = await Promise.all([
-    fetch(`${supabaseUrl}/rest/v1/trading_knowledge?select=id,category,title,content,tags,broker,platform,source_id`, {
-      headers: commonHeaders,
-    }),
-    fetch(`${supabaseUrl}/rest/v1/knowledge_sources?select=id,publisher,url,trust_tier`, {
-      headers: commonHeaders,
-    }),
-  ]);
+    const knowledgeRows = await knowledgeRes.json() as TradingKnowledgeRecord[];
+    const sourceRows = await sourcesRes.json() as KnowledgeSourceRecord[];
+    const sourcesById = new Map(sourceRows.map((s) => [s.id, s]));
 
-  if (!knowledgeRes.ok || !sourcesRes.ok) {
-    throw new Error("Could not load curated knowledge for AI analysis");
+    return knowledgeRows
+      .map((item) => {
+        const src = item.source_id ? sourcesById.get(item.source_id) : undefined;
+        return { ...item, sourceLabel: src?.publisher ?? null, sourceUrl: src?.url ?? null, trustTier: src?.trust_tier ?? null };
+      })
+      .map((item) => ({ item, score: scoreKnowledgeMatch(question, item) }))
+      .filter((e) => e.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6)
+      .map((e) => e.item);
+  } catch {
+    return [];
   }
-
-  const knowledgeRows = await knowledgeRes.json() as TradingKnowledgeRecord[];
-  const sourceRows = await sourcesRes.json() as KnowledgeSourceRecord[];
-  const sourcesById = new Map(sourceRows.map((source) => [source.id, source]));
-
-  return knowledgeRows
-    .map((item) => {
-      const source = item.source_id ? sourcesById.get(item.source_id) : undefined;
-      return {
-        ...item,
-        sourceLabel: source?.publisher ?? null,
-        sourceUrl: source?.url ?? null,
-        trustTier: source?.trust_tier ?? null,
-      };
-    })
-    .map((item) => ({ item, score: scoreKnowledgeMatch(question, item) }))
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 6)
-    .map((entry) => entry.item);
 }
 
 function buildSources(matches: KnowledgeMatch[]): Array<{ label: string; url: string }> {
@@ -315,9 +355,7 @@ function buildSources(matches: KnowledgeMatch[]): Array<{ label: string; url: st
   for (const match of matches) {
     if (!match.sourceLabel || !match.sourceUrl) continue;
     const key = `${match.sourceLabel}::${match.sourceUrl}`;
-    if (!deduped.has(key)) {
-      deduped.set(key, { label: match.sourceLabel, url: match.sourceUrl });
-    }
+    if (!deduped.has(key)) deduped.set(key, { label: match.sourceLabel, url: match.sourceUrl });
     if (deduped.size >= 3) break;
   }
   return [...deduped.values()];
@@ -343,20 +381,20 @@ async function fetchBrokerWorkflows(
     if (q.includes(key)) mentionedBrokers.add(val);
   }
   if (mentionedBrokers.size === 0) return [];
-
-  const res = await fetch(
-    `${supabaseUrl}/rest/v1/broker_order_workflows?select=id,broker,platform,instrument,order_types_supported,steps_json`,
-    { headers: { "Authorization": `Bearer ${authToken}`, "apikey": supabaseAnonKey } },
-  );
-  if (!res.ok) return [];
-
-  const rows = await res.json() as BrokerWorkflowRecord[];
-  return rows.filter((wf) => mentionedBrokers.has(wf.broker));
+  try {
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/broker_order_workflows?select=id,broker,platform,instrument,order_types_supported,steps_json`,
+      { headers: { "Authorization": `Bearer ${authToken}`, "apikey": supabaseAnonKey } },
+    );
+    if (!res.ok) return [];
+    const rows = await res.json() as BrokerWorkflowRecord[];
+    return rows.filter((wf) => mentionedBrokers.has(wf.broker));
+  } catch {
+    return [];
+  }
 }
 
-function encodeEvent(payload: unknown): Uint8Array {
-  return new TextEncoder().encode(`data: ${JSON.stringify(payload)}\n\n`);
-}
+// ── Edge Function handler ──────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -376,11 +414,6 @@ Deno.serve(async (req) => {
   });
   if (!userRes.ok) {
     return jsonResponse({ error: "Authentication required" }, 401);
-  }
-
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) {
-    return jsonResponse({ error: "Server misconfiguration: ANTHROPIC_API_KEY not set" }, 500);
   }
 
   let body: unknown;
@@ -403,21 +436,21 @@ Deno.serve(async (req) => {
     history?: unknown;
   };
 
+  // Sanitize history (validates format even though the built-in path doesn't use it for LLM calls)
+  sanitizeHistory(parsedBody.history);
+
   const requestType = typeof parsedBody.type === "string" ? parsedBody.type : "";
   const stock = parsedBody.stock as Stock | undefined;
   const regime = parsedBody.regime as RegimeData | undefined;
   const question = parsedBody.question;
   const stocks = parsedBody.stocks;
-  const history = sanitizeHistory(parsedBody.history);
 
-  let prompt: string;
-  let knowledgeMatches: KnowledgeMatch[] = [];
-  let brokerWorkflows: BrokerWorkflowRecord[] = [];
+  let answerText: string;
   let sources: Array<{ label: string; url: string }> = [];
   let uncitedWarning = false;
 
   if (requestType === "trade" && stock) {
-    prompt = buildTradePrompt(stock, regime);
+    answerText = generateTradeAnalysis(stock, regime);
   } else if (
     requestType === "chat" &&
     typeof question === "string" &&
@@ -427,58 +460,30 @@ Deno.serve(async (req) => {
   ) {
     const normalizedQuestion = question.trim().slice(0, MAX_QUESTION_CHARS);
     const stockList = stocks.slice(0, MAX_STOCKS_PER_CHAT) as Stock[];
-
+    let knowledgeMatches: KnowledgeMatch[] = [];
+    let brokerWorkflows: BrokerWorkflowRecord[] = [];
     try {
       [knowledgeMatches, brokerWorkflows] = await Promise.all([
         fetchKnowledgeMatches(supabaseUrl, supabaseAnonKey, authToken, normalizedQuestion),
         fetchBrokerWorkflows(supabaseUrl, supabaseAnonKey, authToken, normalizedQuestion),
       ]);
-    } catch (error) {
-      console.error("knowledge retrieval failed", error);
+    } catch (e) {
+      console.error("knowledge retrieval failed", e);
     }
     sources = buildSources(knowledgeMatches);
     uncitedWarning = knowledgeMatches.length === 0 && brokerWorkflows.length === 0;
-    prompt = buildChatPrompt(normalizedQuestion, stockList, regime, knowledgeMatches, brokerWorkflows, uncitedWarning);
+    answerText = generateChatAnswer(normalizedQuestion, stockList, regime, knowledgeMatches, brokerWorkflows);
   } else {
     return jsonResponse({ error: "Invalid request: missing required fields" }, 400);
   }
 
-  const systemPrompt = requestType === "trade"
-    ? "You are an expert swing trading analyst. Be concise, direct, and data-driven. No disclaimers."
-    : "You are SwingPulse's built-in trading assistant for US stocks and ETFs. Answer in the trader's frame: direct, specific, data-grounded. Rely on curated knowledge when provided and cite sources. Do not fabricate citations. For educational questions without curated backing, give general guidance and say so explicitly.";
-
-  const client = new Anthropic({ apiKey });
-
+  // Emit as SSE — same format the streaming client in use-ai-analysis.ts already reads.
   const readable = new ReadableStream({
-    async start(controller) {
-      try {
-        controller.enqueue(encodeEvent({ meta: { sources, uncitedWarning } }));
-
-        const historyMessages = history.map((m) => ({
-          role: m.role as "user" | "assistant",
-          content: m.content,
-        }));
-
-        const stream = client.messages.stream({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 1200,
-          system: systemPrompt,
-          messages: [...historyMessages, { role: "user", content: prompt }],
-        });
-
-        for await (const event of stream) {
-          if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-            controller.enqueue(encodeEvent({ text: event.delta.text }));
-          }
-        }
-
-        controller.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        controller.enqueue(encodeEvent({ error: message }));
-      } finally {
-        controller.close();
-      }
+    start(controller) {
+      controller.enqueue(encodeEvent({ meta: { sources, uncitedWarning } }));
+      controller.enqueue(encodeEvent({ text: answerText }));
+      controller.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
+      controller.close();
     },
   });
 

@@ -17,24 +17,24 @@ Universe is divided into 5 sections:
     Filter: LONG trade type, score 5+, price < $10, high momentum
 """
 
-# 47-ticker dividend/income + penny-stock universe
+# 50-ticker dividend/income + penny-stock universe
 UNIVERSE: list[str] = [
     # ── Section 1: High-Dividend, Low-Volatility, Bullish Names ─────────────
     # Filter: LONG | score 5+ | defensive income plays, strong 2026 price action
     "MO", "VZ", "PEP", "DUK", "MDLZ",
     # ── Section 2: Under $100, High-Yield, High-Volatility, High-Volume ─────
     # Filter: LONG | score 3+ | aggressive income trading, high liquidity
-    "EOG", "CNXC", "MDT", "LB", "PLAB",
+    "EOG", "CNXC", "MDT", "LB", "PLAB", "F", "SOFI",
     # ── Section 3: Moderate-Yield, Positive 5-Month Performance ─────────────
     # Filter: LONG | score 3+ | balanced income and trend-following
-    "GLW", "TPL", "STX", "WDC", "UNH", "CI", "SPGI", "MMC",
-    "ELV", "BDX", "CVX", "AVGO", "HD", "JPM", "BLK",
+    "GLW", "TPL", "STX", "WDC", "UNH", "CI", "SPGI", "T",
+    "ELV", "BDX", "CVX", "AVGO", "HD", "JPM", "BLK", "MMM",
     # ── Section 4: Reliable Penny Stocks for Swing Trading ───────────────────
     # Filter: ANY | score 3+ | sort by volume | liquidity, clean structure, repeatable volatility
     "BARK", "CCO", "DDL", "WDH", "LX", "JOB", "VISL", "UGRO", "ATOM", "IMUX",
     # ── Section 5: Penny Stocks with Strong Bullish Trends (Last 5 Months) ───
     # Filter: LONG | score 5+ | aggressive momentum plays, price < $10
-    "HURA", "CVSI", "SELF", "PSNY", "BBAI", "GRAL", "CECO", "BHE", "RGTI", "SOUN", "BNGO", "TELL",
+    "HURA", "CVSI", "SELF", "PSNY", "BBAI", "GRAL", "CECO", "BHE", "RGTI", "SOUN", "BNGO", "ACHR",
 ]
 
 # Human-readable display names (shown in the UI)
@@ -51,6 +51,8 @@ TICKER_NAMES: dict[str, str] = {
     "MDT":   "Medtronic",
     "LB":    "LandBridge Co",
     "PLAB":  "Photronics",
+    "F":     "Ford Motor",
+    "SOFI":  "SoFi Technologies",
     # Section 3 — Moderate-Yield, Positive 5-Month Performance
     "GLW":   "Corning",
     "TPL":   "Texas Pacific Land",
@@ -59,7 +61,7 @@ TICKER_NAMES: dict[str, str] = {
     "UNH":   "UnitedHealth Group",
     "CI":    "Cigna Group",
     "SPGI":  "S&P Global",
-    "MMC":   "Marsh & McLennan",
+    "T":     "AT&T",
     "ELV":   "Elevance Health",
     "BDX":   "Becton Dickinson",
     "CVX":   "Chevron",
@@ -67,6 +69,7 @@ TICKER_NAMES: dict[str, str] = {
     "HD":    "Home Depot",
     "JPM":   "JPMorgan Chase",
     "BLK":   "BlackRock",
+    "MMM":   "3M Company",
     # Section 4 — Reliable Penny Stocks for Swing Trading
     "BARK":  "Bark Inc",
     "CCO":   "Clear Channel Outdoor",
@@ -90,5 +93,5 @@ TICKER_NAMES: dict[str, str] = {
     "RGTI":  "Rigetti Computing",
     "SOUN":  "SoundHound AI",
     "BNGO":  "Bionano Genomics",
-    "TELL":  "Tellurian Inc",
+    "ACHR":  "Archer Aviation",
 }
