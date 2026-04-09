@@ -48,7 +48,7 @@ function generateBrief(regime: RegimeData, stocks: Stock[]): string {
   const regimeSentence =
     `Market is ${regime.status} (${toFixed(regime.regimeScore, 0)}/6 conditions). ` +
     `SPY $${toFixed(regime.spyPrice, 2)} vs SMA200 $${toFixed(regime.sma200, 2)} ` +
-    `(${toFixed((Number(regime.ratio) || 1) * 100, 1)}% spread), RSI ${toFixed(regime.spyRsi, 1)}, VIX ${toFixed(regime.vix, 1)}. ` +
+    `(${toFixed(Number(regime.ratio) * 100, 1)}% spread), RSI ${toFixed(regime.spyRsi, 1)}, VIX ${toFixed(regime.vix, 1)}. ` +
     regimeBias;
 
   const standouts = top5.slice(0, 3);

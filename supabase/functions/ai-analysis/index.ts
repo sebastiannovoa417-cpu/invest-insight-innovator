@@ -170,7 +170,7 @@ function generateTradeAnalysis(stock: Stock, regime?: RegimeData): string {
   const earningsNote = stock.earningsWarning
     ? " ⚠ Earnings within 14 days — size down or wait for post-event clarity."
     : "";
-  const siNote = stock.shortInterest != null && Number(stock.shortInterest) > 0
+  const siNote = Number(stock.shortInterest) > 0
     ? ` Short interest: ${safeFixed(stock.shortInterest, 1)}%.`
     : "";
 
@@ -281,13 +281,16 @@ function generateChatAnswer(
   const setupLines = top3.map((s, i) =>
     `${i + 1}. ${s.ticker} (${s.tradeType}) — ${getScore(s)}/8 signals, R:R ${safeFixed(s.riskReward, 2)}:1`
   ).join("\n");
-  const topTicker = top3[0]?.ticker ?? "NVDA";
-  const secondTicker = top3[1]?.ticker ?? "AAPL";
+  const suggestionLine = top3.length >= 2
+    ? `\nTry: "tell me about ${top3[0].ticker}", "top setups", "compare ${top3[0].ticker} vs ${top3[1].ticker}", or "how is the market?"`
+    : top3.length === 1
+    ? `\nTry: "tell me about ${top3[0].ticker}", "top setups", or "how is the market?"`
+    : "\nTry: \"top setups\" or \"how is the market?\"";
   return (
     `Regime: ${regime?.status ?? "UNKNOWN"} (${safeFixed(regime?.regimeScore, 0)}/6 conditions). VIX ${safeFixed(regime?.vix, 1)}. ${biasSentence}\n` +
     `Universe: ${stocks.length} tickers — ${longCount} LONG, ${shortCount} SHORT.\n\n` +
-    `Top setups:\n${setupLines}\n\n` +
-    `Try: "tell me about ${topTicker}", "top setups", "compare ${topTicker} vs ${secondTicker}", or "how is the market?"`
+    `Top setups:\n${setupLines}` +
+    suggestionLine
   );
 }
 
