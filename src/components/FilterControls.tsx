@@ -1,6 +1,8 @@
 import { Search, X, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CATEGORY_LABELS, type CategoryFilter } from "@/lib/stock-categories";
 
+export type { CategoryFilter };
 export type TradeFilter = "ALL" | "LONG" | "SHORT";
 export type ScoreFilter = "ANY" | "3+" | "5+" | "7+";
 export type SortOption = "score" | "rsi" | "volume" | "ticker";
@@ -11,23 +13,44 @@ interface FilterControlsProps {
   sortBy: SortOption;
   searchQuery: string;
   tickerCount: number;
+  categoryFilter: CategoryFilter;
   onTradeFilterChange: (f: TradeFilter) => void;
   onScoreFilterChange: (f: ScoreFilter) => void;
   onSortChange: (s: SortOption) => void;
   onSearchChange: (q: string) => void;
+  onCategoryFilterChange: (c: CategoryFilter) => void;
   onResetFilters?: () => void;
 }
 
 export function FilterControls({
-  tradeFilter, scoreFilter, sortBy, searchQuery, tickerCount,
-  onTradeFilterChange, onScoreFilterChange, onSortChange, onSearchChange, onResetFilters,
+  tradeFilter, scoreFilter, sortBy, searchQuery, tickerCount, categoryFilter,
+  onTradeFilterChange, onScoreFilterChange, onSortChange, onSearchChange,
+  onCategoryFilterChange, onResetFilters,
 }: FilterControlsProps) {
   const tradeOptions: TradeFilter[] = ["ALL", "LONG", "SHORT"];
   const scoreOptions: ScoreFilter[] = ["ANY", "3+", "5+", "7+"];
-  const isFiltered = tradeFilter !== "ALL" || scoreFilter !== "ANY" || sortBy !== "score" || searchQuery !== "";
+  const isFiltered = tradeFilter !== "ALL" || scoreFilter !== "ANY" || sortBy !== "score" || searchQuery !== "" || categoryFilter !== "ALL";
 
   return (
     <div className="flex flex-wrap items-center gap-3 py-3">
+      {/* Category Segmented */}
+      <div className="flex rounded-md border border-border overflow-hidden">
+        {CATEGORY_LABELS.map((opt) => (
+          <button
+            key={opt}
+            onClick={() => onCategoryFilterChange(opt)}
+            className={cn(
+              "px-3 py-1.5 text-xs font-medium transition-colors",
+              categoryFilter === opt
+                ? "bg-primary text-primary-foreground"
+                : "bg-card text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {opt === "ALL" ? "All Categories" : opt === "High Dividend Yield & High Earnings" ? "High Dividend" : "Penny Stocks"}
+          </button>
+        ))}
+      </div>
+
       {/* Trade Type Segmented */}
       <div className="flex rounded-md border border-border overflow-hidden">
         {tradeOptions.map((opt) => (

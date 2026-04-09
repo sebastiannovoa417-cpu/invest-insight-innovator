@@ -137,8 +137,86 @@ export function questionMentionsBroker(question: string): boolean {
     return Object.keys(BROKER_KEYWORDS).some((k) => q.includes(k));
 }
 
-// ── Company name → ticker aliases (covers the 25-ticker universe + common aliases) ─
+// ── Company name → ticker aliases (covers the 50-ticker universe + common aliases) ─
 const COMPANY_NAMES: Record<string, string> = {
+    // ── High Dividend Yield & High Earnings ──────────────────────────────────
+    "at&t": "T",
+    "att": "T",
+    "verizon": "VZ",
+    "altria": "MO",
+    "philip morris": "PM",
+    "pm international": "PM",
+    "coca-cola": "KO",
+    "coca cola": "KO",
+    "coke": "KO",
+    "pepsico": "PEP",
+    "pepsi": "PEP",
+    "johnson & johnson": "JNJ",
+    "johnson and johnson": "JNJ",
+    "jnj": "JNJ",
+    "pfizer": "PFE",
+    "ibm": "IBM",
+    "chevron": "CVX",
+    "exxonmobil": "XOM",
+    "exxon": "XOM",
+    "exxon mobil": "XOM",
+    "jpmorgan": "JPM",
+    "jp morgan": "JPM",
+    "jpmorgan chase": "JPM",
+    "bank of america": "BAC",
+    "bofa": "BAC",
+    "abbvie": "ABBV",
+    "mcdonalds": "MCD",
+    "mcdonald's": "MCD",
+    "home depot": "HD",
+    "caterpillar": "CAT",
+    "ups": "UPS",
+    "united parcel service": "UPS",
+    "valero": "VLO",
+    "enterprise products": "EPD",
+    "realty income": "O",
+    "williams companies": "WMB",
+    "lyondellbasell": "LYB",
+    "lyb": "LYB",
+    "wells fargo": "WFC",
+    "3m": "MMM",
+    "3m company": "MMM",
+    // ── Penny Stocks ─────────────────────────────────────────────────────────
+    "sundial": "SNDL",
+    "sundial growers": "SNDL",
+    "tilray": "TLRY",
+    "tilray brands": "TLRY",
+    "workhorse": "WKHS",
+    "workhorse group": "WKHS",
+    "nikola": "NKLA",
+    "nikola corp": "NKLA",
+    "microvision": "MVIS",
+    "clover health": "CLOV",
+    "ocugen": "OCGN",
+    "mindmed": "MNMD",
+    "genius brands": "GNUS",
+    "bionano": "BNGO",
+    "bionano genomics": "BNGO",
+    "hyliion": "HYLN",
+    "chargepoint": "CHPT",
+    "charge point": "CHPT",
+    "blink charging": "BLNK",
+    "bit digital": "BTBT",
+    "katapult": "KPLT",
+    "exela": "XELA",
+    "exela technologies": "XELA",
+    "verb technology": "VERB",
+    "enveric": "ENVB",
+    "enveric biosciences": "ENVB",
+    "athenex": "ATNX",
+    "nrx pharmaceuticals": "NRXP",
+    "seanergy": "SHIP",
+    "castor maritime": "CTRM",
+    "camber energy": "CEI",
+    "siga technologies": "SIGA",
+    "siga": "SIGA",
+    "ideanomics": "IDEX",
+    // ── Legacy / common aliases ────────────────────────────────────────────
     "nvidia": "NVDA",
     "nvidia corp": "NVDA",
     "tesla": "TSLA",
@@ -151,7 +229,6 @@ const COMPANY_NAMES: Record<string, string> = {
     "alphabet": "GOOGL",
     "netflix": "NFLX",
     "amd": "AMD",
-    "advanced micro": "AMD",
     "advanced micro devices": "AMD",
     "intel": "INTC",
     "sofi": "SOFI",
@@ -376,6 +453,9 @@ type QuestionIntent =
     | "short_interest"
     | "broker_workflow"
     | "ticker_lookup"
+    | "quant_expectancy"
+    | "quant_optimization"
+    | "quant_frameworks"
     | "default";
 
 function normalizeQuestion(question: string): string {
@@ -440,6 +520,11 @@ function detectIntent(question: string, stocks: Stock[]): QuestionIntent {
         Object.keys(BROKER_KEYWORDS).some((k) => q.includes(k)) &&
         hasAnyPhrase(q, ["how to", "how do i", "place order", "buy order", "limit order", "stop order", "order type", "trade on", "steps", "tutorial", "guide", "set up", "place a"])
     ) return "broker_workflow";
+
+    // Quantitative / algorithmic trading knowledge
+    if (hasAnyPhrase(q, ["expectancy", "mathematical expectancy", "expected value", "win rate", "ev formula", "positive expectancy", "edge", "trading edge", "kelly criterion", "average win", "average loss"])) return "quant_expectancy";
+    if (hasAnyPhrase(q, ["parameter optim", "optimize parameter", "overfitting", "curve fitting", "walk forward", "in sample", "out of sample", "lookback period", "atr period", "rsi period", "backtest optim", "grid search", "monte carlo", "sensitivity analysis", "robust parameter"])) return "quant_optimization";
+    if (hasAnyPhrase(q, ["algorithmic", "algo trading", "quantitative", "regime filter", "volatility regime", "regime-based", "market framework", "adaptive", "market microstructure", "mean reversion framework", "trend following framework", "vix regime", "sector rotation", "intermarket", "advanced framework", "swing architecture", "trading architecture"])) return "quant_frameworks";
 
     if (tickers.length >= 1) return "ticker_lookup";
     return "default";
@@ -860,9 +945,110 @@ export function answerQuestion(
         );
     }
 
+    // ── Mathematical Expectancy ───────────────────────────────────────────────
+    if (intent === "quant_expectancy") {
+        const longStocks = stocks.filter((s) => s.tradeType === "LONG");
+        const shortStocks = stocks.filter((s) => s.tradeType === "SHORT");
+        const avgRR = stocks.length > 0
+            ? (stocks.reduce((sum, s) => sum + s.riskReward, 0) / stocks.length).toFixed(2)
+            : "2.00";
+        const avgBull = longStocks.length > 0
+            ? (longStocks.reduce((sum, s) => sum + s.bullScore, 0) / longStocks.length).toFixed(1)
+            : "0";
+        const avgBear = shortStocks.length > 0
+            ? (shortStocks.reduce((sum, s) => sum + s.bearScore, 0) / shortStocks.length).toFixed(1)
+            : "0";
+        return (
+            `Mathematical Expectancy — Quantitative Edge Framework:\n\n` +
+            `Formula: E = (Win% × Avg Win) − (Loss% × Avg Loss)\n` +
+            `Where: Win% + Loss% = 1, Avg Win = R:R × risk-per-trade\n\n` +
+            `For a system with 2:1 R:R and 45% win rate:\n` +
+            `E = (0.45 × 2R) − (0.55 × 1R) = 0.90R − 0.55R = +0.35R per trade\n` +
+            `Positive expectancy = edge exists. Negative = system bleeds capital over time.\n\n` +
+            `SwingPulse signal scoring as expectancy proxy:\n` +
+            `• 8-signal checklist (sma200, sma50, rsiMomentum, volume, macd, priceAction, trendStrength, earningsSetup)\n` +
+            `• Score ≥6/8 → high-conviction setups — historically correspond to win rates above 50%\n` +
+            `• Score ≤3/8 → low-confidence — reduce size or stand aside\n\n` +
+            `Current universe stats:\n` +
+            `• Average R:R across all ${stocks.length} tickers: ${avgRR}:1\n` +
+            `• LONG setups (${longStocks.length}): avg bull score ${avgBull}/8\n` +
+            `• SHORT setups (${shortStocks.length}): avg bear score ${avgBear}/8\n\n` +
+            `Kelly Criterion (optional position sizing):\n` +
+            `f = W − (1−W)/R   where W = win rate, R = R:R ratio\n` +
+            `At W=0.45, R=2.0: f = 0.45 − 0.55/2 = 0.175 → 17.5% of capital (use ½-Kelly = 8.75% max)\n\n` +
+            `Key insight: a positive-expectancy system with consistent execution will be profitable over a large sample of trades, even with a sub-50% win rate.`
+        );
+    }
+
+    // ── Parameter Optimization ────────────────────────────────────────────────
+    if (intent === "quant_optimization") {
+        return (
+            `Parameter Optimization — Avoiding Overfitting in Swing Systems:\n\n` +
+            `Core principles:\n` +
+            `1. Walk-Forward Analysis: divide historical data into in-sample (train) and out-of-sample (test) windows.\n` +
+            `   Typical split: 70% in-sample for optimization, 30% out-of-sample for validation.\n\n` +
+            `2. Robustness Test: optimal parameters should perform well across a ±20% band around the optimum.\n` +
+            `   A parameter cliff (sharp performance drop on either side) = fragile, curve-fitted system.\n\n` +
+            `3. SwingPulse parameter reference:\n` +
+            `   • RSI period: 14 (Wilder standard — robust across timeframes)\n` +
+            `   • SMA periods: 50-day and 200-day (decades-tested institutional benchmarks)\n` +
+            `   • ATR period: 14-day for stop/target sizing\n` +
+            `   • Volume spike threshold: 1.5× 20-day average\n` +
+            `   • MACD: 12/26/9 (standard — avoid optimizing these without large sample)\n\n` +
+            `4. Monte Carlo Simulation: randomly resample trade results 10,000 times.\n` +
+            `   Compute 5th percentile drawdown — this is your expected worst-case. If unacceptable, reduce size.\n\n` +
+            `5. Sample size requirement: minimum 30 trades (ideally 100+) before drawing statistical conclusions.\n` +
+            `   Too few trades = outcomes dominated by randomness, not edge.\n\n` +
+            `6. Degredation check: if out-of-sample performance < 50% of in-sample, the system is likely overfit.\n` +
+            `   Re-parameterize with simpler rules or accept that edge may not generalize.\n\n` +
+            `Red flags (curve-fitting signals):\n` +
+            `• Too many parameters relative to trade count\n` +
+            `• Performance sensitive to single-tick changes in threshold\n` +
+            `• Only profitable during one specific market regime\n` +
+            `• Sharpe ratio drops >40% in out-of-sample period`
+        );
+    }
+
+    // ── Advanced Market Frameworks ────────────────────────────────────────────
+    if (intent === "quant_frameworks") {
+        const regimeStr = regime.status;
+        const vixLabel = regime.vix > 25 ? "HIGH (>25)" : regime.vix > 18 ? "MODERATE (18-25)" : "LOW (<18)";
+        return (
+            `Advanced Market Frameworks for Algorithmic Swing Trading:\n\n` +
+            `1. Regime-Based Architecture (SwingPulse's core model)\n` +
+            `   Current: ${regimeStr} | VIX ${regime.vix.toFixed(1)} — ${vixLabel}\n` +
+            `   • BULLISH (4+/6 conditions): full size LONG setups, reduce SHORT exposure\n` +
+            `   • BEARISH (≤2/6 conditions): full size SHORT setups, require 6+/8 signals for LONGs\n` +
+            `   • NEUTRAL (3/6 conditions): half size both directions, demand high conviction\n\n` +
+            `2. Volatility-Adjusted Position Sizing\n` +
+            `   Shares = (Account × Risk%) ÷ (ATR × Stop-Multiple)\n` +
+            `   In high-VIX (>25): reduce risk% by 50% — ATR widens, stops must widen too.\n` +
+            `   In low-VIX (<15): can use full risk% — tighter stops, better precision.\n\n` +
+            `3. Mean Reversion vs. Trend Following Filters\n` +
+            `   • Trend: RSI 50-70 zone, price above SMA50 and SMA200 (momentum confirms)\n` +
+            `   • Mean Reversion: RSI <35 (oversold) or >65 (overbought) with price at structure\n` +
+            `   SwingPulse uses trend-following signals — exits before mean reversion exhaustion.\n\n` +
+            `4. Multi-Timeframe Confirmation\n` +
+            `   Entry signals on daily chart should align with weekly trend direction.\n` +
+            `   conflictTrend flag: SMA50 < SMA200 on a LONG setup = structural divergence — wait.\n\n` +
+            `5. Intermarket & Sector Rotation Context\n` +
+            `   • VIX rising + SPY below SMA200 = risk-off → favour defensive sectors (utilities, consumer staples)\n` +
+            `   • VIX falling + SPY above SMA50 = risk-on → favour growth (tech, consumer discretionary)\n` +
+            `   • Crude oil rising → XOM, CVX, VLO outperform; rising dollar → global earners (KO, PM, JNJ) compress\n\n` +
+            `6. Earnings Binary-Event Architecture\n` +
+            `   earningsWarning flag: earnings within 2 weeks → elevated gap risk.\n` +
+            `   Protocol: close or halve position size before report; re-enter after reaction settles.\n\n` +
+            `7. Short Interest / Squeeze Framework\n` +
+            `   SI >15% + volumeSpike = squeeze watch. For LONG setups: catalytic; for SHORTs: dangerous.\n` +
+            `   Days-to-cover = Short Float ÷ Average Daily Volume; >5 days elevates squeeze probability.\n\n` +
+            `Universe split by category:\n` +
+            `   • High Dividend Yield & High Earnings: 25 blue-chips — lower volatility, regime-resilient, income floor\n` +
+            `   • Penny Stocks: 25 speculative plays — higher ATR, wider stops required, size down by 50%`
+        );
+    }
+
     // ── Specific ticker lookup (e.g. "Tell me about NVDA") ───────────────────
-    if (intent === "ticker_lookup") {
-        const ticker = questionTickers[0];
+    if (intent === "ticker_lookup") {        const ticker = questionTickers[0];
         const stock = stocks.find((s) => s.ticker === ticker);
         if (stock) return generateTradeBrief(stock, regime);
     }
