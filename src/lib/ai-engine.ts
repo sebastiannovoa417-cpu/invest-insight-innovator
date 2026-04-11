@@ -499,32 +499,53 @@ function detectIntent(question: string, stocks: Stock[]): QuestionIntent {
 
     // Highest-priority specific intents first.
     if (hasAnyPhrase(q, ["short interest", "float", "squeeze", "squeeze potential", "risky stocks", "high short"])) return "short_interest";
-    if (hasAnyPhrase(q, ["position size", "position sizing", "how much should i buy", "how many shares", "share count", "risk per trade", "lot size", "how much to buy", "max shares", "risk amount"])) return "position_size";
+
+    // Quantitative / algorithmic trading knowledge — checked before broad-catching intents
+    // so that phrasing like "explain expectancy", "walk-forward analysis", or "algo architecture"
+    // is not swallowed by the "why", "rsi", or "regime" handlers.
+    if (hasAnyPhrase(q, [
+        "expectancy", "mathematical expectancy", "expected value", "win rate", "ev formula",
+        "positive expectancy", "trading edge", "kelly criterion", "average win", "average loss",
+        "break-even win rate", "break even win rate", "mathematical edge", "has an edge",
+        "system edge", "mathematical basis",
+    ])) return "quant_expectancy";
+    if (hasAnyPhrase(q, [
+        "parameter optim", "optimize parameter", "overfitting", "curve fitting",
+        "walk forward", "walk-forward", "in sample", "in-sample", "out of sample", "out-of-sample",
+        "lookback period", "atr period", "rsi period", "average true range period",
+        "backtest optim", "grid search", "monte carlo", "sensitivity analysis", "robust parameter",
+        "data snooping", "parameter stability", "minimum sample", "backtest strateg", "backtest result",
+        "degradation check", "how many trades", "backtest reliable", "parameter robust",
+    ])) return "quant_optimization";
+    if (hasAnyPhrase(q, [
+        "algorithmic", "algo trading", "quantitative", "regime filter", "volatility regime",
+        "regime-based", "market framework", "adaptive", "market microstructure",
+        "mean reversion framework", "trend following framework", "vix regime", "sector rotation",
+        "intermarket", "advanced framework", "swing architecture", "trading architecture",
+    ])) return "quant_frameworks";
+
+    if (hasAnyPhrase(q, ["position size", "position sizing", "how much should i buy", "how many shares", "share count", "risk per trade", "lot size", "how much to buy", "max shares", "risk amount", "how much risk"])) return "position_size";
     if (hasAnyPhrase(q, ["compare", " versus ", " vs "]) || tickers.length >= 2) return "compare";
     if (hasAnyPhrase(q, ["news", "headline", "latest on"])) return "news";
-    if (hasAnyPhrase(q, ["why", "explain", "signals for", "what signals"])) return "why";
+    // "explain" on its own is too broad; only treat it as a "why" signal when a ticker is present.
+    if (hasAnyPhrase(q, ["why", "signals for", "what signals"]) || (q.includes("explain") && tickers.length >= 1)) return "why";
 
     if (hasAnyPhrase(q, ["regime", "market condition", "overall market", "broad market", "market update", "market today", "market this week", "how is the market", "what is the market doing", "what is happening in the market", "spy", "vix", "market vibe", "macro", "market sentiment", "market direction", "good time to trade", "good time to buy", "market outlook", "market doing"])) return "regime";
     if (hasAnyPhrase(q, ["best r:r", "best rr", "risk reward", "reward risk", "best ratio", "highest reward", "best setup by reward", "best risk reward", "most favorable setup", "highest ratio"])) return "best_rr";
     if (hasAnyPhrase(q, ["strongest", "top setup", "top pick", "best setup", "best trade", "what is hot", "any winners", "best picks", "top ideas", "hot stocks", "what should i look at", "what to trade", "top stocks", "what looks good", "what looks interesting", "give me ideas", "give me trade ideas", "trade ideas", "any plays", "any opportunities", "anything interesting", "what is interesting", "scan results", "any picks", "good trades", "any ideas", "show me picks", "what to watch", "what should i watch"])) return "top_setups";
     if (hasAnyPhrase(q, ["earnings", "report", "catalyst", "upcoming reports", "avoid earnings", "upcoming earnings", "catalyst risk", "binary events", "reporting this week", "what is reporting"])) return "earnings";
-    if (hasAnyPhrase(q, ["conflict", "mixed signal", "diverge", "uncertain setups", "indecisive"])) return "conflicts";
-    if (hasAnyPhrase(q, ["volume", "vol spike", "high volume", "active stocks", "big volume", "unusual volume", "most active", "unusual activity", "what is moving", "active today", "high volume stocks", "volume spike"])) return "volume";
+    if (hasAnyPhrase(q, ["conflict", "mixed signal", "mixed setup", "mixed setups", "setups are mixed", "diverge", "uncertain setups", "indecisive", "indeterminate"])) return "conflicts";
+    if (hasAnyPhrase(q, ["volume", "vol spike", "high volume", "active stocks", "big volume", "unusual volume", "most active", "unusual activity", "what is moving", "active today", "high volume stocks", "volume spike", "money flow"])) return "volume";
     if (hasAnyPhrase(q, ["rsi", "oversold", "overbought", "momentum", "extended", "stretched", "mean reversion", "bounce candidate", "reversal plays", "reversal candidate", "oversold stocks", "overbought stocks", "extreme rsi", "stretched stocks"])) return "rsi";
 
     // Broad direction intents should not steal sizing/short-interest questions.
     if (hasAnyPhrase(q, [" short ", "short setups", "bearish candidate", "sell candidate", "what to short", "bearish plays", "sell candidates", "going down", "what is going down", "downtrend", "bearish stocks", "put plays", "fading plays", "sell the rip"])) return "short_candidates";
-    if (hasAnyPhrase(q, [" long ", "long setups", "bullish candidate", "buy candidate", "what to buy", "bullish plays", "buy candidates", "good buys", "should i buy", "worth buying", "going up", "what is going up", "buy the dip", "dip buy", "bullish stocks", "call plays", "upward trend"])) return "long_candidates";
+    if (hasAnyPhrase(q, [" long ", "long setups", "bullish candidate", "buy candidate", "what to buy", "bullish plays", "buy candidates", "good buys", "should i buy", "worth buying", "going up", "what is going up", "buy the dip", "dip buy", "bullish stocks", "bullish setup", "bullish setups", "call plays", "upward trend", "upside"])) return "long_candidates";
 
     if (
         Object.keys(BROKER_KEYWORDS).some((k) => q.includes(k)) &&
         hasAnyPhrase(q, ["how to", "how do i", "place order", "buy order", "limit order", "stop order", "order type", "trade on", "steps", "tutorial", "guide", "set up", "place a"])
     ) return "broker_workflow";
-
-    // Quantitative / algorithmic trading knowledge
-    if (hasAnyPhrase(q, ["expectancy", "mathematical expectancy", "expected value", "win rate", "ev formula", "positive expectancy", "edge", "trading edge", "kelly criterion", "average win", "average loss"])) return "quant_expectancy";
-    if (hasAnyPhrase(q, ["parameter optim", "optimize parameter", "overfitting", "curve fitting", "walk forward", "in sample", "out of sample", "lookback period", "atr period", "rsi period", "backtest optim", "grid search", "monte carlo", "sensitivity analysis", "robust parameter"])) return "quant_optimization";
-    if (hasAnyPhrase(q, ["algorithmic", "algo trading", "quantitative", "regime filter", "volatility regime", "regime-based", "market framework", "adaptive", "market microstructure", "mean reversion framework", "trend following framework", "vix regime", "sector rotation", "intermarket", "advanced framework", "swing architecture", "trading architecture"])) return "quant_frameworks";
 
     if (tickers.length >= 1) return "ticker_lookup";
     return "default";
@@ -999,7 +1020,7 @@ export function answerQuestion(
             `   Compute 5th percentile drawdown — this is your expected worst-case. If unacceptable, reduce size.\n\n` +
             `5. Sample size requirement: minimum 30 trades (ideally 100+) before drawing statistical conclusions.\n` +
             `   Too few trades = outcomes dominated by randomness, not edge.\n\n` +
-            `6. Degredation check: if out-of-sample performance < 50% of in-sample, the system is likely overfit.\n` +
+            `6. Degradation check: if out-of-sample performance < 50% of in-sample, the system is likely overfit.\n` +
             `   Re-parameterize with simpler rules or accept that edge may not generalize.\n\n` +
             `Red flags (curve-fitting signals):\n` +
             `• Too many parameters relative to trade count\n` +
@@ -1048,7 +1069,8 @@ export function answerQuestion(
     }
 
     // ── Specific ticker lookup (e.g. "Tell me about NVDA") ───────────────────
-    if (intent === "ticker_lookup") {        const ticker = questionTickers[0];
+    if (intent === "ticker_lookup") {
+        const ticker = questionTickers[0];
         const stock = stocks.find((s) => s.ticker === ticker);
         if (stock) return generateTradeBrief(stock, regime);
     }
