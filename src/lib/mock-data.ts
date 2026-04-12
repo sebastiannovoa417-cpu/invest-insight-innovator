@@ -656,7 +656,7 @@ export const lastRunInfo = {
   timestamp: "Apr 29 4:15 PM",
   stockCount: 50,
   regime: "BEARISH" as const,
-  runId: "swingpulse-2025-0429",
+  runId: "swingpulse-2026-0429",
   universe: "SwingPulse 50 — v2.0",
   ranAt: null as string | null,
 };

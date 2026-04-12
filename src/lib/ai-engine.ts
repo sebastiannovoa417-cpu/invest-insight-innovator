@@ -1075,8 +1075,8 @@ export function answerQuestion(
             `   SI >15% + volumeSpike = squeeze watch. For LONG setups: catalytic; for SHORTs: dangerous.\n` +
             `   Days-to-cover = Short Float ÷ Average Daily Volume; >5 days elevates squeeze probability.\n\n` +
             `Universe split by category:\n` +
-            `   • High Dividend Yield & High Earnings: 25 blue-chips — lower volatility, regime-resilient, income floor\n` +
-            `   • Penny Stocks: 25 speculative plays — higher ATR, wider stops required, size down by 50%`
+            `   • High Dividend Yield & High Earnings: 28 blue-chips — lower volatility, regime-resilient, income floor\n` +
+            `   • Penny Stocks: 22 speculative plays — higher ATR, wider stops required, size down by 50%`
         );
     }
 
