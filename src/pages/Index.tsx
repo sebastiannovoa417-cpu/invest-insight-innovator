@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Star, Menu, X } from "lucide-react";
 import { SyncBar } from "@/components/SyncBar";
 import { TopPickCard } from "@/components/TopPickCard";
-import { FilterControls, TradeFilter, ScoreFilter, SortOption } from "@/components/FilterControls";
+import { FilterControls, TradeFilter, ScoreFilter, SortOption, CategoryFilter } from "@/components/FilterControls";
 import { StockTable } from "@/components/StockTable";
 import { StatsBar } from "@/components/StatsBar";
 import { DetailPanel } from "@/components/DetailPanel";
@@ -21,6 +21,7 @@ import { useAlerts } from "@/hooks/use-alerts";
 import { mockRegime, lastRunInfo } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { Stock } from "@/lib/types";
+import { TICKER_CATEGORY_MAP, CATEGORY_LABELS } from "@/lib/stock-categories";
 
 type ActiveTab = "dashboard" | "watchlist" | "regime" | "positions" | "backtest" | "ai" | "alerts";
 
@@ -55,11 +56,13 @@ const Index = () => {
   const VALID_TRADE_FILTERS: TradeFilter[] = ["ALL", "LONG", "SHORT"];
   const VALID_SCORE_FILTERS: ScoreFilter[] = ["ANY", "3+", "5+", "7+"];
   const VALID_SORT_OPTIONS: SortOption[] = ["score", "rsi", "volume", "ticker"];
+  const VALID_CATEGORY_FILTERS: CategoryFilter[] = CATEGORY_LABELS as CategoryFilter[];
 
   // Versioned localStorage keys — bump suffix when filter schema changes to avoid stale values.
   const LS_TRADE = "sp_v2_tradeFilter";
   const LS_SCORE = "sp_v2_scoreFilter";
   const LS_SORT = "sp_v2_sortBy";
+  const LS_CATEGORY = "sp_v2_categoryFilter";
 
   function getStored<T extends string>(key: string, valid: T[], fallback: T): T {
     const v = localStorage.getItem(key) as T;
@@ -90,6 +93,9 @@ const Index = () => {
   const [sortBy, setSortBy] = useState<SortOption>(() =>
     getStored(LS_SORT, VALID_SORT_OPTIONS, "score")
   );
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(() =>
+    getStored(LS_CATEGORY, VALID_CATEGORY_FILTERS, "ALL")
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearch = useDeferredValue(searchQuery);
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
@@ -99,12 +105,14 @@ const Index = () => {
   useEffect(() => { localStorage.setItem(LS_TRADE, tradeFilter); }, [tradeFilter]);
   useEffect(() => { localStorage.setItem(LS_SCORE, scoreFilter); }, [scoreFilter]);
   useEffect(() => { localStorage.setItem(LS_SORT, sortBy); }, [sortBy]);
+  useEffect(() => { localStorage.setItem(LS_CATEGORY, categoryFilter); }, [categoryFilter]);
 
   const handleResetFilters = useCallback(() => {
     setTradeFilter("ALL");
     setScoreFilter("ANY");
     setSortBy("score");
     setSearchQuery("");
+    setCategoryFilter("ALL");
   }, []);
 
   // Keyboard shortcuts
@@ -143,6 +151,10 @@ const Index = () => {
       ? [...watchlistStocks]
       : [...stocks];
 
+    if (categoryFilter !== "ALL") {
+      result = result.filter(s => TICKER_CATEGORY_MAP[s.ticker] === categoryFilter);
+    }
+
     if (tradeFilter !== "ALL") {
       result = result.filter(s => s.tradeType === tradeFilter);
     }
@@ -179,7 +191,7 @@ const Index = () => {
     });
 
     return result;
-  }, [stocks, watchlistStocks, activeTab, tradeFilter, scoreFilter, sortBy, deferredSearch, watchlist]);
+  }, [stocks, watchlistStocks, activeTab, tradeFilter, scoreFilter, sortBy, deferredSearch, watchlist, categoryFilter]);
 
   const topPick = useMemo(() => {
     const aligned = stocks.filter(s =>
@@ -315,10 +327,12 @@ const Index = () => {
               sortBy={sortBy}
               searchQuery={searchQuery}
               tickerCount={filteredStocks.length}
+              categoryFilter={categoryFilter}
               onTradeFilterChange={setTradeFilter}
               onScoreFilterChange={setScoreFilter}
               onSortChange={setSortBy}
               onSearchChange={setSearchQuery}
+              onCategoryFilterChange={setCategoryFilter}
               onResetFilters={handleResetFilters}
             />
             <StockTable
@@ -349,10 +363,12 @@ const Index = () => {
                   sortBy={sortBy}
                   searchQuery={searchQuery}
                   tickerCount={filteredStocks.length}
+                  categoryFilter={categoryFilter}
                   onTradeFilterChange={setTradeFilter}
                   onScoreFilterChange={setScoreFilter}
                   onSortChange={setSortBy}
                   onSearchChange={setSearchQuery}
+                  onCategoryFilterChange={setCategoryFilter}
                 />
                 <StockTable
                   stocks={filteredStocks}

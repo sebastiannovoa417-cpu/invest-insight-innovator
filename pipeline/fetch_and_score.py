@@ -5,6 +5,10 @@ Fetches OHLCV from Yahoo Finance, computes RSI/SMA/ATR/MACD/Volume in pure
 pandas, scores all 50 tickers, then POSTs the complete payload to the
 Supabase sync-ingest Edge Function.
 
+Universe v2 — 50 tickers across two categories:
+  • High Dividend Yield & High Earnings (25): blue-chip income stocks
+  • Penny Stocks (25): sub-$5 speculative / high-volatility plays
+
 Usage:
     python pipeline/fetch_and_score.py
 
@@ -27,7 +31,7 @@ import yfinance as yf
 from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
 
-from universe import UNIVERSE, TICKER_NAMES
+from universe import UNIVERSE, TICKER_NAMES, TICKER_CATEGORIES
 
 load_dotenv()
 
@@ -67,7 +71,7 @@ if not SYNC_API_KEY:
         "At least one must be provided."
     )
 
-UNIVERSE_NAME = "SwingPulse 50 — v2.1"
+UNIVERSE_NAME = "SwingPulse 50 — v2.0"
 
 
 # ── Indicator helpers ─────────────────────────────────────────────────────────

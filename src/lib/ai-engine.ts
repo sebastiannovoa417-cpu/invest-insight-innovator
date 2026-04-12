@@ -137,8 +137,96 @@ export function questionMentionsBroker(question: string): boolean {
     return Object.keys(BROKER_KEYWORDS).some((k) => q.includes(k));
 }
 
-// ── Company name → ticker aliases (covers the 25-ticker universe + common aliases) ─
+// ── Company name → ticker aliases (covers the 50-ticker universe + common aliases) ─
 const COMPANY_NAMES: Record<string, string> = {
+    // ── Section 1: High-Dividend, Low-Volatility ──────────────────────────────
+    "altria": "MO",
+    "altria group": "MO",
+    "verizon": "VZ",
+    "verizon communications": "VZ",
+    "pepsico": "PEP",
+    "pepsi": "PEP",
+    "duke energy": "DUK",
+    "mondelez": "MDLZ",
+    "mondelez international": "MDLZ",
+    // ── Section 2: Under $100, High-Yield, High-Volume ───────────────────────
+    "eog resources": "EOG",
+    "eog": "EOG",
+    "concentrix": "CNXC",
+    "concentrix corp": "CNXC",
+    "medtronic": "MDT",
+    "landbridge": "LB",
+    "landbridge co": "LB",
+    "photronics": "PLAB",
+    "ford": "F",
+    "ford motor": "F",
+    "sofi": "SOFI",
+    "sofi technologies": "SOFI",
+    // ── Section 3: Moderate-Yield, Positive 5-Month Performance ─────────────
+    "corning": "GLW",
+    "texas pacific land": "TPL",
+    "seagate": "STX",
+    "seagate technology": "STX",
+    "western digital": "WDC",
+    "unitedhealth": "UNH",
+    "unitedhealth group": "UNH",
+    "cigna": "CI",
+    "cigna group": "CI",
+    "s&p global": "SPGI",
+    "sp global": "SPGI",
+    "at&t": "T",
+    "att": "T",
+    "elevance": "ELV",
+    "elevance health": "ELV",
+    "becton dickinson": "BDX",
+    "chevron": "CVX",
+    "broadcom": "AVGO",
+    "home depot": "HD",
+    "jpmorgan": "JPM",
+    "jp morgan": "JPM",
+    "jpmorgan chase": "JPM",
+    "blackrock": "BLK",
+    "3m": "MMM",
+    "3m company": "MMM",
+    // ── Section 4: Reliable Penny Stocks ─────────────────────────────────────
+    "bark": "BARK",
+    "bark inc": "BARK",
+    "clear channel": "CCO",
+    "clear channel outdoor": "CCO",
+    "dingdong": "DDL",
+    "waterdrop": "WDH",
+    "lexinfintech": "LX",
+    "lexin": "LX",
+    "gee group": "JOB",
+    "vislink": "VISL",
+    "vislink technologies": "VISL",
+    "urban-gro": "UGRO",
+    "atomera": "ATOM",
+    "atomera inc": "ATOM",
+    "immunic": "IMUX",
+    "immunic inc": "IMUX",
+    // ── Section 5: Penny Stocks Strong Bullish Trends ─────────────────────────
+    "tuhura": "HURA",
+    "hura biosciences": "HURA",
+    "cv sciences": "CVSI",
+    "global self storage": "SELF",
+    "polestar": "PSNY",
+    "polestar automotive": "PSNY",
+    "bigbear": "BBAI",
+    "bigbear.ai": "BBAI",
+    "grail": "GRAL",
+    "grail inc": "GRAL",
+    "ceco environmental": "CECO",
+    "benchmark electronics": "BHE",
+    "rigetti": "RGTI",
+    "rigetti computing": "RGTI",
+    "soundhound": "SOUN",
+    "soundhound ai": "SOUN",
+    "bionano": "BNGO",
+    "bionano genomics": "BNGO",
+    "archer aviation": "ACHR",
+    "archer": "ACHR",
+    // ── Legacy / common aliases ────────────────────────────────────────────
     "nvidia": "NVDA",
     "nvidia corp": "NVDA",
     "tesla": "TSLA",
@@ -151,10 +239,8 @@ const COMPANY_NAMES: Record<string, string> = {
     "alphabet": "GOOGL",
     "netflix": "NFLX",
     "amd": "AMD",
-    "advanced micro": "AMD",
     "advanced micro devices": "AMD",
     "intel": "INTC",
-    "sofi": "SOFI",
     "mara": "MARA",
     "marathon digital": "MARA",
     "coinbase": "COIN",
@@ -184,7 +270,10 @@ const COMPANY_NAMES: Record<string, string> = {
  * Returns:
  *   Multi-sentence prose trade brief.
  */
-export function generateTradeBrief(stock: Stock, regime?: RegimeData): string {
+export function generateTradeBrief(stock: Stock | undefined, regime?: RegimeData): string {
+    if (!stock) {
+        return "No stock data found for that ticker in the current universe.";
+    }
     const direction = stock.tradeType;
     const signalCount = Object.values(stock.signals).filter(Boolean).length;
     const totalSignals = Object.values(stock.signals).length;
@@ -376,6 +465,9 @@ type QuestionIntent =
     | "short_interest"
     | "broker_workflow"
     | "ticker_lookup"
+    | "quant_expectancy"
+    | "quant_optimization"
+    | "quant_frameworks"
     | "default";
 
 function normalizeQuestion(question: string): string {
@@ -419,22 +511,48 @@ function detectIntent(question: string, stocks: Stock[]): QuestionIntent {
 
     // Highest-priority specific intents first.
     if (hasAnyPhrase(q, ["short interest", "float", "squeeze", "squeeze potential", "risky stocks", "high short"])) return "short_interest";
-    if (hasAnyPhrase(q, ["position size", "position sizing", "how much should i buy", "how many shares", "share count", "risk per trade", "lot size", "how much to buy", "max shares", "risk amount"])) return "position_size";
+
+    // Quantitative / algorithmic trading knowledge — checked before broad-catching intents
+    // so that phrasing like "explain expectancy", "walk-forward analysis", or "algo architecture"
+    // is not swallowed by the "why", "rsi", or "regime" handlers.
+    if (hasAnyPhrase(q, [
+        "expectancy", "mathematical expectancy", "expected value", "win rate", "ev formula",
+        "positive expectancy", "trading edge", "kelly criterion", "average win", "average loss",
+        "break-even win rate", "break even win rate", "mathematical edge", "has an edge",
+        "system edge", "mathematical basis",
+    ])) return "quant_expectancy";
+    if (hasAnyPhrase(q, [
+        "parameter optim", "optimize parameter", "overfitting", "curve fitting",
+        "walk forward", "walk-forward", "in sample", "in-sample", "out of sample", "out-of-sample",
+        "lookback period", "atr period", "rsi period", "average true range period",
+        "backtest optim", "grid search", "monte carlo", "sensitivity analysis", "robust parameter",
+        "data snooping", "parameter stability", "minimum sample", "backtest strateg", "backtest result",
+        "degradation check", "how many trades", "backtest reliable", "parameter robust",
+    ])) return "quant_optimization";
+    if (hasAnyPhrase(q, [
+        "algorithmic", "algo trading", "quantitative", "regime filter", "volatility regime",
+        "regime-based", "market framework", "adaptive", "market microstructure",
+        "mean reversion framework", "trend following framework", "vix regime", "sector rotation",
+        "intermarket", "advanced framework", "swing architecture", "trading architecture",
+    ])) return "quant_frameworks";
+
+    if (hasAnyPhrase(q, ["position size", "position sizing", "how much should i buy", "how many shares", "share count", "risk per trade", "lot size", "how much to buy", "max shares", "risk amount", "how much risk"])) return "position_size";
     if (hasAnyPhrase(q, ["compare", " versus ", " vs "]) || tickers.length >= 2) return "compare";
     if (hasAnyPhrase(q, ["news", "headline", "latest on"])) return "news";
-    if (hasAnyPhrase(q, ["why", "explain", "signals for", "what signals"])) return "why";
+    // "explain" on its own is too broad; only treat it as a "why" signal when a ticker is present.
+    if (hasAnyPhrase(q, ["why", "signals for", "what signals"]) || (q.includes("explain") && tickers.length >= 1)) return "why";
 
     if (hasAnyPhrase(q, ["regime", "market condition", "overall market", "broad market", "market update", "market today", "market this week", "how is the market", "what is the market doing", "what is happening in the market", "spy", "vix", "market vibe", "macro", "market sentiment", "market direction", "good time to trade", "good time to buy", "market outlook", "market doing"])) return "regime";
     if (hasAnyPhrase(q, ["best r:r", "best rr", "risk reward", "reward risk", "best ratio", "highest reward", "best setup by reward", "best risk reward", "most favorable setup", "highest ratio"])) return "best_rr";
     if (hasAnyPhrase(q, ["strongest", "top setup", "top pick", "best setup", "best trade", "what is hot", "any winners", "best picks", "top ideas", "hot stocks", "what should i look at", "what to trade", "top stocks", "what looks good", "what looks interesting", "give me ideas", "give me trade ideas", "trade ideas", "any plays", "any opportunities", "anything interesting", "what is interesting", "scan results", "any picks", "good trades", "any ideas", "show me picks", "what to watch", "what should i watch"])) return "top_setups";
     if (hasAnyPhrase(q, ["earnings", "report", "catalyst", "upcoming reports", "avoid earnings", "upcoming earnings", "catalyst risk", "binary events", "reporting this week", "what is reporting"])) return "earnings";
-    if (hasAnyPhrase(q, ["conflict", "mixed signal", "diverge", "uncertain setups", "indecisive"])) return "conflicts";
-    if (hasAnyPhrase(q, ["volume", "vol spike", "high volume", "active stocks", "big volume", "unusual volume", "most active", "unusual activity", "what is moving", "active today", "high volume stocks", "volume spike"])) return "volume";
+    if (hasAnyPhrase(q, ["conflict", "mixed signal", "mixed setup", "mixed setups", "setups are mixed", "diverge", "uncertain setups", "indecisive", "indeterminate"])) return "conflicts";
+    if (hasAnyPhrase(q, ["volume", "vol spike", "high volume", "active stocks", "big volume", "unusual volume", "most active", "unusual activity", "what is moving", "active today", "high volume stocks", "volume spike", "money flow"])) return "volume";
     if (hasAnyPhrase(q, ["rsi", "oversold", "overbought", "momentum", "extended", "stretched", "mean reversion", "bounce candidate", "reversal plays", "reversal candidate", "oversold stocks", "overbought stocks", "extreme rsi", "stretched stocks"])) return "rsi";
 
     // Broad direction intents should not steal sizing/short-interest questions.
     if (hasAnyPhrase(q, [" short ", "short setups", "bearish candidate", "sell candidate", "what to short", "bearish plays", "sell candidates", "going down", "what is going down", "downtrend", "bearish stocks", "put plays", "fading plays", "sell the rip"])) return "short_candidates";
-    if (hasAnyPhrase(q, [" long ", "long setups", "bullish candidate", "buy candidate", "what to buy", "bullish plays", "buy candidates", "good buys", "should i buy", "worth buying", "going up", "what is going up", "buy the dip", "dip buy", "bullish stocks", "call plays", "upward trend"])) return "long_candidates";
+    if (hasAnyPhrase(q, [" long ", "long setups", "bullish candidate", "buy candidate", "what to buy", "bullish plays", "buy candidates", "good buys", "should i buy", "worth buying", "going up", "what is going up", "buy the dip", "dip buy", "bullish stocks", "bullish setup", "bullish setups", "call plays", "upward trend", "upside"])) return "long_candidates";
 
     if (
         Object.keys(BROKER_KEYWORDS).some((k) => q.includes(k)) &&
@@ -857,6 +975,108 @@ export function answerQuestion(
             "No stored workflow found for that broker in the curated knowledge base. " +
             "Try asking with the full broker name (e.g., 'Robinhood', 'Fidelity', 'Webull', 'Interactive Brokers'). " +
             "If you have a live Supabase connection with broker_order_workflows data, this will return step-by-step instructions."
+        );
+    }
+
+    // ── Mathematical Expectancy ───────────────────────────────────────────────
+    if (intent === "quant_expectancy") {
+        const longStocks = stocks.filter((s) => s.tradeType === "LONG");
+        const shortStocks = stocks.filter((s) => s.tradeType === "SHORT");
+        const avgRR = stocks.length > 0
+            ? (stocks.reduce((sum, s) => sum + s.riskReward, 0) / stocks.length).toFixed(2)
+            : "2.00";
+        const avgBull = longStocks.length > 0
+            ? (longStocks.reduce((sum, s) => sum + s.bullScore, 0) / longStocks.length).toFixed(1)
+            : "0";
+        const avgBear = shortStocks.length > 0
+            ? (shortStocks.reduce((sum, s) => sum + s.bearScore, 0) / shortStocks.length).toFixed(1)
+            : "0";
+        return (
+            `Mathematical Expectancy — Quantitative Edge Framework:\n\n` +
+            `Formula: E = (Win% × Avg Win) − (Loss% × Avg Loss)\n` +
+            `Where: Win% + Loss% = 1, Avg Win = R:R × risk-per-trade\n\n` +
+            `For a system with 2:1 R:R and 45% win rate:\n` +
+            `E = (0.45 × 2R) − (0.55 × 1R) = 0.90R − 0.55R = +0.35R per trade\n` +
+            `Positive expectancy = edge exists. Negative = system bleeds capital over time.\n\n` +
+            `SwingPulse signal scoring as expectancy proxy:\n` +
+            `• 8-signal checklist (sma200, sma50, rsiMomentum, volume, macd, priceAction, trendStrength, earningsSetup)\n` +
+            `• Score ≥6/8 → high-conviction setups — historically correspond to win rates above 50%\n` +
+            `• Score ≤3/8 → low-confidence — reduce size or stand aside\n\n` +
+            `Current universe stats:\n` +
+            `• Average R:R across all ${stocks.length} tickers: ${avgRR}:1\n` +
+            `• LONG setups (${longStocks.length}): avg bull score ${avgBull}/8\n` +
+            `• SHORT setups (${shortStocks.length}): avg bear score ${avgBear}/8\n\n` +
+            `Kelly Criterion (optional position sizing):\n` +
+            `f = W − (1−W)/R   where W = win rate, R = R:R ratio\n` +
+            `At W=0.45, R=2.0: f = 0.45 − 0.55/2 = 0.175 → 17.5% of capital (use ½-Kelly = 8.75% max)\n\n` +
+            `Key insight: a positive-expectancy system with consistent execution will be profitable over a large sample of trades, even with a sub-50% win rate.`
+        );
+    }
+
+    // ── Parameter Optimization ────────────────────────────────────────────────
+    if (intent === "quant_optimization") {
+        return (
+            `Parameter Optimization — Avoiding Overfitting in Swing Systems:\n\n` +
+            `Core principles:\n` +
+            `1. Walk-Forward Analysis: divide historical data into in-sample (train) and out-of-sample (test) windows.\n` +
+            `   Typical split: 70% in-sample for optimization, 30% out-of-sample for validation.\n\n` +
+            `2. Robustness Test: optimal parameters should perform well across a ±20% band around the optimum.\n` +
+            `   A parameter cliff (sharp performance drop on either side) = fragile, curve-fitted system.\n\n` +
+            `3. SwingPulse parameter reference:\n` +
+            `   • RSI period: 14 (Wilder standard — robust across timeframes)\n` +
+            `   • SMA periods: 50-day and 200-day (decades-tested institutional benchmarks)\n` +
+            `   • ATR period: 14-day for stop/target sizing\n` +
+            `   • Volume spike threshold: 1.5× 20-day average\n` +
+            `   • MACD: 12/26/9 (standard — avoid optimizing these without large sample)\n\n` +
+            `4. Monte Carlo Simulation: randomly resample trade results 10,000 times.\n` +
+            `   Compute 5th percentile drawdown — this is your expected worst-case. If unacceptable, reduce size.\n\n` +
+            `5. Sample size requirement: minimum 30 trades (ideally 100+) before drawing statistical conclusions.\n` +
+            `   Too few trades = outcomes dominated by randomness, not edge.\n\n` +
+            `6. Degradation check: if out-of-sample performance < 50% of in-sample, the system is likely overfit.\n` +
+            `   Re-parameterize with simpler rules or accept that edge may not generalize.\n\n` +
+            `Red flags (curve-fitting signals):\n` +
+            `• Too many parameters relative to trade count\n` +
+            `• Performance sensitive to single-tick changes in threshold\n` +
+            `• Only profitable during one specific market regime\n` +
+            `• Sharpe ratio drops >40% in out-of-sample period`
+        );
+    }
+
+    // ── Advanced Market Frameworks ────────────────────────────────────────────
+    if (intent === "quant_frameworks") {
+        const regimeStr = regime.status;
+        const vixLabel = regime.vix > 25 ? "HIGH (>25)" : regime.vix > 18 ? "MODERATE (18-25)" : "LOW (<18)";
+        return (
+            `Advanced Market Frameworks for Algorithmic Swing Trading:\n\n` +
+            `1. Regime-Based Architecture (SwingPulse's core model)\n` +
+            `   Current: ${regimeStr} | VIX ${regime.vix.toFixed(1)} — ${vixLabel}\n` +
+            `   • BULLISH (4+/6 conditions): full size LONG setups, reduce SHORT exposure\n` +
+            `   • BEARISH (≤2/6 conditions): full size SHORT setups, require 6+/8 signals for LONGs\n` +
+            `   • NEUTRAL (3/6 conditions): half size both directions, demand high conviction\n\n` +
+            `2. Volatility-Adjusted Position Sizing\n` +
+            `   Shares = (Account × Risk%) ÷ (ATR × Stop-Multiple)\n` +
+            `   In high-VIX (>25): reduce risk% by 50% — ATR widens, stops must widen too.\n` +
+            `   In low-VIX (<15): can use full risk% — tighter stops, better precision.\n\n` +
+            `3. Mean Reversion vs. Trend Following Filters\n` +
+            `   • Trend: RSI 50-70 zone, price above SMA50 and SMA200 (momentum confirms)\n` +
+            `   • Mean Reversion: RSI <35 (oversold) or >65 (overbought) with price at structure\n` +
+            `   SwingPulse uses trend-following signals — exits before mean reversion exhaustion.\n\n` +
+            `4. Multi-Timeframe Confirmation\n` +
+            `   Entry signals on daily chart should align with weekly trend direction.\n` +
+            `   conflictTrend flag: SMA50 < SMA200 on a LONG setup = structural divergence — wait.\n\n` +
+            `5. Intermarket & Sector Rotation Context\n` +
+            `   • VIX rising + SPY below SMA200 = risk-off → favour defensive sectors (utilities, consumer staples)\n` +
+            `   • VIX falling + SPY above SMA50 = risk-on → favour growth (tech, consumer discretionary)\n` +
+            `   • Crude oil rising → XOM, CVX, VLO outperform; rising dollar → global earners (KO, PM, JNJ) compress\n\n` +
+            `6. Earnings Binary-Event Architecture\n` +
+            `   earningsWarning flag: earnings within 2 weeks → elevated gap risk.\n` +
+            `   Protocol: close or halve position size before report; re-enter after reaction settles.\n\n` +
+            `7. Short Interest / Squeeze Framework\n` +
+            `   SI >15% + volumeSpike = squeeze watch. For LONG setups: catalytic; for SHORTs: dangerous.\n` +
+            `   Days-to-cover = Short Float ÷ Average Daily Volume; >5 days elevates squeeze probability.\n\n` +
+            `Universe split by category:\n` +
+            `   • High Dividend Yield & High Earnings: 28 blue-chips — lower volatility, regime-resilient, income floor\n` +
+            `   • Penny Stocks: 22 speculative plays — higher ATR, wider stops required, size down by 50%`
         );
     }
 
