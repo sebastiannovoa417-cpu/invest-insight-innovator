@@ -4,92 +4,94 @@ Single source of truth for the SwingPulse ticker universe.
 Both fetch_and_score.py and enrich_moomoo.py import from here so the
 two scripts always operate on the same set of symbols.
 
-Universe v2 — 50 tickers across two categories:
-  • High Dividend Yield & High Earnings (25): blue-chip income stocks
-  • Penny Stocks (25): sub-$5 speculative / high-volatility plays
+Universe is divided into 5 sections:
+  Section 1 — High-Dividend, Low-Volatility, Bullish Names
+    Filter: LONG trade type, score 5+, low beta, high yield
+  Section 2 — Under $100 High-Yield, High-Volatility, High-Volume
+    Filter: LONG trade type, score 3+, high volume ratio, price < $100
+  Section 3 — Moderate-Yield, Positive 5-Month Performance
+    Filter: LONG trade type, score 3+, positive 5-month momentum
+  Section 4 — Reliable Penny Stocks for Swing Trading
+    Filter: ANY trade type, score 3+, sort by volume, price < $10
+  Section 5 — Penny Stocks with Strong Bullish Trends
+    Filter: LONG trade type, score 5+, price < $10, high momentum
 """
 
-# ── 50-ticker universe ────────────────────────────────────────────────────────
+# 50-ticker dividend/income + penny-stock universe
 UNIVERSE: list[str] = [
-    # High Dividend Yield & High Earnings
-    "T", "VZ", "MO", "PM", "KO", "PEP", "JNJ", "PFE", "IBM", "CVX",
-    "XOM", "JPM", "BAC", "ABBV", "MCD", "HD", "CAT", "UPS", "VLO", "EPD",
-    "O", "WMB", "LYB", "WFC", "MMM",
-    # Penny Stocks
-    "SNDL", "TLRY", "WKHS", "NKLA", "MVIS", "CLOV", "OCGN", "MNMD", "GNUS", "BNGO",
-    "HYLN", "CHPT", "BLNK", "BTBT", "KPLT", "XELA", "VERB", "ENVB", "ATNX", "NRXP",
-    "SHIP", "CTRM", "CEI", "SIGA", "IDEX",
+    # ── Section 1: High-Dividend, Low-Volatility, Bullish Names ─────────────
+    # Filter: LONG | score 5+ | defensive income plays, strong 2026 price action
+    "MO", "VZ", "PEP", "DUK", "MDLZ",
+    # ── Section 2: Under $100, High-Yield, High-Volatility, High-Volume ─────
+    # Filter: LONG | score 3+ | aggressive income trading, high liquidity
+    "EOG", "CNXC", "MDT", "LB", "PLAB", "F", "SOFI",
+    # ── Section 3: Moderate-Yield, Positive 5-Month Performance ─────────────
+    # Filter: LONG | score 3+ | balanced income and trend-following
+    "GLW", "TPL", "STX", "WDC", "UNH", "CI", "SPGI", "T",
+    "ELV", "BDX", "CVX", "AVGO", "HD", "JPM", "BLK", "MMM",
+    # ── Section 4: Reliable Penny Stocks for Swing Trading ───────────────────
+    # Filter: ANY | score 3+ | sort by volume | liquidity, clean structure, repeatable volatility
+    "BARK", "CCO", "DDL", "WDH", "LX", "JOB", "VISL", "UGRO", "ATOM", "IMUX",
+    # ── Section 5: Penny Stocks with Strong Bullish Trends (Last 5 Months) ───
+    # Filter: LONG | score 5+ | aggressive momentum plays, price < $10
+    "HURA", "CVSI", "SELF", "PSNY", "BBAI", "GRAL", "CECO", "BHE", "RGTI", "SOUN", "BNGO", "ACHR",
 ]
 
 # Human-readable display names (shown in the UI)
 TICKER_NAMES: dict[str, str] = {
-    # High Dividend Yield & High Earnings
-    "T":    "AT&T Inc",
-    "VZ":   "Verizon Communications",
-    "MO":   "Altria Group",
-    "PM":   "Philip Morris International",
-    "KO":   "Coca-Cola Company",
-    "PEP":  "PepsiCo Inc",
-    "JNJ":  "Johnson & Johnson",
-    "PFE":  "Pfizer Inc",
-    "IBM":  "IBM Corporation",
-    "CVX":  "Chevron Corporation",
-    "XOM":  "ExxonMobil Corporation",
-    "JPM":  "JPMorgan Chase",
-    "BAC":  "Bank of America",
-    "ABBV": "AbbVie Inc",
-    "MCD":  "McDonald's Corporation",
-    "HD":   "Home Depot Inc",
-    "CAT":  "Caterpillar Inc",
-    "UPS":  "United Parcel Service",
-    "VLO":  "Valero Energy",
-    "EPD":  "Enterprise Products Partners",
-    "O":    "Realty Income Corp",
-    "WMB":  "Williams Companies",
-    "LYB":  "LyondellBasell Industries",
-    "WFC":  "Wells Fargo & Company",
-    "MMM":  "3M Company",
-    # Penny Stocks
-    "SNDL": "Sundial Growers",
-    "TLRY": "Tilray Brands",
-    "WKHS": "Workhorse Group",
-    "NKLA": "Nikola Corp",
-    "MVIS": "MicroVision Inc",
-    "CLOV": "Clover Health",
-    "OCGN": "Ocugen Inc",
-    "MNMD": "MindMed Inc",
-    "GNUS": "Genius Brands",
-    "BNGO": "Bionano Genomics",
-    "HYLN": "Hyliion Holdings",
-    "CHPT": "ChargePoint Holdings",
-    "BLNK": "Blink Charging",
-    "BTBT": "Bit Digital",
-    "KPLT": "Katapult Holdings",
-    "XELA": "Exela Technologies",
-    "VERB": "Verb Technology",
-    "ENVB": "Enveric Biosciences",
-    "ATNX": "Athenex Inc",
-    "NRXP": "NRx Pharmaceuticals",
-    "SHIP": "Seanergy Maritime",
-    "CTRM": "Castor Maritime",
-    "CEI":  "Camber Energy",
-    "SIGA": "SIGA Technologies",
-    "IDEX": "Ideanomics Inc",
-}
-
-# Category membership — used by the pipeline to tag each scored record
-TICKER_CATEGORIES: dict[str, str] = {
-    ticker: "High Dividend Yield & High Earnings"
-    for ticker in [
-        "T", "VZ", "MO", "PM", "KO", "PEP", "JNJ", "PFE", "IBM", "CVX",
-        "XOM", "JPM", "BAC", "ABBV", "MCD", "HD", "CAT", "UPS", "VLO", "EPD",
-        "O", "WMB", "LYB", "WFC", "MMM",
-    ]
-} | {
-    ticker: "Penny Stocks"
-    for ticker in [
-        "SNDL", "TLRY", "WKHS", "NKLA", "MVIS", "CLOV", "OCGN", "MNMD", "GNUS", "BNGO",
-        "HYLN", "CHPT", "BLNK", "BTBT", "KPLT", "XELA", "VERB", "ENVB", "ATNX", "NRXP",
-        "SHIP", "CTRM", "CEI", "SIGA", "IDEX",
-    ]
+    # Section 1 — High-Dividend, Low-Volatility, Bullish
+    "MO":    "Altria Group",
+    "VZ":    "Verizon Communications",
+    "PEP":   "PepsiCo",
+    "DUK":   "Duke Energy",
+    "MDLZ":  "Mondelez International",
+    # Section 2 — Under $100, High-Yield, High-Volatility
+    "EOG":   "EOG Resources",
+    "CNXC":  "Concentrix Corp",
+    "MDT":   "Medtronic",
+    "LB":    "LandBridge Co",
+    "PLAB":  "Photronics",
+    "F":     "Ford Motor",
+    "SOFI":  "SoFi Technologies",
+    # Section 3 — Moderate-Yield, Positive 5-Month Performance
+    "GLW":   "Corning",
+    "TPL":   "Texas Pacific Land",
+    "STX":   "Seagate Technology",
+    "WDC":   "Western Digital",
+    "UNH":   "UnitedHealth Group",
+    "CI":    "Cigna Group",
+    "SPGI":  "S&P Global",
+    "T":     "AT&T",
+    "ELV":   "Elevance Health",
+    "BDX":   "Becton Dickinson",
+    "CVX":   "Chevron",
+    "AVGO":  "Broadcom",
+    "HD":    "Home Depot",
+    "JPM":   "JPMorgan Chase",
+    "BLK":   "BlackRock",
+    "MMM":   "3M Company",
+    # Section 4 — Reliable Penny Stocks for Swing Trading
+    "BARK":  "Bark Inc",
+    "CCO":   "Clear Channel Outdoor",
+    "DDL":   "Dingdong (Cayman) Ltd",
+    "WDH":   "Waterdrop Inc",
+    "LX":    "LexinFintech Holdings",
+    "JOB":   "GEE Group",
+    "VISL":  "Vislink Technologies",
+    "UGRO":  "Urban-gro Inc",
+    "ATOM":  "Atomera Inc",
+    "IMUX":  "Immunic Inc",
+    # Section 5 — Penny Stocks with Strong Bullish Trends
+    "HURA":  "TuHURA Biosciences",
+    "CVSI":  "CV Sciences",
+    "SELF":  "Global Self Storage",
+    "PSNY":  "Polestar Automotive",
+    "BBAI":  "BigBear.ai",
+    "GRAL":  "Grail Inc",
+    "CECO":  "CECO Environmental",
+    "BHE":   "Benchmark Electronics",
+    "RGTI":  "Rigetti Computing",
+    "SOUN":  "SoundHound AI",
+    "BNGO":  "Bionano Genomics",
+    "ACHR":  "Archer Aviation",
 }

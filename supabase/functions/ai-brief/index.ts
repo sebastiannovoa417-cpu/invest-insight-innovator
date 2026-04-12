@@ -7,6 +7,87 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-api-key",
 };
 
+interface Stock {
+  ticker: string;
+  tradeType: string;
+  bullScore: number;
+  bearScore: number;
+  price: number;
+  rsi: number;
+  volumeRatio: number;
+  conflictTrend?: boolean;
+  earningsWarning?: boolean;
+  riskReward: number;
+}
+
+interface RegimeData {
+  status: string;
+  spyPrice: number;
+  sma200: number;
+  ratio: number;
+  spyRsi: number;
+  vix: number;
+  regimeScore: number;
+}
+
+// Safely convert a possibly-null/undefined value to a fixed-decimal string.
+function toFixed(value: unknown, decimals: number): string {
+  const n = Number(value);
+  return isFinite(n) ? n.toFixed(decimals) : "—";
+}
+
+function generateBrief(regime: RegimeData, stocks: Stock[]): string {
+  const top5 = stocks.slice(0, 5);
+  const regimeBias =
+    regime.status === "BULLISH"
+      ? "Conditions favor LONG setups — lean toward buying pullbacks with tight stops."
+      : regime.status === "BEARISH"
+      ? "Bearish conditions — reduce LONG exposure, size down, and prefer SHORT setups or cash."
+      : "Mixed regime — require above-average conviction before committing; tighten stop distances.";
+
+  const regimeSentence =
+    `Market is ${regime.status} (${toFixed(regime.regimeScore, 0)}/6 conditions). ` +
+    `SPY $${toFixed(regime.spyPrice, 2)} vs SMA200 $${toFixed(regime.sma200, 2)} ` +
+    `(${toFixed(Number(regime.ratio) * 100, 1)}% spread), RSI ${toFixed(regime.spyRsi, 1)}, VIX ${toFixed(regime.vix, 1)}. ` +
+    regimeBias;
+
+  const standouts = top5.slice(0, 3);
+  const setupSentence =
+    standouts.length > 0
+      ? `Top setups: ${standouts.map((s) => {
+          const score = s.tradeType === "SHORT" ? (s.bearScore ?? 0) : (s.bullScore ?? 0);
+          return `${s.ticker} (${s.tradeType}, ${score}/8 signals, $${toFixed(s.price, 2)}, RSI ${toFixed(s.rsi, 0)}, R:R ${toFixed(s.riskReward, 1)}:1)`;
+        }).join(", ")}. ${
+          (Number(standouts[0].volumeRatio) || 0) >= 1.5
+            ? `${standouts[0].ticker} shows above-average volume — institutional interest present.`
+            : `Volume is running near average — confirm entry with price action.`
+        }`
+      : "No high-conviction setups identified in the current scan.";
+
+  const earningsCount = stocks.filter((s) => s.earningsWarning).length;
+  const conflictCount = stocks.filter((s) => s.conflictTrend).length;
+  const riskSentence =
+    earningsCount > 0 && conflictCount > 0
+      ? `Risk: ${earningsCount} ticker${earningsCount !== 1 ? "s" : ""} with imminent earnings and ${conflictCount} trend conflict${conflictCount !== 1 ? "s" : ""} — avoid new entries on flagged names.`
+      : earningsCount > 0
+      ? `Risk: ${earningsCount} ticker${earningsCount !== 1 ? "s" : ""} have earnings within 14 days — size down or wait for post-earnings confirmation.`
+      : conflictCount > 0
+      ? `Risk: ${conflictCount} ticker${conflictCount !== 1 ? "s" : ""} show conflicting trend signals — wait for resolution before committing.`
+      : "No earnings events or trend conflicts flagged this session.";
+
+  const longCount = stocks.filter((s) => s.tradeType === "LONG").length;
+  const shortCount = stocks.filter((s) => s.tradeType === "SHORT").length;
+  const biasSentence =
+    `Universe breakdown: ${longCount} LONG, ${shortCount} SHORT across ${stocks.length} names. ` +
+    (regime.status === "BULLISH"
+      ? "Favor 1–2% risk per trade; use limit orders on pullbacks to key levels."
+      : regime.status === "BEARISH"
+      ? "Reduce position sizes by 30–50%; prioritise SHORT setups or stay in cash."
+      : "Use half-normal size until regime clarifies; scale in only on confirmed breakouts.");
+
+  return [regimeSentence, setupSentence, riskSentence, biasSentence].join("\n\n");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -44,14 +125,6 @@ serve(async (req) => {
   }
 
   try {
-    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!anthropicKey) {
-      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const { regime, stocks } = await req.json();
 
     if (!regime || !stocks) {
@@ -61,61 +134,12 @@ serve(async (req) => {
       });
     }
 
-    const top5 = stocks.slice(0, 5);
-
-    const stockLines = top5
-      .map((s: any, i: number) => {
-        const score = s.tradeType === "SHORT" ? s.bearScore : s.bullScore;
-        const conflict = s.conflictTrend ? " ⚠ CONFLICT" : "";
-        return `${i + 1}. ${s.ticker} (${s.tradeType}) — Score ${score}/8 · Price $${s.price?.toFixed(2)} · RSI ${s.rsi?.toFixed(1)} · Vol ${s.volumeRatio?.toFixed(2)}x${conflict}`;
-      })
-      .join("\n");
-
-    const prompt = `You are SwingPulse, a professional swing trading analyst. Analyze the following live market snapshot and write a concise, actionable briefing for a swing trader. Be direct and specific. No fluff. Max 4 short paragraphs.
-
-MARKET REGIME: ${regime.status}
-SPY: $${regime.spyPrice?.toFixed(2)} vs SMA200: $${regime.sma200?.toFixed(2)} (${(regime.ratio * 100)?.toFixed(1)}% above/below)
-SPY RSI: ${regime.spyRsi?.toFixed(1)} | VIX: ${regime.vix?.toFixed(1)} | Regime Score: ${regime.regimeScore}/6
-
-TOP SETUPS (${top5.length} of ${stocks.length} scanned):
-${stockLines}
-
-Write:
-1. One sentence on the regime and what it means for entries right now.
-2. The 2–3 strongest setups and why they stand out (use ticker names).
-3. Key risk factors to watch (earnings, VIX, conflicts).
-4. One sentence on overall bias and preferred position sizing.`;
-
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 768,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-
-    if (!response.ok) {
-      const err = await response.text();
-      return new Response(JSON.stringify({ error: `Anthropic API error: ${err}` }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const data = await response.json();
-    const briefing = data.content?.[0]?.text ?? "";
+    const briefing = generateBrief(regime as RegimeData, stocks as Stock[]);
 
     return new Response(
       JSON.stringify({
         briefing,
-        model: data.model,
-        usage: data.usage,
+        model: "swingpulse-built-in",
         timestamp: new Date().toISOString(),
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

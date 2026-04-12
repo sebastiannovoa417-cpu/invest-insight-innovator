@@ -44,65 +44,9 @@ logger = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-
-def normalize_supabase_function_url(
-    raw_url: str, function_name: str, env_var: str
-) -> str:
-    """
-    Normalize a Supabase URL into a full Edge Function endpoint.
-
-    Accepts either a Supabase project URL, a `/functions/v1` base URL, or a
-    complete Edge Function URL and returns the full endpoint for the requested
-    function. If the value does not resemble a Supabase URL, it is returned
-    unchanged after logging a warning.
-
-    Args:
-        raw_url: The configured URL value to normalize.
-        function_name: The Edge Function name to append when `raw_url` is not
-            already a complete function URL.
-        env_var: The environment variable name associated with `raw_url`, used
-            in warning logs.
-
-    Returns:
-        A normalized full Edge Function URL, or an empty string if `raw_url`
-        is blank after trimming whitespace.
-    """
-    url = raw_url.strip().rstrip("/")
-    if not url:
-        return ""
-
-    if "/functions/v1/" in url:
-        return url
-
-    if url.endswith("/functions/v1"):
-        return f"{url}/{function_name}"
-
-    if ".supabase.co" in url:
-        return f"{url}/functions/v1/{function_name}"
-
-    logger.warning(
-        "%s does not look like a Supabase URL. Using value as-is: %s",
-        env_var,
-        url,
-    )
-    return url
-
-
-SYNC_URL = normalize_supabase_function_url(
-    os.environ.get("SUPABASE_SYNC_URL", ""),
-    "sync-ingest",
-    "SUPABASE_SYNC_URL",
-)
-PRICES_URL = normalize_supabase_function_url(  # optional  skip if not set
-    os.environ.get("SUPABASE_PRICES_URL", ""),
-    "sync-prices",
-    "SUPABASE_PRICES_URL",
-)
-ALERTS_URL = normalize_supabase_function_url(  # optional  skip if not set
-    os.environ.get("SUPABASE_ALERTS_URL", ""),
-    "check-alerts",
-    "SUPABASE_ALERTS_URL",
-)
+SYNC_URL = os.environ.get("SUPABASE_SYNC_URL", "").strip().rstrip("/")
+PRICES_URL = os.environ.get("SUPABASE_PRICES_URL", "").strip().rstrip("/")  # optional  skip if not set
+ALERTS_URL = os.environ.get("SUPABASE_ALERTS_URL", "").strip().rstrip("/")  # optional  skip if not set
 # Prefer a dedicated SYNC_API_KEY; fall back to the service role key which is
 # always available as a built-in Supabase edge-function env var.
 SYNC_API_KEY = (
@@ -112,6 +56,15 @@ SYNC_API_KEY = (
 
 if not SYNC_URL:
     raise SystemExit("ERROR: SUPABASE_SYNC_URL environment variable is not set or empty.")
+# Validate the URL includes a function-name path segment beyond /functions/v1
+# e.g. https://<project>.supabase.co/functions/v1/sync-ingest
+_url_remainder = SYNC_URL.split("://", 1)[-1] if "://" in SYNC_URL else SYNC_URL
+if "/functions/v1/" not in _url_remainder or _url_remainder.rstrip("/").endswith("/functions/v1"):
+    raise SystemExit(
+        "ERROR: SUPABASE_SYNC_URL does not appear to include a function name. "
+        "Expected format: https://<project>.supabase.co/functions/v1/<function-name>. "
+        f"Got: {SYNC_URL}"
+    )
 if not SYNC_API_KEY:
     raise SystemExit(
         "ERROR: Neither SYNC_API_KEY nor SUPABASE_SERVICE_ROLE_KEY is set. "
@@ -687,9 +640,7 @@ def main() -> None:
                     fallback.index = pd.to_datetime(fallback.index)
                     return fallback.sort_index()
             except Exception as exc2:
-                logger.error(
-                    f"get_df({ticker}): individual fallback also failed ({exc2})"
-                )
+                logger.error(f"get_df({ticker}): individual fallback also failed ({exc2})")
             return pd.DataFrame()
 
     # ── VIX ──────────────────────────────────────────────────────────────────
@@ -817,3 +768,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

@@ -14,66 +14,164 @@ export const mockRegime: RegimeData = {
 };
 
 export const mockStocks: Stock[] = [
-
-  // ══════════════════════════════════════════════════════════════════════
-  // HIGH DIVIDEND YIELD & HIGH EARNINGS (25)
-  // ══════════════════════════════════════════════════════════════════════
-
+  // ── Section 1: High-Dividend, Low-Volatility, Bullish Names ─────────────
+  // Filter: LONG | score 5+ | defensive income plays, strong 2026 price action
   {
-    ticker: "T", name: "AT&T Inc", tradeType: "SHORT", bullScore: 2, bearScore: 5, price: 18.50, rsi: 38.2,
-    volumeRatio: 1.6, volumeSpike: false,
-    signals: { sma200: true, sma50: true, rsiMomentum: true, volume: true, macd: true, priceAction: false, trendStrength: true, earningsSetup: false },
-    entryAtr: 18.50, entryStructure: 18.50, bestEntry: 18.50, stopLoss: 19.42, target: 16.66, riskReward: 2.0, atr: 0.46, distance52w: -18.3,
-    conflictTrend: false, earningsWarning: false, updatedAt: "4:15 PM ET", shortInterest: 3.2,
-    news: [
-      { title: "AT&T free cash flow misses guidance for second quarter", date: "Apr 28", source: "Bloomberg", summary: "FCF of $3.1B below $3.6B target; management blames 5G capex and fiber build delays.", sentiment: "bearish" },
-      { title: "AT&T dividend yield reaches 5.8% at current price", date: "Apr 22", source: "Reuters", summary: "At $18.50, AT&T yields 5.8% — above telecom sector average; income floor intact.", sentiment: "bullish" },
-    ],
-  },
-  {
-    ticker: "VZ", name: "Verizon Communications", tradeType: "SHORT", bullScore: 2, bearScore: 5, price: 41.20, rsi: 35.8,
+    ticker: "MO", name: "Altria Group", tradeType: "LONG", bullScore: 6, bearScore: 2, price: 47.20, rsi: 61.4,
     volumeRatio: 1.4, volumeSpike: false,
     signals: { sma200: true, sma50: true, rsiMomentum: true, volume: false, macd: true, priceAction: true, trendStrength: true, earningsSetup: false },
-    entryAtr: 41.20, entryStructure: 41.20, bestEntry: 41.20, stopLoss: 42.85, target: 37.90, riskReward: 2.0, atr: 0.82, distance52w: -22.1,
-    conflictTrend: false, earningsWarning: false, updatedAt: "4:15 PM ET", shortInterest: 2.8,
+    entryAtr: 46.40, entryStructure: 46.80, bestEntry: 46.40, stopLoss: 44.20, target: 52.50, riskReward: 2.77, atr: 0.82, distance52w: 15.2,
+    conflictTrend: false, earningsWarning: false, updatedAt: "4:15 PM ET",
     news: [
-      { title: "Verizon postpaid net adds disappoint in Q1", date: "Apr 27", source: "WSJ", summary: "Postpaid phone net adds of 148K miss 210K estimate; churn ticks up to 0.83%.", sentiment: "bearish" },
-      { title: "Verizon C-Band deployment reaches 230M POPs", date: "Apr 21", source: "PRNewswire", summary: "Network quality improvements driving enterprise contract wins; B2B revenue +6% YoY.", sentiment: "bullish" },
+      { title: "Altria raises full-year EPS guidance on smokeless product strength", date: "Apr 28", source: "Bloomberg", summary: "On! nicotine pouch market share reaches 8%, accelerating the pivot away from cigarettes.", sentiment: "bullish" },
+      { title: "MO dividend yield holds at 6.8%, Dividend King status reaffirmed", date: "Apr 25", source: "Seeking Alpha", summary: "54th consecutive annual dividend increase cements MO as one of the market's most reliable income plays.", sentiment: "bullish" },
+      { title: "Altria +15% YTD outperforms S&P 500 defensives basket", date: "Apr 22", source: "Reuters", summary: "Low-beta income stocks attract rotation as rate uncertainty persists; MO leads consumer staples peers.", sentiment: "bullish" },
+      { title: "FDA finalizes menthol cigarette ban timeline extending to 2027", date: "Apr 19", source: "WSJ", summary: "Later-than-expected implementation reduces near-term revenue risk for Altria's cigarette segment.", sentiment: "bullish" },
+      { title: "Altria NJOY acquisition integration on track; retail presence expands to 90K doors", date: "Apr 16", source: "PRNewswire", summary: "E-vapor business tracking to $400M revenue run-rate by year-end.", sentiment: "bullish" },
+      { title: "Cigarette volume decline accelerates to -9% YoY in Q1", date: "Apr 13", source: "FT", summary: "Combustible tobacco secular headwinds intensify despite price increases offsetting unit losses.", sentiment: "bearish" },
     ],
   },
   {
-    ticker: "MO", name: "Altria Group", tradeType: "SHORT", bullScore: 3, bearScore: 5, price: 44.80, rsi: 41.5,
+    ticker: "VZ", name: "Verizon Communications", tradeType: "LONG", bullScore: 5, bearScore: 2, price: 41.80, rsi: 56.3,
     volumeRatio: 1.2, volumeSpike: false,
-    signals: { sma200: true, sma50: false, rsiMomentum: true, volume: false, macd: true, priceAction: true, trendStrength: true, earningsSetup: false },
-    entryAtr: 44.80, entryStructure: 44.80, bestEntry: 44.80, stopLoss: 45.88, target: 42.64, riskReward: 2.0, atr: 0.54, distance52w: -14.6,
-    conflictTrend: true, earningsWarning: false, updatedAt: "4:15 PM ET", shortInterest: 4.1,
+    signals: { sma200: true, sma50: true, rsiMomentum: true, volume: false, macd: true, priceAction: true, trendStrength: false, earningsSetup: false },
+    entryAtr: 41.20, entryStructure: 41.40, bestEntry: 41.20, stopLoss: 39.50, target: 46.00, riskReward: 2.82, atr: 0.68, distance52w: 8.4,
+    conflictTrend: false, earningsWarning: false, updatedAt: "4:15 PM ET",
     news: [
-      { title: "FDA menthol cigarette ban decision delayed to late 2026", date: "Apr 26", source: "Reuters", summary: "FDA pushes final rule back, relieving near-term revenue risk for Altria.", sentiment: "bullish" },
-      { title: "Altria cigarette volumes fall 8.5% YoY in Q1", date: "Apr 23", source: "Bloomberg", summary: "Volume decline accelerates beyond 6-7% historical pace; smoke-free transition faces headwinds.", sentiment: "bearish" },
+      { title: "Verizon adds 389K postpaid phone net additions, beats estimate of 310K", date: "Apr 27", source: "Bloomberg", summary: "myPlan customization driving the highest smartphone upgrade activity since 2022.", sentiment: "bullish" },
+      { title: "VZ free cash flow of $4.2B in Q1 supports 5.6% dividend yield sustainability", date: "Apr 24", source: "Reuters", summary: "Debt paydown on track; net leverage ratio improves to 2.6x from 2.8x a year ago.", sentiment: "bullish" },
+      { title: "Verizon 5G C-Band coverage reaches 250M POPs nationwide", date: "Apr 21", source: "PRNewswire", summary: "Network quality gap vs. T-Mobile narrows; premium unlimited plan pricing power intact.", sentiment: "bullish" },
+      { title: "VZ business segment loses 3 large enterprise accounts to AT&T", date: "Apr 18", source: "WSJ", summary: "B2B wireless competition intensifies; $120M annual revenue at risk from contract renewals.", sentiment: "bearish" },
+      { title: "Verizon acquires Frontier Communications integration nears completion", date: "Apr 15", source: "Bloomberg", summary: "Fiber footprint doubles to 14M homes; consumer wireline ARPU expansion expected in H2.", sentiment: "bullish" },
+      { title: "Interest expense remains elevated at $1.8B/quarter on legacy debt load", date: "Apr 12", source: "FT", summary: "High leverage from prior spectrum auctions continues to limit earnings growth and buyback capacity.", sentiment: "bearish" },
     ],
   },
   {
-    ticker: "PM", name: "Philip Morris International", tradeType: "LONG", bullScore: 5, bearScore: 2, price: 119.50, rsi: 58.4,
-    volumeRatio: 1.5, volumeSpike: false,
-    signals: { sma200: true, sma50: true, rsiMomentum: true, volume: true, macd: true, priceAction: false, trendStrength: false, earningsSetup: false },
-    entryAtr: 119.50, entryStructure: 119.50, bestEntry: 119.50, stopLoss: 116.15, target: 126.20, riskReward: 2.0, atr: 1.67, distance52w: 12.8,
-    conflictTrend: false, earningsWarning: false, updatedAt: "4:15 PM ET", shortInterest: 1.8,
-    news: [
-      { title: "IQOS heated tobacco reaches 36M users globally", date: "Apr 29", source: "PM IR", summary: "IQOS volumes +26% YoY; smoke-free products now 38% of revenue, driving margin expansion.", sentiment: "bullish" },
-      { title: "Philip Morris acquires Swedish Match brands in Nordics", date: "Apr 24", source: "FT", summary: "Snus and nicotine pouch expansion deepens smoke-free portfolio in high-growth Scandinavian markets.", sentiment: "bullish" },
-    ],
-  },
-  {
-    ticker: "KO", name: "Coca-Cola Company", tradeType: "LONG", bullScore: 4, bearScore: 2, price: 62.80, rsi: 52.1,
+    ticker: "PEP", name: "PepsiCo", tradeType: "LONG", bullScore: 5, bearScore: 2, price: 154.20, rsi: 53.5,
     volumeRatio: 1.1, volumeSpike: false,
-    signals: { sma200: true, sma50: true, rsiMomentum: false, volume: false, macd: true, priceAction: true, trendStrength: false, earningsSetup: false },
-    entryAtr: 62.80, entryStructure: 62.80, bestEntry: 62.80, stopLoss: 61.29, target: 66.02, riskReward: 2.13, atr: 0.75, distance52w: 8.4,
-    conflictTrend: false, earningsWarning: false, updatedAt: "4:15 PM ET", shortInterest: 0.9,
+    signals: { sma200: true, sma50: true, rsiMomentum: true, volume: false, macd: true, priceAction: true, trendStrength: false, earningsSetup: false },
+    entryAtr: 152.80, entryStructure: 153.40, bestEntry: 152.80, stopLoss: 148.00, target: 165.00, riskReward: 2.54, atr: 2.20, distance52w: -6.8,
+    conflictTrend: false, earningsWarning: false, updatedAt: "4:15 PM ET",
     news: [
-      { title: "Coca-Cola Q1 organic revenue +6%, beats 4.5% estimate", date: "Apr 28", source: "Bloomberg", summary: "Pricing power and EM volume offsetting North American softness.", sentiment: "bullish" },
-      { title: "Coca-Cola raises FY guidance on strong international demand", date: "Apr 22", source: "Reuters", summary: "Company lifts full-year organic revenue growth target from 5% to 6-7%.", sentiment: "bullish" },
+      { title: "PepsiCo raises dividend 5%, extends 52-year consecutive increase streak", date: "Apr 28", source: "PRNewswire", summary: "Dividend Aristocrat status reinforced; forward yield of 3.2% above S&P 500 average.", sentiment: "bullish" },
+      { title: "Frito-Lay North America organic revenue grows 4%, outpacing snack category", date: "Apr 25", source: "Bloomberg", summary: "Simply and PopCorners brands drive premium mix shift; gross margin expands 80bps.", sentiment: "bullish" },
+      { title: "PEP international markets deliver 8% organic growth in EM", date: "Apr 22", source: "Reuters", summary: "India and Mexico beverage volume accelerates; emerging market pricing power intact despite FX headwinds.", sentiment: "bullish" },
+      { title: "North America beverage volumes slip -2% on consumer trading down", date: "Apr 19", source: "WSJ", summary: "Gatorade and Pepsi Cola lose shelf space to private label alternatives at Walmart and Target.", sentiment: "bearish" },
+      { title: "PepsiCo acquires Siete Foods for $1.2B, expanding better-for-you snacks", date: "Apr 16", source: "Bloomberg", summary: "Grain-free Mexican-American food brand accelerates PEP's premium wellness positioning.", sentiment: "bullish" },
+      { title: "Input cost inflation re-accelerating; commodities basket up 7% YoY", date: "Apr 13", source: "FT", summary: "Cocoa, palm oil, and packaging costs pressuring margins heading into Q2.", sentiment: "bearish" },
     ],
   },
+  {
+    ticker: "DUK", name: "Duke Energy", tradeType: "LONG", bullScore: 5, bearScore: 1, price: 107.80, rsi: 58.2,
+    volumeRatio: 1.0, volumeSpike: false,
+    signals: { sma200: true, sma50: true, rsiMomentum: true, volume: false, macd: true, priceAction: true, trendStrength: false, earningsSetup: false },
+    entryAtr: 106.40, entryStructure: 106.80, bestEntry: 106.40, stopLoss: 103.00, target: 116.00, riskReward: 2.82, atr: 1.48, distance52w: 12.5,
+    conflictTrend: false, earningsWarning: false, updatedAt: "4:15 PM ET",
+    news: [
+      { title: "Duke Energy rate hike approved in North Carolina; adds $420M annual revenue", date: "Apr 27", source: "Reuters", summary: "Constructive regulatory outcome supports 5-7% long-term EPS growth trajectory.", sentiment: "bullish" },
+      { title: "DUK data center load growth adds 4GW to 10-year capital plan", date: "Apr 24", source: "Bloomberg", summary: "AI hyperscaler demand in Carolinas requires significant grid investment; earnings accretive by 2027.", sentiment: "bullish" },
+      { title: "Duke Energy clean energy transition on track; coal retirements ahead of schedule", date: "Apr 21", source: "PRNewswire", summary: "8,000 MW of coal retired since 2015; 7GW of solar in queue for next 3 years.", sentiment: "bullish" },
+      { title: "Storm recovery costs add $180M one-time charge in Q1", date: "Apr 18", source: "WSJ", summary: "Hurricane season damage restoration in Florida creates temporary EPS drag.", sentiment: "bearish" },
+      { title: "Duke Energy issues $2.5B green bond at favorable rates", date: "Apr 15", source: "Bloomberg", summary: "Oversubscribed 30-year offering at 5.1% locks in low-cost capital for renewable buildout.", sentiment: "bullish" },
+      { title: "Regulatory lag risk increases as inflation lifts construction costs", date: "Apr 12", source: "FT", summary: "Rate base growth timing mismatch could pressure near-term ROE below 10% allowed level.", sentiment: "bearish" },
+    ],
+  },
+  {
+    ticker: "MDLZ", name: "Mondelez International", tradeType: "LONG", bullScore: 5, bearScore: 2, price: 58.90, rsi: 55.8,
+    volumeRatio: 1.1, volumeSpike: false,
+    signals: { sma200: true, sma50: true, rsiMomentum: true, volume: false, macd: true, priceAction: true, trendStrength: false, earningsSetup: false },
+    entryAtr: 58.20, entryStructure: 58.50, bestEntry: 58.20, stopLoss: 56.00, target: 64.50, riskReward: 2.86, atr: 0.92, distance52w: 2.3,
+    conflictTrend: false, earningsWarning: false, updatedAt: "4:15 PM ET",
+    news: [
+      { title: "Mondelez Oreo volume grows 6% globally, driven by emerging markets", date: "Apr 28", source: "Bloomberg", summary: "India and Southeast Asia expand distribution; Oreo becomes #1 biscuit brand in 5 new markets.", sentiment: "bullish" },
+      { title: "MDLZ raises full-year organic revenue guidance to 5-7% from 3-5%", date: "Apr 25", source: "PRNewswire", summary: "Better-than-expected pricing power in Europe and pricing normalization in AMEA beat consensus.", sentiment: "bullish" },
+      { title: "Mondelez dividend yield of 3.3% supported by $3B annual free cash flow", date: "Apr 22", source: "Seeking Alpha", summary: "14th consecutive dividend increase; 45% payout ratio leaves room for further hikes.", sentiment: "bullish" },
+      { title: "Cocoa prices remain elevated at $9,000/t, pressuring chocolate margins", date: "Apr 19", source: "Reuters", summary: "West Africa supply shortages continue; MDLZ absorbing ~$800M in incremental cocoa costs in 2026.", sentiment: "bearish" },
+      { title: "Mondelez expands partnership with Alibaba for Chinese e-commerce growth", date: "Apr 16", source: "Bloomberg", summary: "O2O snacking channel contributes 12% of China revenue; digital personalization drives repeat purchase.", sentiment: "bullish" },
+      { title: "Consumer staples face valuation headwinds as rates stay higher longer", date: "Apr 13", source: "FT", summary: "MDLZ trades at 20x forward earnings vs. 5-year average of 22x; potential re-rating risk if Fed delays cuts.", sentiment: "bearish" },
+    ],
+  },
+
+  // ── Section 2: Under $100, High-Yield, High-Volatility, High-Volume ─────
+  // Filter: LONG | score 3+ | aggressive income trading, high liquidity
+  {
+    ticker: "EOG", name: "EOG Resources", tradeType: "LONG", bullScore: 4, bearScore: 2, price: 95.40, rsi: 52.1,
+    volumeRatio: 1.8, volumeSpike: true,
+    signals: { sma200: true, sma50: true, rsiMomentum: false, volume: true, macd: true, priceAction: false, trendStrength: false, earningsSetup: false },
+    entryAtr: 94.20, entryStructure: 94.60, bestEntry: 94.20, stopLoss: 90.50, target: 106.00, riskReward: 3.19, atr: 1.92, distance52w: -12.4,
+    conflictTrend: false, earningsWarning: false, updatedAt: "4:15 PM ET",
+    news: [
+      { title: "EOG Resources Permian production hits 620K BOE/day, quarterly record", date: "Apr 28", source: "Bloomberg", summary: "Premium inventory drilling cuts per-well costs to $4.8M vs. industry average of $6.2M.", sentiment: "bullish" },
+      { title: "EOG special dividend of $1.50/share declared, yield reaches 5.3% including special", date: "Apr 25", source: "PRNewswire", summary: "Fortress balance sheet with $5.8B cash supports continued variable dividend program.", sentiment: "bullish" },
+      { title: "EOG Dorado natural gas play de-risked; 1,200 locations added to inventory", date: "Apr 22", source: "Reuters", summary: "South Texas gas expansion diversifies revenue stream as LNG export demand accelerates.", sentiment: "bullish" },
+      { title: "WTI crude falls below $70 on OPEC+ production hike announcement", date: "Apr 19", source: "Bloomberg", summary: "Saudi Arabia accelerates voluntary cut unwinding; EOG revenue sensitivity of $120M per $1/bbl oil.", sentiment: "bearish" },
+      { title: "EOG carbon capture pilot at Permian achieves 85% sequestration efficiency", date: "Apr 16", source: "PRNewswire", summary: "IRA Section 45Q credits generate $25M/year at current CO2 pricing.", sentiment: "bullish" },
+      { title: "Natural gas realizations compress as Waha basis turns negative again", date: "Apr 13", source: "WSJ", summary: "Permian gas takeaway constraints reappear; EOG's unhedged gas exposure adds $0.15/share risk.", sentiment: "bearish" },
+    ],
+  },
+  {
+    ticker: "CNXC", name: "Concentrix Corp", tradeType: "LONG", bullScore: 4, bearScore: 3, price: 62.80, rsi: 50.5,
+    volumeRatio: 2.2, volumeSpike: true,
+    signals: { sma200: false, sma50: true, rsiMomentum: false, volume: true, macd: true, priceAction: false, trendStrength: false, earningsSetup: true },
+    entryAtr: 61.50, entryStructure: 62.00, bestEntry: 61.50, stopLoss: 57.80, target: 72.00, riskReward: 2.68, atr: 2.48, distance52w: -38.5,
+    conflictTrend: true, earningsWarning: false, updatedAt: "4:15 PM ET",
+    news: [
+      { title: "Concentrix AI-powered CX solutions win $400M TCV in new contracts", date: "Apr 27", source: "Bloomberg", summary: "iX Hello AI platform reduces client handle times 30%; wins accelerate across BFSI vertical.", sentiment: "bullish" },
+      { title: "CNXC beats Q1 revenue by 3%; raises guidance on AI-augmented services", date: "Apr 24", source: "PRNewswire", summary: "Revenue of $2.31B exceeds $2.24B estimate; 2026 guidance raised to $9.2-9.4B.", sentiment: "bullish" },
+      { title: "Concentrix completes $280M cost optimization; margins expand 120bps", date: "Apr 21", source: "Reuters", summary: "Global facility consolidation and automation reduces agent headcount 8% while handling volume grows.", sentiment: "bullish" },
+      { title: "High-beta profile makes CNXC volatile; stock swings 8% intraday on macro events", date: "Apr 18", source: "WSJ", summary: "Beta of 1.4 amplifies market sell-offs; risk-reward favors swing traders over long-term holders.", sentiment: "neutral" },
+      { title: "Legacy Webhelp integration synergies trail schedule by one quarter", date: "Apr 15", source: "Bloomberg", summary: "Cost savings of $300M target pushed to Q4 from Q2 as European workforce restructuring faces delays.", sentiment: "bearish" },
+      { title: "Near-shoring trend accelerates; Concentrix Colombia and Mexico capacity doubles", date: "Apr 12", source: "PRNewswire", summary: "US-adjacent delivery adds $0.8B incremental addressable market as clients reshore CX from Asia.", sentiment: "bullish" },
+    ],
+  },
+  {
+    ticker: "MDT", name: "Medtronic", tradeType: "LONG", bullScore: 4, bearScore: 2, price: 87.30, rsi: 54.7,
+    volumeRatio: 1.5, volumeSpike: false,
+    signals: { sma200: true, sma50: true, rsiMomentum: true, volume: false, macd: true, priceAction: false, trendStrength: false, earningsSetup: false },
+    entryAtr: 86.20, entryStructure: 86.60, bestEntry: 86.20, stopLoss: 83.00, target: 96.00, riskReward: 3.06, atr: 1.52, distance52w: 4.8,
+    conflictTrend: false, earningsWarning: false, updatedAt: "4:15 PM ET",
+    news: [
+      { title: "Medtronic CardioMEMS HF sensor approval in Japan opens $300M market", date: "Apr 28", source: "Bloomberg", summary: "Remote hemodynamic monitoring for heart failure expands in Asia-Pacific after EU/US success.", sentiment: "bullish" },
+      { title: "MDT Diabetes segment Simplera CGM launches in 15 new EU countries", date: "Apr 25", source: "PRNewswire", summary: "CGM penetration rate of 62% in Type 1 diabetics; competitive position vs. Dexcom strengthens.", sentiment: "bullish" },
+      { title: "Medtronic surgical robotics Hugo RA system surpasses 10,000 procedures", date: "Apr 22", source: "Reuters", summary: "Soft tissue robotic surgery platform gains traction; installed base of 380 systems in 42 countries.", sentiment: "bullish" },
+      { title: "MDT Spine segment loses $180M revenue to competitive pricing pressure", date: "Apr 19", source: "WSJ", summary: "Globus Medical MAGEC system taking share in pedicle screw systems; MDT responds with price cuts.", sentiment: "bearish" },
+      { title: "Medtronic raises quarterly dividend to $0.70, yield reaches 2.9%", date: "Apr 16", source: "PRNewswire", summary: "47th consecutive year of dividend growth; Dividend Aristocrat status maintained.", sentiment: "bullish" },
+      { title: "Currency headwinds reduce reported revenue by $0.12/share in FY2026", date: "Apr 13", source: "Bloomberg", summary: "Strong USD vs. EUR and JPY disproportionately impacts MDT's 45% international revenue mix.", sentiment: "bearish" },
+    ],
+  },
+  {
+    ticker: "LB", name: "LandBridge Co", tradeType: "LONG", bullScore: 3, bearScore: 3, price: 45.60, rsi: 48.9,
+    volumeRatio: 2.6, volumeSpike: true,
+    signals: { sma200: false, sma50: true, rsiMomentum: false, volume: true, macd: false, priceAction: true, trendStrength: false, earningsSetup: false },
+    entryAtr: 44.20, entryStructure: 44.80, bestEntry: 44.20, stopLoss: 41.00, target: 53.00, riskReward: 2.75, atr: 2.38, distance52w: -22.1,
+    conflictTrend: true, earningsWarning: false, updatedAt: "4:15 PM ET",
+    news: [
+      { title: "LandBridge surface rights portfolio expands to 2.5M acres in Permian Basin", date: "Apr 27", source: "Bloomberg", summary: "Acquisitions of mineral-adjacent surface acres drive royalty income diversification.", sentiment: "bullish" },
+      { title: "LB water services revenue grows 35% on new producer agreements", date: "Apr 24", source: "PRNewswire", summary: "Produced water gathering and disposal contracts signed with 3 new E&P operators.", sentiment: "bullish" },
+      { title: "LandBridge beta of 1.48 creates high-velocity swing trade setups", date: "Apr 21", source: "Seeking Alpha", summary: "High correlation to oil prices and small cap volatility provides active traders with wide ranges.", sentiment: "neutral" },
+      { title: "Oil price volatility pressures LB revenue visibility; guidance range widened", date: "Apr 18", source: "WSJ", summary: "Surface royalty income tied to Permian drilling activity which softens below $70 WTI.", sentiment: "bearish" },
+      { title: "LandBridge IPO lock-up expiry results in 12% share price dip", date: "Apr 15", source: "Reuters", summary: "Post-IPO selling pressure creates potential technical entry for medium-term holders.", sentiment: "bearish" },
+      { title: "Digital oilfield expansion adds data infrastructure revenues", date: "Apr 12", source: "Bloomberg", summary: "Fiber and edge computing infrastructure on owned land captures telco revenue from operator customers.", sentiment: "bullish" },
+    ],
+  },
+  {
+    ticker: "PLAB", name: "Photronics", tradeType: "LONG", bullScore: 4, bearScore: 2, price: 24.80, rsi: 57.3,
+    volumeRatio: 2.0, volumeSpike: true,
+    signals: { sma200: true, sma50: true, rsiMomentum: true, volume: true, macd: false, priceAction: true, trendStrength: false, earningsSetup: false },
+    entryAtr: 24.20, entryStructure: 24.40, bestEntry: 24.20, stopLoss: 22.80, target: 28.50, riskReward: 3.07, atr: 0.68, distance52w: -18.2,
+    conflictTrend: false, earningsWarning: false, updatedAt: "4:15 PM ET",
+    news: [
+      { title: "Photronics IC photomask revenue recovers 18% on advanced node demand", date: "Apr 28", source: "Bloomberg", summary: "2nm and 3nm photomask orders surge as TSMC and Samsung ramp cutting-edge fabs.", sentiment: "bullish" },
+      { title: "PLAB FPD photomask business benefits from OLED TV panel ramp", date: "Apr 25", source: "Reuters", summary: "Display photomask ASPs rise 22% on larger format G10.5 panel orders.", sentiment: "bullish" },
+      { title: "Photronics opens new Korea facility; capacity doubles in Asia", date: "Apr 22", source: "PRNewswire", summary: "Proximity to Samsung and SK Hynix fabs reduces delivery lead times and improves margins.", sentiment: "bullish" },
+      { title: "PLAB high daily volume creates sharp intraday moves; avg ATR 2.7%", date: "Apr 19", source: "Seeking Alpha", summary: "Retail-driven volatility spikes around earnings and chip sector news create swing trade opportunities.", sentiment: "neutral" },
+      { title: "Legacy FPD market contracts as LCD TV demand continues secular decline", date: "Apr 16", source: "WSJ", summary: "Older generation display photomask revenue shrinks 15% as Chinese panel makers reduce utilization.", sentiment: "bearish" },
+      { title: "EUV photomask complexity drives ASP expansion; PLAB winning share", date: "Apr 13", source: "Bloomberg", summary: "Ultra-high NA EUV mask work commands 4x premium over DUV; Photronics one of few qualified suppliers.", sentiment: "bullish" },
+    ],
+  },
+
+  // ── Section 3: Moderate-Yield, Positive 5-Month Performance ─────────────
+  // Filter: LONG | score 3+ | balanced income and trend-following
   {
     ticker: "PEP", name: "PepsiCo Inc", tradeType: "SHORT", bullScore: 2, bearScore: 4, price: 168.20, rsi: 44.6,
     volumeRatio: 1.3, volumeSpike: false,
@@ -376,6 +474,9 @@ export const mockStocks: Stock[] = [
       { title: "Ocugen COVAXIN receives WHO emergency use listing", date: "Apr 22", source: "WHO", summary: "Global approval expands addressable market; licensing discussions in 12 countries.", sentiment: "bullish" },
     ],
   },
+
+  // ── Section 4: Reliable Penny Stocks for Swing Trading ───────────────────
+  // Filter: ANY | score 3+ | sort by volume | liquidity, clean structure, repeatable volatility
   {
     ticker: "MNMD", name: "MindMed Inc", tradeType: "LONG", bullScore: 4, bearScore: 2, price: 4.48, rsi: 56.2,
     volumeRatio: 1.8, volumeSpike: false,
