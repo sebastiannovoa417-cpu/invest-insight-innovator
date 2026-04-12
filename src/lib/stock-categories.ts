@@ -1,9 +1,9 @@
 /**
- * Stock category definitions for the SwingPulse 50-ticker universe.
+ * Stock category definitions for the SwingPulse 50-ticker universe (v2.0).
  *
  * Two categories:
- *   "High Dividend Yield & High Earnings" — 25 blue-chip / income stocks
- *   "Penny Stocks"                         — 25 sub-$5 speculative plays
+ *   "High Dividend Yield & High Earnings" — 28 income / blue-chip stocks (Sections 1-3)
+ *   "Penny Stocks"                         — 22 sub-$25 speculative plays (Sections 4-5)
  */
 
 export type StockCategory = "High Dividend Yield & High Earnings" | "Penny Stocks";
@@ -17,57 +17,59 @@ export const CATEGORY_LABELS: CategoryFilter[] = [
 
 /** Maps each ticker in the universe to its display category. */
 export const TICKER_CATEGORY_MAP: Record<string, StockCategory> = {
-  // ── High Dividend Yield & High Earnings ─────────────────────────────────
-  T:    "High Dividend Yield & High Earnings",
-  VZ:   "High Dividend Yield & High Earnings",
+  // ── Section 1: High-Dividend, Low-Volatility ────────────────────────────
   MO:   "High Dividend Yield & High Earnings",
-  PM:   "High Dividend Yield & High Earnings",
-  KO:   "High Dividend Yield & High Earnings",
+  VZ:   "High Dividend Yield & High Earnings",
   PEP:  "High Dividend Yield & High Earnings",
-  JNJ:  "High Dividend Yield & High Earnings",
-  PFE:  "High Dividend Yield & High Earnings",
-  IBM:  "High Dividend Yield & High Earnings",
+  DUK:  "High Dividend Yield & High Earnings",
+  MDLZ: "High Dividend Yield & High Earnings",
+  // ── Section 2: Under $100, High-Yield, High-Volume ──────────────────────
+  EOG:  "High Dividend Yield & High Earnings",
+  CNXC: "High Dividend Yield & High Earnings",
+  MDT:  "High Dividend Yield & High Earnings",
+  LB:   "High Dividend Yield & High Earnings",
+  PLAB: "High Dividend Yield & High Earnings",
+  F:    "High Dividend Yield & High Earnings",
+  SOFI: "High Dividend Yield & High Earnings",
+  // ── Section 3: Moderate-Yield, Positive 5-Month Performance ─────────────
+  GLW:  "High Dividend Yield & High Earnings",
+  TPL:  "High Dividend Yield & High Earnings",
+  STX:  "High Dividend Yield & High Earnings",
+  WDC:  "High Dividend Yield & High Earnings",
+  UNH:  "High Dividend Yield & High Earnings",
+  CI:   "High Dividend Yield & High Earnings",
+  SPGI: "High Dividend Yield & High Earnings",
+  T:    "High Dividend Yield & High Earnings",
+  ELV:  "High Dividend Yield & High Earnings",
+  BDX:  "High Dividend Yield & High Earnings",
   CVX:  "High Dividend Yield & High Earnings",
-  XOM:  "High Dividend Yield & High Earnings",
-  JPM:  "High Dividend Yield & High Earnings",
-  BAC:  "High Dividend Yield & High Earnings",
-  ABBV: "High Dividend Yield & High Earnings",
-  MCD:  "High Dividend Yield & High Earnings",
+  AVGO: "High Dividend Yield & High Earnings",
   HD:   "High Dividend Yield & High Earnings",
-  CAT:  "High Dividend Yield & High Earnings",
-  UPS:  "High Dividend Yield & High Earnings",
-  VLO:  "High Dividend Yield & High Earnings",
-  EPD:  "High Dividend Yield & High Earnings",
-  O:    "High Dividend Yield & High Earnings",
-  WMB:  "High Dividend Yield & High Earnings",
-  LYB:  "High Dividend Yield & High Earnings",
-  WFC:  "High Dividend Yield & High Earnings",
+  JPM:  "High Dividend Yield & High Earnings",
+  BLK:  "High Dividend Yield & High Earnings",
   MMM:  "High Dividend Yield & High Earnings",
-
-  // ── Penny Stocks ─────────────────────────────────────────────────────────
-  SNDL: "Penny Stocks",
-  TLRY: "Penny Stocks",
-  WKHS: "Penny Stocks",
-  NKLA: "Penny Stocks",
-  MVIS: "Penny Stocks",
-  CLOV: "Penny Stocks",
-  OCGN: "Penny Stocks",
-  MNMD: "Penny Stocks",
-  GNUS: "Penny Stocks",
+  // ── Section 4: Reliable Penny Stocks for Swing Trading ───────────────────
+  BARK: "Penny Stocks",
+  CCO:  "Penny Stocks",
+  DDL:  "Penny Stocks",
+  WDH:  "Penny Stocks",
+  LX:   "Penny Stocks",
+  JOB:  "Penny Stocks",
+  VISL: "Penny Stocks",
+  UGRO: "Penny Stocks",
+  ATOM: "Penny Stocks",
+  IMUX: "Penny Stocks",
+  // ── Section 5: Penny Stocks with Strong Bullish Trends ───────────────────
+  HURA: "Penny Stocks",
+  CVSI: "Penny Stocks",
+  SELF: "Penny Stocks",
+  PSNY: "Penny Stocks",
+  BBAI: "Penny Stocks",
+  GRAL: "Penny Stocks",
+  CECO: "Penny Stocks",
+  BHE:  "Penny Stocks",
+  RGTI: "Penny Stocks",
+  SOUN: "Penny Stocks",
   BNGO: "Penny Stocks",
-  HYLN: "Penny Stocks",
-  CHPT: "Penny Stocks",
-  BLNK: "Penny Stocks",
-  BTBT: "Penny Stocks",
-  KPLT: "Penny Stocks",
-  XELA: "Penny Stocks",
-  VERB: "Penny Stocks",
-  ENVB: "Penny Stocks",
-  ATNX: "Penny Stocks",
-  NRXP: "Penny Stocks",
-  SHIP: "Penny Stocks",
-  CTRM: "Penny Stocks",
-  CEI:  "Penny Stocks",
-  SIGA: "Penny Stocks",
-  IDEX: "Penny Stocks",
+  ACHR: "Penny Stocks",
 };

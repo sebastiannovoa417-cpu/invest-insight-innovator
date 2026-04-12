@@ -49,16 +49,28 @@ const neutralRegime: RegimeData = {
 
 // All 50 tickers in the universe
 const ALL_TICKERS = [
-  "T", "VZ", "MO", "PM", "KO", "PEP", "JNJ", "PFE", "IBM", "CVX",
-  "XOM", "JPM", "BAC", "ABBV", "MCD", "HD", "CAT", "UPS", "VLO", "EPD",
-  "O", "WMB", "LYB", "WFC", "MMM",
-  "SNDL", "TLRY", "WKHS", "NKLA", "MVIS", "CLOV", "OCGN", "MNMD", "GNUS", "BNGO",
-  "HYLN", "CHPT", "BLNK", "BTBT", "KPLT", "XELA", "VERB", "ENVB", "ATNX", "NRXP",
-  "SHIP", "CTRM", "CEI", "SIGA", "IDEX",
+  // Section 1: High-Dividend Low-Volatility
+  "MO", "VZ", "PEP", "DUK", "MDLZ",
+  // Section 2: Under $100 High-Yield
+  "EOG", "CNXC", "MDT", "LB", "PLAB", "F", "SOFI",
+  // Section 3: Moderate-Yield
+  "GLW", "TPL", "STX", "WDC", "UNH", "CI", "SPGI", "T", "ELV", "BDX",
+  "CVX", "AVGO", "HD", "JPM", "BLK", "MMM",
+  // Section 4: Reliable Penny Stocks
+  "BARK", "CCO", "DDL", "WDH", "LX", "JOB", "VISL", "UGRO", "ATOM", "IMUX",
+  // Section 5: Penny Stocks Bullish Trends
+  "HURA", "CVSI", "SELF", "PSNY", "BBAI", "GRAL", "CECO", "BHE", "RGTI", "SOUN", "BNGO", "ACHR",
 ];
 
-const HIGH_DIVIDEND_TICKERS = ["T","VZ","MO","PM","KO","PEP","JNJ","PFE","IBM","CVX","XOM","JPM","BAC","ABBV","MCD","HD","CAT","UPS","VLO","EPD","O","WMB","LYB","WFC","MMM"];
-const PENNY_TICKERS = ["SNDL","TLRY","WKHS","NKLA","MVIS","CLOV","OCGN","MNMD","GNUS","BNGO","HYLN","CHPT","BLNK","BTBT","KPLT","XELA","VERB","ENVB","ATNX","NRXP","SHIP","CTRM","CEI","SIGA","IDEX"];
+const HIGH_DIVIDEND_TICKERS = [
+  "MO","VZ","PEP","DUK","MDLZ",
+  "EOG","CNXC","MDT","LB","PLAB","F","SOFI",
+  "GLW","TPL","STX","WDC","UNH","CI","SPGI","T","ELV","BDX","CVX","AVGO","HD","JPM","BLK","MMM",
+];
+const PENNY_TICKERS = [
+  "BARK","CCO","DDL","WDH","LX","JOB","VISL","UGRO","ATOM","IMUX",
+  "HURA","CVSI","SELF","PSNY","BBAI","GRAL","CECO","BHE","RGTI","SOUN","BNGO","ACHR",
+];
 
 // ═══════════════════════════════════════════════════════════════════════
 // SECTION 1 — Mock data structural validation
@@ -86,18 +98,18 @@ describe("Mock data — structural validation", () => {
     expect(CATEGORY_LABELS).toContain("ALL");
   });
 
-  it("High Dividend category has 25 tickers", () => {
+  it("High Dividend category has 28 tickers", () => {
     const count = Object.values(TICKER_CATEGORY_MAP).filter(
       (c) => c === "High Dividend Yield & High Earnings",
     ).length;
-    expect(count).toBe(25);
+    expect(count).toBe(28);
   });
 
-  it("Penny Stocks category has 25 tickers", () => {
+  it("Penny Stocks category has 22 tickers", () => {
     const count = Object.values(TICKER_CATEGORY_MAP).filter(
       (c) => c === "Penny Stocks",
     ).length;
-    expect(count).toBe(25);
+    expect(count).toBe(22);
   });
 
   it("every ticker in mockStocks has an entry in TICKER_CATEGORY_MAP", () => {
@@ -212,75 +224,85 @@ describe("answerQuestion — all 50 tickers via 'should I buy/short X'", () => {
 
 describe("answerQuestion — company name aliases resolve to correct tickers", () => {
   it.each([
-    // High Dividend
-    ["at&t", "T"],
-    ["att", "T"],
-    ["verizon", "VZ"],
+    // Section 1 — High-Dividend Low-Volatility
     ["altria", "MO"],
-    ["philip morris", "PM"],
-    ["pm international", "PM"],
-    ["coca-cola", "KO"],
-    ["coca cola", "KO"],
-    ["coke", "KO"],
+    ["altria group", "MO"],
+    ["verizon", "VZ"],
+    ["verizon communications", "VZ"],
     ["pepsico", "PEP"],
     ["pepsi", "PEP"],
-    ["johnson & johnson", "JNJ"],
-    ["johnson and johnson", "JNJ"],
-    ["pfizer", "PFE"],
+    ["duke energy", "DUK"],
+    ["mondelez", "MDLZ"],
+    ["mondelez international", "MDLZ"],
+    // Section 2 — High-Yield Under $100
+    ["eog resources", "EOG"],
+    ["eog", "EOG"],
+    ["concentrix", "CNXC"],
+    ["medtronic", "MDT"],
+    ["landbridge", "LB"],
+    ["photronics", "PLAB"],
+    ["ford", "F"],
+    ["ford motor", "F"],
+    ["sofi", "SOFI"],
+    ["sofi technologies", "SOFI"],
+    // Section 3 — Moderate-Yield
+    ["corning", "GLW"],
+    ["texas pacific land", "TPL"],
+    ["seagate", "STX"],
+    ["seagate technology", "STX"],
+    ["western digital", "WDC"],
+    ["unitedhealth", "UNH"],
+    ["unitedhealth group", "UNH"],
+    ["cigna", "CI"],
+    ["s&p global", "SPGI"],
+    ["at&t", "T"],
+    ["att", "T"],
+    ["elevance", "ELV"],
+    ["elevance health", "ELV"],
+    ["becton dickinson", "BDX"],
     ["chevron", "CVX"],
-    ["exxonmobil", "XOM"],
-    ["exxon", "XOM"],
-    ["exxon mobil", "XOM"],
+    ["broadcom", "AVGO"],
+    ["home depot", "HD"],
     ["jpmorgan", "JPM"],
     ["jp morgan", "JPM"],
     ["jpmorgan chase", "JPM"],
-    ["bank of america", "BAC"],
-    ["bofa", "BAC"],
-    ["abbvie", "ABBV"],
-    ["mcdonalds", "MCD"],
-    ["mcdonald's", "MCD"],
-    ["home depot", "HD"],
-    ["caterpillar", "CAT"],
-    ["united parcel service", "UPS"],
-    ["valero", "VLO"],
-    ["enterprise products", "EPD"],
-    ["realty income", "O"],
-    ["williams companies", "WMB"],
-    ["lyondellbasell", "LYB"],
-    ["wells fargo", "WFC"],
+    ["blackrock", "BLK"],
     ["3m company", "MMM"],
-    // Penny stocks
-    ["sundial growers", "SNDL"],
-    ["tilray", "TLRY"],
-    ["tilray brands", "TLRY"],
-    ["workhorse group", "WKHS"],
-    ["nikola", "NKLA"],
-    ["nikola corp", "NKLA"],
-    ["microvision", "MVIS"],
-    ["clover health", "CLOV"],
-    ["ocugen", "OCGN"],
-    ["mindmed", "MNMD"],
-    ["genius brands", "GNUS"],
+    // Section 4 — Reliable Penny Stocks
+    ["bark inc", "BARK"],
+    ["clear channel", "CCO"],
+    ["clear channel outdoor", "CCO"],
+    ["dingdong", "DDL"],
+    ["waterdrop", "WDH"],
+    ["lexinfintech", "LX"],
+    ["gee group", "JOB"],
+    ["vislink", "VISL"],
+    ["vislink technologies", "VISL"],
+    ["urban-gro", "UGRO"],
+    ["atomera", "ATOM"],
+    ["atomera inc", "ATOM"],
+    ["immunic", "IMUX"],
+    ["immunic inc", "IMUX"],
+    // Section 5 — Bullish Penny Stocks
+    ["tuhura", "HURA"],
+    ["cv sciences", "CVSI"],
+    ["global self storage", "SELF"],
+    ["polestar", "PSNY"],
+    ["polestar automotive", "PSNY"],
+    ["bigbear", "BBAI"],
+    ["bigbear.ai", "BBAI"],
+    ["grail", "GRAL"],
+    ["grail inc", "GRAL"],
+    ["ceco environmental", "CECO"],
+    ["benchmark electronics", "BHE"],
+    ["rigetti", "RGTI"],
+    ["rigetti computing", "RGTI"],
+    ["soundhound", "SOUN"],
+    ["soundhound ai", "SOUN"],
     ["bionano", "BNGO"],
     ["bionano genomics", "BNGO"],
-    ["hyliion", "HYLN"],
-    ["chargepoint", "CHPT"],
-    ["charge point", "CHPT"],
-    ["blink charging", "BLNK"],
-    ["bit digital", "BTBT"],
-    ["katapult", "KPLT"],
-    ["exela", "XELA"],
-    ["exela technologies", "XELA"],
-    ["verb technology", "VERB"],
-    ["enveric", "ENVB"],
-    ["enveric biosciences", "ENVB"],
-    ["athenex", "ATNX"],
-    ["nrx pharmaceuticals", "NRXP"],
-    ["seanergy", "SHIP"],
-    ["castor maritime", "CTRM"],
-    ["camber energy", "CEI"],
-    ["siga technologies", "SIGA"],
-    ["ideanomics", "IDEX"],
+    ["archer aviation", "ACHR"],
+    ["archer", "ACHR"],
   ])(
     "tell me about '%s' → mentions ticker %s",
     (name, ticker) => {
@@ -345,7 +367,7 @@ describe("answerQuestion — position sizing for each ticker", () => {
 });
 
 describe("answerQuestion — how many shares of each ticker should I buy", () => {
-  it.each(["PM", "JPM", "IBM", "ABBV", "EPD", "MNMD", "BTBT", "SIGA"])(
+  it.each(["MO", "JPM", "CVX", "AVGO", "MDT", "SOUN", "RGTI", "BHE"])(
     "how many shares of %s → includes sizing details",
     (ticker) => {
       const result = answerQuestion(`how many shares of ${ticker} should I buy`, mockStocks, mockRegime);
@@ -1070,7 +1092,7 @@ describe("answerQuestion — short_interest intent extended phrasings", () => {
 });
 
 describe("answerQuestion — short interest content correctness", () => {
-  it("shows penny stocks with high short interest (WKHS, NKLA, GNUS, BNGO have >15% SI)", () => {
+  it("shows penny stocks with high short interest (PSNY, IMUX, VISL, BNGO have >15% SI)", () => {
     const result = answerQuestion("what stocks have high short interest", mockStocks, mockRegime);
     const highSI = mockStocks.filter((s) => (s.shortInterest ?? 0) > 15);
     expect(highSI.length).toBeGreaterThan(0);
@@ -1090,16 +1112,16 @@ describe("answerQuestion — short interest content correctness", () => {
 
 describe("answerQuestion — compare intent extended phrasings", () => {
   it.each([
-    ["JPM", "BAC"],
-    ["PM", "MO"],
-    ["XOM", "CVX"],
-    ["TLRY", "SNDL"],
-    ["MNMD", "OCGN"],
-    ["EPD", "WMB"],
-    ["ABBV", "PFE"],
-    ["NKLA", "WKHS"],
-    ["KO", "PEP"],
-    ["BTBT", "MVIS"],
+    ["JPM", "BLK"],
+    ["MO", "VZ"],
+    ["CVX", "HD"],
+    ["BNGO", "PSNY"],
+    ["SOUN", "BBAI"],
+    ["MDT", "BDX"],
+    ["AVGO", "SPGI"],
+    ["PSNY", "VISL"],
+    ["PEP", "MDLZ"],
+    ["RGTI", "ACHR"],
   ])(
     "compare %s vs %s → side-by-side response",
     (tickerA, tickerB) => {
@@ -1113,19 +1135,19 @@ describe("answerQuestion — compare intent extended phrasings", () => {
 
 describe("answerQuestion — compare response correctness", () => {
   it("compare response includes both tickers and a verdict", () => {
-    const result = answerQuestion("compare JPM versus BAC", mockStocks, mockRegime);
+    const result = answerQuestion("compare JPM versus BLK", mockStocks, mockRegime);
     expect(result).toContain("JPM");
-    expect(result).toContain("BAC");
+    expect(result).toContain("BLK");
     expect(result).toContain("Verdict");
   });
 
   it("compare includes Higher signal score note", () => {
-    const result = answerQuestion("PM vs MO side by side", mockStocks, mockRegime);
+    const result = answerQuestion("MO vs VZ side by side", mockStocks, mockRegime);
     expect(result).toMatch(/Higher signal score|equal signal/i);
   });
 
   it("compare includes Better R:R note", () => {
-    const result = answerQuestion("XOM versus CVX comparison", mockStocks, mockRegime);
+    const result = answerQuestion("CVX versus HD comparison", mockStocks, mockRegime);
     expect(result).toContain("Better R:R");
   });
 });
@@ -1138,14 +1160,14 @@ describe("answerQuestion — position sizing detailed correctness", () => {
   it.each([
     "how many shares of T should I buy",
     "position sizing for VZ",
-    "how much risk for PM",
-    "position sizing for KO",
+    "how much risk for MO",
+    "position sizing for PEP",
     "risk per trade for JPM",
-    "how many shares of ABBV",
-    "position sizing for EPD",
+    "how many shares of CVX",
+    "position sizing for MDT",
     "lot size for MMM",
-    "how many shares of TLRY should I buy",
-    "position sizing for NKLA",
+    "how many shares of BNGO should I buy",
+    "position sizing for PSNY",
   ])(
     "position sizing: %s → contains stop distance and shares",
     (q) => {
@@ -1158,12 +1180,12 @@ describe("answerQuestion — position sizing detailed correctness", () => {
 
 describe("answerQuestion — position sizing formula and tiers", () => {
   it("includes 1% risk standard tier", () => {
-    const result = answerQuestion("how many shares of PM should I buy", mockStocks, mockRegime);
+    const result = answerQuestion("how many shares of MO should I buy", mockStocks, mockRegime);
     expect(result).toContain("1%");
   });
 
   it("includes 0.5% conservative tier", () => {
-    const result = answerQuestion("position sizing for KO", mockStocks, mockRegime);
+    const result = answerQuestion("position sizing for PEP", mockStocks, mockRegime);
     expect(result).toContain("0.5%");
   });
 
@@ -1173,7 +1195,7 @@ describe("answerQuestion — position sizing formula and tiers", () => {
   });
 
   it("includes the sizing formula", () => {
-    const result = answerQuestion("how many shares of ABBV should I buy", mockStocks, mockRegime);
+    const result = answerQuestion("how many shares of CVX should I buy", mockStocks, mockRegime);
     expect(result).toContain("Formula:");
   });
 });
@@ -1183,9 +1205,9 @@ describe("answerQuestion — position sizing formula and tiers", () => {
 // ═══════════════════════════════════════════════════════════════════════
 
 describe("answerQuestion — why response correctness for specific tickers", () => {
-  it("why PM rated LONG → mentions bullScore", () => {
-    const result = answerQuestion("why is PM rated LONG", mockStocks, mockRegime);
-    expect(result).toContain("PM");
+  it("why MO rated LONG → mentions bullScore", () => {
+    const result = answerQuestion("why is MO rated LONG", mockStocks, mockRegime);
+    expect(result).toContain("MO");
     expect(result).toMatch(/LONG|bull/i);
   });
 
@@ -1201,21 +1223,21 @@ describe("answerQuestion — why response correctness for specific tickers", () 
   });
 
   it("why response contains entry, stop and target prices", () => {
-    const result = answerQuestion("explain the signals for KO", mockStocks, mockRegime);
+    const result = answerQuestion("explain the signals for T", mockStocks, mockRegime);
     expect(result).toContain("entry");
     expect(result).toContain("stop");
     expect(result).toContain("target");
   });
 
-  it("why NKLA rated SHORT → earningsWarning note not present (earningsWarning=false)", () => {
-    const result = answerQuestion("why is NKLA rated SHORT", mockStocks, mockRegime);
-    expect(result).toContain("NKLA");
+  it("why PSNY rated SHORT → earningsWarning note not present (earningsWarning=false)", () => {
+    const result = answerQuestion("why is PSNY rated SHORT", mockStocks, mockRegime);
+    expect(result).toContain("PSNY");
     expect(result).not.toContain("Earnings event upcoming");
   });
 
-  it("why MNMD rated LONG → positive trade type confirmed", () => {
-    const result = answerQuestion("why is MNMD rated the way it is", mockStocks, mockRegime);
-    expect(result).toContain("MNMD");
+  it("why SOUN rated LONG → positive trade type confirmed", () => {
+    const result = answerQuestion("why is SOUN rated the way it is", mockStocks, mockRegime);
+    expect(result).toContain("SOUN");
     expect(result).toContain("LONG");
   });
 });
@@ -1225,30 +1247,30 @@ describe("answerQuestion — why response correctness for specific tickers", () 
 // ═══════════════════════════════════════════════════════════════════════
 
 describe("answerQuestion — news intent correctness", () => {
-  it("news for PM → contains IQOS or Philip Morris headline", () => {
-    const result = answerQuestion("latest news on PM", mockStocks, mockRegime);
-    expect(result).toContain("PM");
-    expect(result).toMatch(/IQOS|Philip Morris|Philip/i);
+  it("news for MO → contains Altria headline", () => {
+    const result = answerQuestion("latest news on MO", mockStocks, mockRegime);
+    expect(result).toContain("MO");
+    expect(result).toMatch(/Altria|dividend|nicotine/i);
   });
 
-  it("news for TLRY → contains bearish or cannabis headline", () => {
-    const result = answerQuestion("news for TLRY", mockStocks, mockRegime);
-    expect(result).toContain("TLRY");
+  it("news for BNGO → contains Bionano or Nasdaq headline", () => {
+    const result = answerQuestion("news for BNGO", mockStocks, mockRegime);
+    expect(result).toContain("BNGO");
   });
 
-  it("news for NKLA → contains going-concern or Nikola headline", () => {
-    const result = answerQuestion("what's the latest on NKLA", mockStocks, mockRegime);
-    expect(result).toContain("NKLA");
+  it("news for PSNY → contains Polestar or going-concern headline", () => {
+    const result = answerQuestion("what's the latest on PSNY", mockStocks, mockRegime);
+    expect(result).toContain("PSNY");
   });
 
-  it("news for KO → contains Coca-Cola or organic revenue headline", () => {
-    const result = answerQuestion("news for KO", mockStocks, mockRegime);
-    expect(result).toContain("KO");
+  it("news for PEP → contains PepsiCo or Frito-Lay headline", () => {
+    const result = answerQuestion("news for PEP", mockStocks, mockRegime);
+    expect(result).toContain("PEP");
   });
 
-  it("news for MNMD → contains MindMed or FDA headline", () => {
-    const result = answerQuestion("what are the latest headlines for MNMD", mockStocks, mockRegime);
-    expect(result).toContain("MNMD");
+  it("news for SOUN → contains SoundHound or AI headline", () => {
+    const result = answerQuestion("what are the latest headlines for SOUN", mockStocks, mockRegime);
+    expect(result).toContain("SOUN");
   });
 
   it("news for JPM → contains JPMorgan headline", () => {
@@ -1263,14 +1285,14 @@ describe("answerQuestion — news intent correctness", () => {
 
 describe("answerQuestion — follow-up resolution with new universe tickers", () => {
   it.each([
-    ["PM", "tell me more about PM"],
-    ["KO", "elaborate on KO"],
+    ["MO", "tell me more about MO"],
+    ["PEP", "elaborate on PEP"],
     ["JPM", "more on JPM"],
-    ["ABBV", "more details on ABBV"],
-    ["TLRY", "tell me more about TLRY"],
-    ["NKLA", "more details on NKLA"],
-    ["MNMD", "elaborate on MNMD"],
-    ["BTBT", "more on BTBT"],
+    ["CVX", "more details on CVX"],
+    ["BNGO", "tell me more about BNGO"],
+    ["PSNY", "more details on PSNY"],
+    ["SOUN", "elaborate on SOUN"],
+    ["RGTI", "more on RGTI"],
   ])(
     "follow-up 'tell me more' with %s in history → response mentions %s",
     (ticker, followUp) => {
@@ -1303,7 +1325,7 @@ describe("answerQuestion — follow-up resolution with new universe tickers", ()
 // ═══════════════════════════════════════════════════════════════════════
 
 describe("generateTradeBrief — with real mockStocks tickers", () => {
-  it.each(["PM", "JPM", "ABBV", "EPD", "KO", "MNMD", "BTBT", "SIGA", "MMM", "TLRY"])(
+  it.each(["MO", "JPM", "CVX", "MDT", "PEP", "SOUN", "RGTI", "BHE", "MMM", "BNGO"])(
     "generateTradeBrief for %s → non-empty string with ticker",
     (ticker) => {
       const stock = mockStocks.find((s) => s.ticker === ticker)!;
@@ -1313,16 +1335,16 @@ describe("generateTradeBrief — with real mockStocks tickers", () => {
     },
   );
 
-  it("penny stock brief (NKLA) mentions short RSI context (RSI 24.8)", () => {
-    const nkla = mockStocks.find((s) => s.ticker === "NKLA")!;
-    const result = generateTradeBrief(nkla, mockRegime);
-    expect(result).toContain("NKLA");
-    expect(result).toContain("24");
+  it("penny stock brief (PSNY) mentions short RSI context (RSI 22.4)", () => {
+    const psny = mockStocks.find((s) => s.ticker === "PSNY")!;
+    const result = generateTradeBrief(psny, mockRegime);
+    expect(result).toContain("PSNY");
+    expect(result).toContain("22");
   });
 
-  it("high SI stock brief (WKHS 22.8%) contains short interest line", () => {
-    const wkhs = mockStocks.find((s) => s.ticker === "WKHS")!;
-    const result = generateTradeBrief(wkhs, mockRegime);
+  it("high SI stock brief (PSNY 32.6%) contains short interest line", () => {
+    const psny = mockStocks.find((s) => s.ticker === "PSNY")!;
+    const result = generateTradeBrief(psny, mockRegime);
     expect(result).toContain("Short interest");
   });
 
@@ -1331,6 +1353,11 @@ describe("generateTradeBrief — with real mockStocks tickers", () => {
     expect(mmm.volumeSpike).toBe(true);
     const result = generateTradeBrief(mmm, mockRegime);
     expect(result).toContain("Volume spike");
+  });
+
+  it("generateTradeBrief with undefined stock returns error message", () => {
+    const result = generateTradeBrief(undefined, mockRegime);
+    expect(result).toContain("No stock data");
   });
 });
 
@@ -1451,13 +1478,13 @@ describe("answerQuestion — edge cases and robustness", () => {
   );
 
   it("question with no history param returns non-empty string", () => {
-    const result = answerQuestion("tell me about PM", mockStocks, mockRegime, undefined);
-    expect(result).toContain("PM");
+    const result = answerQuestion("tell me about MO", mockStocks, mockRegime, undefined);
+    expect(result).toContain("MO");
   });
 
   it("question with empty history returns same as no history", () => {
-    const result1 = answerQuestion("tell me about PM", mockStocks, mockRegime);
-    const result2 = answerQuestion("tell me about PM", mockStocks, mockRegime, []);
+    const result1 = answerQuestion("tell me about MO", mockStocks, mockRegime);
+    const result2 = answerQuestion("tell me about MO", mockStocks, mockRegime, []);
     expect(result1).toBe(result2);
   });
 });
