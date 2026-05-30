@@ -1,4 +1,5 @@
-import { RefreshCw, User, Briefcase, LogOut } from "lucide-react";
+import { RefreshCw, User, Briefcase, LogOut, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
 import { RegimeData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -14,20 +15,67 @@ interface SyncBarProps {
 
 export function SyncBar({ regime, runId, ranAt, onRefresh, onAuthClick, onPositionsClick }: SyncBarProps) {
   const { user, signOut } = useAuth();
+  const [freshness, setFreshness] = useState<string>("");
+  const [freshnessColor, setFreshnessColor] = useState<string>("text-green-400");
+
+  // Update freshness display in real-time
+  useEffect(() => {
+    const updateFreshness = () => {
+      if (!ranAt) {
+        setFreshness("never");
+        setFreshnessColor("text-red-400");
+        return;
+      }
+
+      const now = Date.now();
+      const lastRunMs = new Date(ranAt).getTime();
+      const ageMs = now - lastRunMs;
+      const ageMinutes = Math.floor(ageMs / (60 * 1000));
+      const ageHours = Math.floor(ageMs / (60 * 60 * 1000));
+
+      if (ageMinutes < 1) {
+        setFreshness("just now");
+        setFreshnessColor("text-green-400");
+      } else if (ageMinutes < 15) {
+        setFreshness(`${ageMinutes}m ago`);
+        setFreshnessColor("text-green-400");
+      } else if (ageMinutes < 30) {
+        setFreshness(`${ageMinutes}m ago`);
+        setFreshnessColor("text-yellow-400");
+      } else if (ageHours < 2) {
+        setFreshness(`${ageHours}h ${ageMinutes % 60}m ago`);
+        setFreshnessColor("text-orange-400");
+      } else {
+        setFreshness(`${ageHours}h ago`);
+        setFreshnessColor("text-red-400");
+      }
+    };
+
+    updateFreshness();
+    const interval = setInterval(updateFreshness, 30000); // Update every 30 seconds
+    return () => clearInterval(interval);
+  }, [ranAt]);
+
   const regimeColor = regime.status === "BULLISH" ? "bg-long text-long-foreground regime-glow-bullish"
     : regime.status === "BEARISH" ? "bg-short text-short-foreground regime-glow-bearish"
     : "bg-muted text-muted-foreground";
 
   const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
-  const isStale = !ranAt || (Date.now() - new Date(ranAt).getTime()) > SIX_HOURS_MS;
+  const isVeryStale = !ranAt || (Date.now() - new Date(ranAt).getTime()) > SIX_HOURS_MS;
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm">
-      {isStale && (
-        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-1.5 text-center text-xs text-amber-400 font-medium">
-          ⚠ Market data is stale — last updated{" "}
-          {ranAt ? new Date(ranAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "never"}.
-          {" "}Re-enable the pipeline in GitHub Actions or trigger a manual run.
+      {isVeryStale && (
+        <div className="bg-red-500/15 border-b border-red-500/30 px-4 py-2 text-center text-xs text-red-400 font-medium flex items-center justify-center gap-2">
+          <AlertCircle className="w-4 h-4" />
+          <span>
+            🚨 Market data is severely stale (last updated {ranAt ? new Date(ranAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "never"}).
+            {" "}Pipeline may be failing. Check GitHub Actions or{" "}
+            <button onClick={onRefresh} className="underline hover:text-red-300 transition-colors">
+              refresh now
+            </button>
+            .
+          </span>
         </div>
       )}
       <div className="flex items-center justify-between px-4 py-2.5 gap-4">
@@ -40,6 +88,10 @@ export function SyncBar({ regime, runId, ranAt, onRefresh, onAuthClick, onPositi
         </div>
 
         <div className="hidden md:flex items-center gap-5 text-xs font-mono">
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">DATA</span>
+            <span className={cn("font-semibold", freshnessColor)}>{freshness}</span>
+          </div>
           <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground">SPY</span>
             <span className="text-foreground">${regime.spyPrice.toFixed(2)}</span>
