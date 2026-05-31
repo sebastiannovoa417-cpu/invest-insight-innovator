@@ -130,6 +130,7 @@ export function useScoreHistory() {
         return mockScoreHistory;
       }
     },
+    refetchInterval: 5 * 60 * 1000,
   });
 }
 

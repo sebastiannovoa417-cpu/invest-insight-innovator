@@ -31,7 +31,7 @@ import yfinance as yf
 from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
 
-from universe import UNIVERSE, TICKER_NAMES, TICKER_CATEGORIES
+from universe import UNIVERSE, TICKER_NAMES
 
 load_dotenv()
 
